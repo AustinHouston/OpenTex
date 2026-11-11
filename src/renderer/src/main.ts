@@ -66,7 +66,7 @@ const extensions = [...makeExtensions(
   },
   false,
   () => completion
-), commentField, commentClicks((id) => focusCard(id))]
+), commentField, commentClicks((id) => layout.isVisible('comments') && focusCard(id))]
 const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
 
@@ -655,7 +655,6 @@ function lineOf(t: Thread): number | null {
 function renderComments(): void {
   const open = store.filter((t) => !t.resolved).length
   $('comment-count').textContent = open ? String(open) : ''
-  $('btn-comment').innerHTML = $('btn-comment').innerHTML.replace(/<span class="count">.*?<\/span>/, '') + (open ? `<span class="count">${open}</span>` : '')
   if (!layout.isVisible('comments')) return
   const showResolved = ($('show-resolved') as HTMLInputElement).checked
   const list = $('comments-list')
@@ -1230,9 +1229,10 @@ async function ensurePackage(pkg: string): Promise<boolean> {
 }
 
 function updatePanelButtons(): void {
+  // Comment highlights show only while the Comments panel is open (adding a comment reopens it).
+  document.body.classList.toggle('comments-off', !layout.isVisible('comments'))
   $('btn-sidebar').classList.toggle('on', layout.isVisible('files'))
   $('btn-pdf').classList.toggle('on', layout.isVisible('pdf'))
-  $('btn-comment').classList.toggle('on', layout.isVisible('comments'))
 }
 
 function panelsMenu(): void {
@@ -1631,9 +1631,7 @@ function wire(): void {
   $('focus-exit').onclick = () => setFocus(false)
   $('btn-sidebar').onclick = actions['toggle-sidebar']
   $('btn-pdf').onclick = actions['toggle-pdf']
-  $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
-  $('btn-comment').onclick = () => layout.toggle('comments')
   ribbon = new Ribbon($('ribbon'), {
     run: (a) => (a === 'new-window' ? api.newWindow() : actions[a]?.()),
     recentMenu: async (x, y) => {

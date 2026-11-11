@@ -42,13 +42,15 @@ export class Ribbon {
   constructor(private root: HTMLElement, private host: RibbonHost) {
     this.tab = ((): string => {
       try {
-        return localStorage.getItem('ribbon-tab') || 'insert'
+        const t = localStorage.getItem('ribbon-tab') || 'insert'
+        return t === 'settings' ? 'insert' : t
       } catch {
         return 'insert'
       }
     })()
     root.querySelectorAll<HTMLButtonElement>('.rb-tab').forEach((t) => {
-      t.onclick = () => this.select(t.dataset.tab!, true)
+      // The Settings tab opens the Settings window, like the old gear button; it has no pane.
+      t.onclick = () => (t.dataset.tab === 'settings' ? this.host.run('settings') : this.select(t.dataset.tab!, true))
     })
     // Ribbon buttons shouldn't take the keyboard focus away from the editor.
     root.addEventListener('mousedown', (e) => {
@@ -98,7 +100,6 @@ export class Ribbon {
       </div><div class="rb-sep"></div>
       <div class="rb-group">
         ${btn('data-run="open-example"', ICON.example, 'Example Paper', 'A short paper that teaches LaTeX as you read it')}
-        ${btn('data-run="settings"', ICON.settings, 'Settings', 'Themes, fonts, compiling, focus mode')}
       </div>`
     el.querySelectorAll<HTMLButtonElement>('[data-run]').forEach((b) => (b.onclick = () => this.host.run(b.dataset.run!)))
     el.querySelector<HTMLButtonElement>('[data-recent]')!.onclick = (e) => {

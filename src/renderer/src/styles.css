@@ -417,3 +417,10 @@ body.ribbon-collapsed .rb-body { display: none; }
 .ot-mk-passive { text-decoration: underline dotted #8b5cf6 2px; text-underline-offset: 3px; }
 .ot-mk-hedge { text-decoration: underline wavy #14b8a6 1px; text-underline-offset: 3px; }
 .ot-mk-filler { text-decoration: underline dashed var(--muted) 1.5px; text-underline-offset: 3px; }
+
+/* Comments panel closed: hide the highlights in the text too. */
+body.comments-off .cm-ot-cmt { background: none; border-bottom: none; cursor: text; }
+body.comments-off .cm-ot-cpoint { display: none; }
+
+/* Top-right buttons */
+#btn-pdf .pdf-label { font: 700 10px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: 0.04em; border: 1.5px solid currentColor; border-radius: 4px; padding: 3px 3px 2px; }

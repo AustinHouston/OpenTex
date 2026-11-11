@@ -23,20 +23,14 @@
       <button class="primary" id="btn-compile" title="Compile (Ctrl/Cmd+Enter)">
         <svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg><span>Compile</span>
       </button>
-      <button class="icon" id="btn-panels" title="Show or hide panels, reset layout">
-        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="2.5" y1="12.5" x2="17.5" y2="12.5" /><line x1="7.5" y1="3.5" x2="7.5" y2="12.5" /></svg>
-      </button>
-      <button class="icon" id="btn-comment" title="Show or hide comments">
-        <svg viewBox="0 0 20 20"><path d="M3.5 4.5h13v9h-7l-4 3v-3h-2z" /></svg>
+      <button class="icon" id="btn-pdf" title="Show or hide the PDF (Ctrl/Cmd+Shift+P)">
+        <span class="pdf-label">PDF</span>
       </button>
       <button class="icon" id="btn-focus" title="Focus mode (Ctrl/Cmd+Shift+F)">
-        <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /></svg>
+        <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /><text x="10" y="14.6" text-anchor="middle" font-size="13" font-style="italic" font-weight="600" font-family="Georgia, 'Times New Roman', serif" fill="currentColor" stroke="none">f</text></svg>
       </button>
-      <button class="icon" id="btn-pdf" title="Show or hide the PDF (Ctrl/Cmd+Shift+P)">
-        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="12.5" y1="3.5" x2="12.5" y2="16.5" /></svg>
-      </button>
-      <button class="icon" id="btn-settings" title="Settings (Ctrl/Cmd+,)">
-        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6" /><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6" /></svg>
+      <button class="icon" id="btn-panels" title="Show or hide panels, reset layout">
+        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="2.5" y1="12.5" x2="17.5" y2="12.5" /><line x1="7.5" y1="3.5" x2="7.5" y2="12.5" /></svg>
       </button>
     </header>
 
@@ -46,6 +40,7 @@
         <button class="rb-tab" data-tab="insert" role="tab">Insert</button>
         <button class="rb-tab" data-tab="design" role="tab">Design</button>
         <button class="rb-tab" data-tab="plugins" role="tab">Plugins</button>
+        <button class="rb-tab" data-tab="settings" role="tab" title="Open Settings (Ctrl/Cmd+,)">Settings</button>
       </div>
       <div class="rb-body">
         <div class="rb-pane" data-pane="file"></div>

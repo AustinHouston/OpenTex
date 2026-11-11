@@ -4,6 +4,7 @@ import { dirname, join } from 'path'
 import { Engine, ProjectConfig, Settings } from '../shared/types'
 import { Project } from './project'
 import { cancelCompile, compile, detectTex } from './tex'
+import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
 
 let win: BrowserWindow | null = null
@@ -79,11 +80,20 @@ function buildMenu(): void {
       ]
     },
     {
+      label: 'Review',
+      submenu: [
+        { label: 'Add Comment', accelerator: 'CmdOrCtrl+Shift+M', click: () => send('add-comment') },
+        { label: 'Show Comments', click: () => send('show-comments') }
+      ]
+    },
+    {
       label: 'Build',
       submenu: [
         { label: 'Compile', accelerator: 'CmdOrCtrl+Return', click: () => send('compile') },
         { label: 'Stop Compile', click: () => cancelCompile() },
-        { label: 'Show Log', accelerator: 'CmdOrCtrl+Shift+L', click: () => send('show-log') }
+        { label: 'Show Log', accelerator: 'CmdOrCtrl+Shift+L', click: () => send('show-log') },
+        { type: 'separator' },
+        { label: 'Install TinyTeX…', click: () => send('install-tinytex') }
       ]
     },
     {
@@ -160,6 +170,14 @@ function registerIpc(): void {
     return compile(need().root, mainFile, engine, tex, s.useLatexmk)
   })
   ipcMain.handle('tex:cancel', () => cancelCompile())
+
+  const progress = (line: string): void => win?.webContents.send('tex:progress', line)
+  ipcMain.handle('tinytex:install', () => installTinyTex(progress))
+  ipcMain.handle('tex:canInstallPackages', async () => isTinyTex(detectTex((await loadSettings()).texPath).binDir))
+  ipcMain.handle('tex:installMissing', async (_e, files: string[]) => {
+    const tex = detectTex((await loadSettings()).texPath)
+    return tex.binDir ? installMissing(tex.binDir, files, progress) : false
+  })
 }
 
 app.whenReady().then(() => {

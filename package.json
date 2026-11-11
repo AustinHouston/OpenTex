@@ -49,12 +49,21 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false
+      "perMachine": false,
+      "artifactName": "OpenTex-Setup-${version}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ]
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "draft"
+    },
+    "artifactName": "OpenTex-${version}-${os}-${arch}.${ext}",
+    "dmg": {
+      "title": "OpenTex"
     }
   },
   "devDependencies": {

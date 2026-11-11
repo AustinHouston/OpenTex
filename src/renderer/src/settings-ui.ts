@@ -24,7 +24,7 @@ export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Ap
       <label>Compile on save</label><input type="checkbox" name="compileOnSave" />
       <label>Use latexmk</label><input type="checkbox" name="useLatexmk" />
       <label>TeX folder</label><input type="text" name="texPath" placeholder="Auto-detect" />
-      <span></span><span class="note" data-tex>${tex.found ? `Found: ${tex.binDir}` : 'No TeX installation found.'}</span>
+      <span></span><span class="note" data-tex>${tex.found ? `Found: ${tex.binDir}` : 'No TeX installation found. Use Build → Install TinyTeX… to get one.'}</span>
       <h3>Comments</h3>
       <label>Your name</label><input type="text" name="authorName" placeholder="Shown on comments you add" />
       <h3>Advanced</h3>

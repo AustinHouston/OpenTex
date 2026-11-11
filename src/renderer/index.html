@@ -23,6 +23,9 @@
       <button class="primary" id="btn-compile" title="Compile (Ctrl/Cmd+Enter)">
         <svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg><span>Compile</span>
       </button>
+      <button class="icon" id="btn-comment" title="Add comment on this line (Ctrl/Cmd+Shift+M)">
+        <svg viewBox="0 0 20 20"><path d="M3.5 4.5h13v9h-7l-4 3v-3h-2z" /></svg>
+      </button>
       <button class="icon" id="btn-focus" title="Focus mode (Ctrl/Cmd+Shift+F)">
         <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /></svg>
       </button>
@@ -36,13 +39,19 @@
 
     <div class="main">
       <aside class="sidebar" id="sidebar">
-        <div class="pane-head">
-          <span>Files</span>
+        <div class="pane-head side-tabs">
+          <button class="side-tab on" data-side="files">Files</button>
+          <button class="side-tab" data-side="comments">Comments <span id="comment-count"></span></button>
+          <span class="spacer"></span>
           <button class="icon small" id="btn-new-file" title="New file (Ctrl/Cmd+N)">
             <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg>
           </button>
         </div>
         <div id="tree" class="tree"></div>
+        <div id="comments" class="comments hidden">
+          <label class="show-resolved"><input type="checkbox" id="show-resolved" /> Show resolved</label>
+          <div id="comments-list"></div>
+        </div>
       </aside>
       <div class="splitter" data-target="sidebar"></div>
 

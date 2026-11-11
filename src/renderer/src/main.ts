@@ -9,6 +9,7 @@ import { PdfView } from './pdfview'
 import { openSettings } from './settings-ui'
 import { applyTheme, BUILT_IN } from './themes'
 import { ask, contextMenu, promptText } from './ui'
+import { CommentThread, commentHighlight, entryLine, parseComments } from './comments'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -35,7 +36,7 @@ let lastPdf: string | null = null
 let lastPdfLoad = 0
 let focusOn = false
 
-const extensions = makeExtensions(
+const extensions = [...makeExtensions(
   {
     onChange: () => {
       const f = active && files.get(active)
@@ -43,11 +44,12 @@ const extensions = makeExtensions(
         f.dirty = true
         renderTabs()
       }
+      scheduleComments()
     },
     onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`)
   },
   false
-)
+), commentHighlight]
 const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
 
@@ -96,6 +98,7 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   $('welcome').classList.add('hidden')
   ;($('engine') as HTMLSelectElement).value = info.config.engine ?? settings.engine
   refreshProjectUi()
+  scheduleComments()
   if (info.mainFile) {
     await openFile(info.mainFile)
     const pdfPath = info.mainFile.replace(/\.tex$/i, '.pdf')
@@ -280,6 +283,7 @@ async function onDiskChange(paths: string[]): Promise<void> {
       setCompileStatus(`${p} changed on disk; your unsaved edits are kept`, 'warn')
     }
   }
+  if (paths.some((p) => p.endsWith('.tex'))) scheduleComments()
   if (lastPdf && paths.includes(lastPdf) && !compiling && Date.now() - lastPdfLoad > 2000) showPdf(lastPdf)
 }
 
@@ -328,6 +332,7 @@ async function compile(): Promise<void> {
   showProblems(r.problems, errors > 0)
   if (r.pdf) await showPdf(r.pdf)
   finishCompile()
+  if (r.missingFiles.length) offerMissing(r.missingFiles)
 }
 
 function finishCompile(): void {
@@ -448,6 +453,196 @@ function setupSplitters(): void {
   })
 }
 
+// ---------- TinyTeX ----------
+/** Run a long task while showing its output in a dialog. */
+async function withProgress(title: string, task: () => Promise<boolean>): Promise<boolean> {
+  const d = $<HTMLDialogElement>('modal')
+  d.innerHTML = `<div class="modal-body"><p><b></b></p></div><pre class="progress-log"></pre><div class="modal-actions"><button class="primary" disabled>Working…</button></div>`
+  d.querySelector('b')!.textContent = title
+  const logEl = d.querySelector('pre')!
+  progressSink = (line) => {
+    logEl.textContent += line + '\n'
+    logEl.scrollTop = logEl.scrollHeight
+  }
+  d.addEventListener('cancel', (e) => e.preventDefault(), { once: true }) // Esc can't hide a running install
+  d.showModal()
+  const ok = await task().catch(() => false)
+  progressSink = null
+  const btn = d.querySelector('button')!
+  btn.disabled = false
+  btn.textContent = ok ? 'Done' : 'Close'
+  await new Promise<void>((r) => (btn.onclick = () => (d.close(), r())))
+  return ok
+}
+let progressSink: ((line: string) => void) | null = null
+
+async function installTinyTex(): Promise<void> {
+  const r = await ask(
+    'TinyTeX is a small (about 100 MB), standard TeX installation. OpenTex will download it from the TinyTeX project on GitHub and install it in your user folder. No administrator password is needed.',
+    ['Install TinyTeX', 'Cancel']
+  )
+  if (r !== 0) return
+  const ok = await withProgress('Installing TinyTeX', () => api.installTinyTex())
+  await refreshTex()
+  if (ok && tex.found) setCompileStatus('TinyTeX installed. Missing packages are offered when a paper needs them.', 'ok')
+}
+
+async function offerMissing(missing: string[]): Promise<void> {
+  if (!(await api.canInstallPackages())) {
+    await ask(
+      `Your TeX installation is missing ${missing.join(', ')}. Install the package that provides it with your TeX distribution's package manager (TeX Live Utility on macOS, MiKTeX Console on Windows), then compile again.`,
+      ['OK']
+    )
+    return
+  }
+  const r = await ask(`This paper needs ${missing.join(', ')}, which isn't installed. Install it now?`, ['Install', 'Not now'])
+  if (r !== 0) return
+  if (await withProgress('Installing missing packages', () => api.installMissing(missing))) compile()
+}
+
+// ---------- Comments ----------
+let commentsTimer = 0
+let sidePane: 'files' | 'comments' = 'files'
+function scheduleComments(): void {
+  clearTimeout(commentsTimer)
+  commentsTimer = window.setTimeout(renderComments, 400)
+}
+
+function textOf(path: string): string | null {
+  if (path === active) return view.state.doc.toString()
+  return files.get(path)?.state.doc.toString() ?? null
+}
+
+async function allThreads(): Promise<CommentThread[]> {
+  if (!project) return []
+  const out: CommentThread[] = []
+  for (const f of allFiles(project.tree, (p) => p.endsWith('.tex'))) {
+    const text = textOf(f) ?? (await api.readFile(f).catch(() => ''))
+    if (text.includes('%@')) out.push(...parseComments(text, f))
+  }
+  return out
+}
+
+async function renderComments(): Promise<void> {
+  const threads = await allThreads()
+  const open = threads.filter((t) => !t.resolved).length
+  $('comment-count').textContent = open ? String(open) : ''
+  if (sidePane !== 'comments') return
+  const showResolved = ($('show-resolved') as HTMLInputElement).checked
+  const list = $('comments-list')
+  const shown = threads.filter((t) => showResolved || !t.resolved)
+  if (!shown.length) {
+    list.innerHTML = `<div class="c-empty">${threads.length ? 'No open comments.' : 'No comments yet. Put the cursor on a line and press the comment button (or Ctrl/Cmd+Shift+M).'}</div>`
+    return
+  }
+  list.replaceChildren(
+    ...shown.map((t) => {
+      const card = document.createElement('div')
+      card.className = `c-card${t.resolved ? ' resolved' : ''}`
+      const entry = (e: { author: string; date: string; text: string }, cls = ''): HTMLElement => {
+        const d = document.createElement('div')
+        d.className = cls
+        d.innerHTML = `<div class="c-meta"><b></b><span></span></div><div class="c-text"></div>`
+        d.querySelector('b')!.textContent = e.author || 'Anonymous'
+        d.querySelector('.c-meta span')!.textContent = e.date
+        d.querySelector('.c-text')!.textContent = e.text
+        return d
+      }
+      card.appendChild(entry(t))
+      t.replies.forEach((r) => card.appendChild(entry(r, 'c-reply')))
+      const ctx = document.createElement('div')
+      ctx.className = 'c-ctx'
+      ctx.textContent = `${t.file}:${t.endLine + 1}  ${t.context}`
+      card.appendChild(ctx)
+      const actions = document.createElement('div')
+      actions.className = 'c-actions'
+      const btn = (label: string, fn: () => void): void => {
+        const b = document.createElement('button')
+        b.textContent = label
+        b.onclick = (e) => {
+          e.stopPropagation()
+          fn()
+        }
+        actions.appendChild(b)
+      }
+      btn('Reply', () => commentAction(t, 'reply'))
+      btn(t.resolved ? 'Reopen' : 'Resolve', () => commentAction(t, t.resolved ? 'reopen' : 'resolve'))
+      btn('Delete', () => commentAction(t, 'delete'))
+      card.appendChild(actions)
+      card.onclick = async () => {
+        await openFile(t.file)
+        goToLine(view, t.endLine + 1)
+      }
+      return card
+    })
+  )
+}
+
+async function authorName(): Promise<string | null> {
+  if (settings.authorName) return settings.authorName
+  const name = await promptText('Your name, shown on comments you write:', '')
+  if (name) await updateSettings({ authorName: name })
+  return name
+}
+
+async function addComment(): Promise<void> {
+  if (!active || !active.endsWith('.tex')) {
+    await ask('Open a .tex file and put the cursor on the line you want to comment on.', ['OK'])
+    return
+  }
+  const name = await authorName()
+  if (!name) return
+  const text = await promptText('Comment:')
+  if (!text) return
+  const line = view.state.doc.lineAt(view.state.selection.main.head)
+  const indent = line.text.match(/^\s*/)![0]
+  view.dispatch({ changes: { from: line.from, insert: entryLine('comment', name, text, indent) + '\n' } })
+  showSide('comments')
+}
+
+/** Edit a thread in the editor (so it can be undone), after re-finding it in the current text. */
+async function commentAction(t: CommentThread, kind: 'reply' | 'resolve' | 'reopen' | 'delete'): Promise<void> {
+  let reply = ''
+  let name = ''
+  if (kind === 'reply') {
+    name = (await authorName()) ?? ''
+    if (!name) return
+    reply = (await promptText('Reply:')) ?? ''
+    if (!reply) return
+  }
+  if (kind === 'delete' && (await ask('Delete this comment thread?', ['Delete', 'Cancel'])) !== 0) return
+  await openFile(t.file)
+  const cur = parseComments(view.state.doc.toString(), t.file).find((x) => x.line === t.line && x.text === t.text)
+  if (!cur) {
+    scheduleComments()
+    return
+  }
+  const doc = view.state.doc
+  const end = doc.line(cur.endLine)
+  if (kind === 'reply') {
+    // Replies go before the resolved marker, if any.
+    const at = cur.resolved ? doc.line(cur.endLine - 1).to : end.to
+    view.dispatch({ changes: { from: at, insert: '\n' + entryLine('reply', name, reply, cur.indent) } })
+  } else if (kind === 'resolve') {
+    view.dispatch({ changes: { from: end.to, insert: `\n${cur.indent}%@resolved` } })
+  } else if (kind === 'reopen') {
+    view.dispatch({ changes: { from: doc.line(cur.endLine - 1).to, to: end.to } })
+  } else {
+    const start = doc.line(cur.line).from
+    view.dispatch({ changes: { from: start, to: Math.min(end.to + 1, doc.length) } })
+  }
+  scheduleComments()
+}
+
+function showSide(pane: 'files' | 'comments'): void {
+  sidePane = pane
+  document.body.classList.remove('no-sidebar')
+  document.querySelectorAll<HTMLElement>('.side-tab').forEach((b) => b.classList.toggle('on', b.dataset.side === pane))
+  $('tree').classList.toggle('hidden', pane !== 'files')
+  $('comments').classList.toggle('hidden', pane !== 'comments')
+  renderComments()
+}
+
 // ---------- Wiring ----------
 async function chooseFolder(): Promise<void> {
   await setProject(await api.chooseProject())
@@ -463,6 +658,9 @@ const actions: Record<string, () => unknown> = {
   'toggle-sidebar': () => document.body.classList.toggle('no-sidebar'),
   'toggle-pdf': () => document.body.classList.toggle('no-pdf'),
   compile: () => compile(),
+  'add-comment': () => addComment(),
+  'install-tinytex': () => installTinyTex(),
+  'show-comments': () => showSide('comments'),
   'show-log': () => {
     $('log-text').textContent = lastLog || 'No compile yet.'
     ;($('log-dialog') as HTMLDialogElement).showModal()
@@ -471,6 +669,7 @@ const actions: Record<string, () => unknown> = {
 
 function wire(): void {
   api.on('menu', (a: string) => actions[a]?.())
+  api.on('tex:progress', (line: string) => progressSink?.(line))
   api.on('project:changed', (paths: string[]) => onDiskChange(paths))
   api.on('app:before-close', async () => {
     if (await confirmDiscardAll()) api.closeOk()
@@ -483,6 +682,9 @@ function wire(): void {
   $('btn-pdf').onclick = actions['toggle-pdf']
   $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
+  $('btn-comment').onclick = () => addComment()
+  $('show-resolved').onchange = () => renderComments()
+  document.querySelectorAll<HTMLElement>('.side-tab').forEach((b) => (b.onclick = () => showSide(b.dataset.side as 'files' | 'comments')))
   $('btn-log').onclick = actions['show-log']
   $('btn-problems-close').onclick = () => $('problems').classList.add('hidden')
   $('st-compile').onclick = () => problems.length && $('problems').classList.toggle('hidden')
@@ -503,6 +705,15 @@ async function init(): Promise<void> {
   applySettings()
   wire()
   await refreshTex()
+  if (!tex.found) {
+    const r = await ask('OpenTex needs a TeX installation to turn your .tex files into PDFs, and none was found on this computer.', [
+      'Install TinyTeX (recommended)',
+      'I have TeX: choose its folder',
+      'Not now'
+    ])
+    if (r === 0) await installTinyTex()
+    if (r === 1) openSettings(settings, themes, tex, api, updateSettings)
+  }
   if (settings.lastProject) await setProject(await api.openProject(settings.lastProject))
 }
 

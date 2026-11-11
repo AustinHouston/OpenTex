@@ -137,3 +137,35 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 /* Context menu */
 .ctx-menu { position: fixed; z-index: 20; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); min-width: 180px; }
 .ctx-menu button { display: block; width: 100%; text-align: left; }
+
+/* Sidebar tabs */
+.side-tabs { gap: 2px; padding-left: 6px; }
+.side-tab { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 3px 6px; }
+.side-tab.on { color: var(--text); background: var(--panelAlt); }
+#comment-count { color: var(--accent); }
+
+/* Comments in the editor */
+.cm-line.ot-c-line { background: color-mix(in srgb, var(--accent) 10%, transparent); border-left: 3px solid var(--accent); font-style: normal; }
+.cm-line.ot-c-line, .cm-line.ot-c-line span { color: var(--text) !important; font-style: normal !important; }
+.cm-line.ot-c-first { border-top-right-radius: 6px; }
+.cm-line.ot-c-last { border-bottom-right-radius: 6px; margin-bottom: 2px; }
+.cm-line.ot-c-resolved { opacity: 0.5; border-left-color: var(--muted); background: transparent; }
+.ot-c-head, .ot-c-head span { color: var(--accent) !important; font-size: 0.85em; font-weight: 600; }
+.cm-line.ot-c-target { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* Comments panel */
+.comments { flex: 1; overflow: auto; padding: 0 8px 12px; }
+.show-resolved { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); padding: 2px 4px 8px; }
+.c-card { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; font-size: 12px; }
+.c-card.resolved { opacity: 0.6; border-left-color: var(--muted); }
+.c-card .c-meta { color: var(--muted); font-size: 11px; display: flex; gap: 6px; }
+.c-card .c-meta b { color: var(--text); font-weight: 600; }
+.c-card .c-text { margin: 3px 0 4px; white-space: pre-wrap; }
+.c-card .c-reply { border-left: 2px solid var(--border); padding-left: 8px; margin: 6px 0 0 2px; }
+.c-card .c-ctx { color: var(--muted); font-family: var(--editor-font); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+.c-card .c-actions { display: flex; gap: 2px; margin-top: 6px; }
+.c-card .c-actions button { font-size: 11px; padding: 1px 6px; color: var(--accent); }
+.c-empty { color: var(--muted); font-size: 12px; padding: 8px 4px; line-height: 1.5; }
+
+/* Progress dialog */
+.progress-log { margin: 0 16px; height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: 11px/1.4 var(--editor-font); white-space: pre-wrap; }

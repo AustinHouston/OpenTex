@@ -20,8 +20,11 @@ const api = {
   detectTex: () => ipcRenderer.invoke('tex:detect'),
   compile: (mainFile: string, engine: string) => ipcRenderer.invoke('tex:compile', mainFile, engine),
   cancelCompile: () => ipcRenderer.invoke('tex:cancel'),
+  installTinyTex: () => ipcRenderer.invoke('tinytex:install'),
+  canInstallPackages: () => ipcRenderer.invoke('tex:canInstallPackages'),
+  installMissing: (files: string[]) => ipcRenderer.invoke('tex:installMissing', files),
   closeOk: () => ipcRenderer.send('app:close-ok'),
-  on: (channel: 'menu' | 'project:changed' | 'app:before-close', fn: (...args: any[]) => void) => {
+  on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress', fn: (...args: any[]) => void) => {
     ipcRenderer.on(channel, (_e, ...args) => fn(...args))
   }
 }

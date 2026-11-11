@@ -25,6 +25,8 @@ function candidateDirs(): string[] {
     const appData = process.env.APPDATA ?? join(home, 'AppData/Roaming')
     const local = process.env.LOCALAPPDATA ?? join(home, 'AppData/Local')
     dirs.push(join(appData, 'TinyTeX/bin/windows'), join(appData, 'TinyTeX/bin/win32'))
+    const progData = process.env.ProgramData ?? 'C:\\ProgramData'
+    dirs.push(join(progData, 'TinyTeX/bin/windows'))
     dirs.push(join(local, 'Programs/MiKTeX/miktex/bin/x64'), 'C:\\Program Files\\MiKTeX\\miktex\\bin\\x64')
     withYears('C:\\texlive', 'bin\\windows')
     withYears('C:\\texlive', 'bin\\win32')

@@ -37,24 +37,38 @@ jobs:
               dist/OpenTex-windows-portable.zip
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npx electron-vite build
-      - run: npx electron-builder ${{ matrix.target }} --publish never
+      - name: Build the downloads
+        shell: bash
+        # Signing variables are only set when the secrets exist: electron-builder treats an empty
+        # CSC_LINK as a file path and fails.
         env:
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.CSC_KEY_PASSWORD || '' }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-      - uses: actions/upload-artifact@v4
+          S_CSC_LINK: ${{ secrets.CSC_LINK }}
+          S_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          S_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          S_WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          S_WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ] && [ -n "$S_CSC_LINK" ]; then
+            export CSC_LINK="$S_CSC_LINK" CSC_KEY_PASSWORD="$S_CSC_KEY_PASSWORD"
+          fi
+          if [ -n "$S_APPLE_ID" ]; then
+            export APPLE_ID="$S_APPLE_ID" APPLE_APP_SPECIFIC_PASSWORD="$S_APPLE_APP_SPECIFIC_PASSWORD" APPLE_TEAM_ID="$S_APPLE_TEAM_ID"
+          fi
+          if [ -n "$S_WIN_CSC_LINK" ]; then
+            export WIN_CSC_LINK="$S_WIN_CSC_LINK" WIN_CSC_KEY_PASSWORD="$S_WIN_CSC_KEY_PASSWORD"
+          fi
+          npx electron-builder ${{ matrix.target }} --publish never
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.os }}
           path: ${{ matrix.files }}
@@ -65,8 +79,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
         with:
           path: out
           merge-multiple: true

@@ -3,7 +3,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import type { CompileResult, Engine, Problem, ProjectInfo, Settings, TexInfo, Theme, TreeNode } from '../../shared/types'
 import type { OpenTexApi } from '../../preload/index'
-import { dimCompartment, dimExtension, goToLine, makeExtensions } from './editor'
+import { dimCompartment, dimExtension, goToLine, makeExtensions, PluginMark, setPluginMarks } from './editor'
 import { allFiles, isTextFile, renderTree } from './filetree'
 import { PdfView } from './pdfview'
 import { openSettings } from './settings-ui'
@@ -58,6 +58,7 @@ const extensions = [...makeExtensions(
       scheduleComments()
       scheduleLiveCompile()
       scheduleWords()
+      scheduleDocument()
     },
     onTyped: (n) => noteTyping(n),
     onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
@@ -216,6 +217,7 @@ function switchTo(path: string): void {
   view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
   hideBubble()
   updateWords()
+  scheduleDocument(50)
   renderTabs()
   refreshProjectUi()
   view.focus()
@@ -1070,6 +1072,15 @@ function noteTyping(n: number): void {
     typedSince = 0
   }, 250)
 }
+// Document text for plugins with the 'document' permission (e.g. Readability). Versioned so a
+// highlight computed for older text is ignored rather than drawn in the wrong place.
+let docVersion = 0
+let docTimer = 0
+function scheduleDocument(delay = 800): void {
+  docVersion++
+  clearTimeout(docTimer)
+  docTimer = window.setTimeout(() => plugins?.broadcastDocument(), delay)
+}
 let allPlugins: PluginInfo[] = []
 // ---------- Panels ----------
 let layoutSaveTimer = 0
@@ -1082,6 +1093,19 @@ const plugins = new PluginPanels(layout, {
   storageGet: (id) => api.pluginStorageGet(id),
   storageSet: (id, k, v) => api.pluginStorageSet(id, k, v),
   theme: () => currentTheme(),
+  document: () => (active && /\.tex$/i.test(active) ? { file: active, text: view.state.doc.toString(), version: docVersion } : null),
+  highlight: (file, version, marks) => {
+    if (file !== active || version !== docVersion) return
+    view.dispatch({ effects: setPluginMarks.of(marks as PluginMark[]) })
+  },
+  goTo: async (file, from, to) => {
+    if (file !== active) await openFile(file)
+    const len = view.state.doc.length
+    const a = Math.max(0, Math.min(from, len))
+    const b = Math.max(a, Math.min(to, len))
+    view.dispatch({ selection: { anchor: a, head: b }, effects: EditorView.scrollIntoView(a, { y: 'center' }) })
+    view.focus()
+  },
   context: () => ({ project: project?.name ?? null, file: active, words: Number(($('st-words').textContent ?? '').replace(/[^0-9]/g, '').slice(0, 9)) || 0 })
 })
 

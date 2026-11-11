@@ -1,4 +1,4 @@
-import { Compartment, EditorState, Extension, RangeSetBuilder } from '@codemirror/state'
+import { Compartment, EditorState, Extension, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import {
   Decoration, DecorationSet, drawSelection, dropCursor, EditorView,
   highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers, rectangularSelection,
@@ -93,6 +93,33 @@ const dimPlugin = ViewPlugin.fromClass(
 )
 export const dimExtension = (on: boolean): Extension => (on ? dimPlugin : [])
 
+/** Highlights a plugin asked for (sentence tints, style-flag underlines). Kept per file and moved along with edits. */
+export interface PluginMark {
+  from: number
+  to: number
+  kind: string
+  title?: string
+}
+const MARK_KINDS = new Set(['dense', 'dense2', 'simple', 'simple2', 'passive', 'hedge', 'filler', 'focus'])
+export const setPluginMarks = StateEffect.define<PluginMark[]>()
+export const pluginMarks = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes)
+    for (const e of tr.effects) {
+      if (!e.is(setPluginMarks)) continue
+      const len = tr.state.doc.length
+      const ranges = e.value
+        .filter((m) => MARK_KINDS.has(m.kind) && m.from >= 0 && m.to <= len && m.from < m.to)
+        .slice(0, 5000)
+        .map((m) => Decoration.mark({ class: `ot-mk ot-mk-${m.kind}`, attributes: m.title ? { title: String(m.title).slice(0, 300) } : {} }).range(m.from, m.to))
+      deco = Decoration.set(ranges, true)
+    }
+    return deco
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
+
 export interface EditorHooks {
   onChange: () => void
   onCursor: (line: number, col: number) => void
@@ -114,6 +141,7 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: (
     closeBrackets(),
     rectangularSelection(),
     activeLine,
+    pluginMarks,
     highlightSelectionMatches(),
     search({ top: true }),
     EditorView.lineWrapping,

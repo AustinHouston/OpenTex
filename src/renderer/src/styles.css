@@ -407,3 +407,13 @@ body.ribbon-collapsed .rb-body { display: none; }
 .ins-syms { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 3px; }
 .ins-sym { height: 30px; padding: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; font-family: 'Times New Roman', 'STIX Two Math', 'Cambria Math', serif; font-size: 17px; }
 .ins-sym:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
+
+/* Plugin highlights (see editor.ts pluginMarks). Blue = simpler than the target band, amber = denser. */
+.ot-mk-simple { background: color-mix(in srgb, #3b82f6 13%, transparent); }
+.ot-mk-simple2 { background: color-mix(in srgb, #3b82f6 26%, transparent); }
+.ot-mk-dense { background: color-mix(in srgb, #f59e0b 15%, transparent); }
+.ot-mk-dense2 { background: color-mix(in srgb, #f59e0b 30%, transparent); }
+.ot-mk-focus { outline: 2px solid var(--accent); border-radius: 2px; }
+.ot-mk-passive { text-decoration: underline dotted #8b5cf6 2px; text-underline-offset: 3px; }
+.ot-mk-hedge { text-decoration: underline wavy #14b8a6 1px; text-underline-offset: 3px; }
+.ot-mk-filler { text-decoration: underline dashed var(--muted) 1.5px; text-underline-offset: 3px; }

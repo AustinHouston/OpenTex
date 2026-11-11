@@ -25,7 +25,7 @@ export async function listPlugins(): Promise<PluginInfo[]> {
         const id = String(meta.id || name).replace(/[^a-z0-9-]/gi, '-').toLowerCase()
         if (dirs.has(id)) continue
         dirs.set(id, dir)
-        out.push({ id, name: meta.name || name, description: meta.description || '', version: meta.version || '', panel: meta.panel || 'index.html', icon: meta.icon || '', builtIn })
+        out.push({ id, name: meta.name || name, description: meta.description || '', version: meta.version || '', panel: meta.panel || 'index.html', icon: meta.icon || '', permissions: Array.isArray(meta.permissions) ? meta.permissions.map(String) : [], builtIn })
       } catch {
         /* not a plugin folder */
       }

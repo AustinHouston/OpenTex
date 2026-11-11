@@ -8,12 +8,18 @@
 //   OpenTex.storage.get(key)     Promise of a saved value (kept between sessions)
 //   OpenTex.storage.set(key, v)  save a JSON-serializable value
 //   OpenTex.notify(title, body)  show a system notification
+// With "permissions": ["document"] in plugin.json:
+//   OpenTex.onDocument(fn)       { file, text, version } of the open .tex file (or null), after edits and tab switches
+//   OpenTex.highlight(doc, marks) draw marks [{ from, to, kind, title }] on that document; kind is one of
+//                                simple, simple2, dense, dense2, passive, hedge, filler, focus. [] clears them.
+//   OpenTex.goTo(file, from, to) select a range in the editor and scroll to it
 ;(function () {
   let nextId = 1
   const waiting = new Map()
   const themeFns = []
   const contextFns = []
   const activityFns = []
+  const documentFns = []
   let theme = null
   let context = null
   const post = (msg) => parent.postMessage({ __opentex: true, ...msg }, '*')
@@ -33,6 +39,8 @@
       contextFns.forEach((f) => f(context))
     } else if (m.type === 'activity') {
       activityFns.forEach((f) => f({ chars: m.chars, at: m.at }))
+    } else if (m.type === 'document') {
+      documentFns.forEach((f) => f(m.document))
     } else if (m.type === 'reply' && waiting.has(m.id)) {
       waiting.get(m.id)(m.value)
       waiting.delete(m.id)
@@ -62,7 +70,13 @@
       get: (key) => request({ type: 'storage:get', key }),
       set: (key, value) => post({ type: 'storage:set', key, value })
     },
-    notify: (title, body) => post({ type: 'notify', title, body })
+    notify: (title, body) => post({ type: 'notify', title, body }),
+    onDocument(fn) {
+      if (!documentFns.length) post({ type: 'document:subscribe' })
+      documentFns.push(fn)
+    },
+    highlight: (doc, marks) => doc && post({ type: 'highlight', file: doc.file, version: doc.version, marks }),
+    goTo: (file, from, to) => post({ type: 'goto', file, from, to })
   }
   post({ type: 'ready' })
 })()

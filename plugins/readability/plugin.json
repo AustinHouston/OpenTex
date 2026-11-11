@@ -1,0 +1,9 @@
+{
+  "id": "readability",
+  "name": "Readability",
+  "description": "Measures how information-dense your writing is (lexical density, diversity, grade level, sentence length, nominalizations) against a target for your kind of paper, tints sentences that are simpler or denser than the target, and underlines passive voice, hedges and filler.",
+  "version": "1.0.0",
+  "panel": "index.html",
+  "icon": "📊",
+  "permissions": ["document"]
+}

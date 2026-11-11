@@ -100,6 +100,8 @@ export interface PluginInfo {
   version: string
   panel: string
   icon: string
+  /** Extra access the plugin asks for, e.g. 'document' to read the open file and highlight it. */
+  permissions: string[]
   builtIn: boolean
 }
 

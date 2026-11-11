@@ -1,0 +1,14 @@
+{
+  "name": "Sepia",
+  "dark": false,
+  "colors": {
+    "bg": "#f8f1e3", "panel": "#efe6d3", "panelAlt": "#e5d9c1", "border": "#d8cbb0",
+    "text": "#433422", "muted": "#8a7556", "accent": "#a0522d", "accentText": "#fff8ee",
+    "selection": "#e8d3a9", "cursor": "#433422", "activeLine": "#f2e8d4",
+    "error": "#b3261e", "warning": "#8a5a00", "pdfBg": "#e2d6bd"
+  },
+  "syntax": {
+    "command": "#8b3a62", "math": "#3d6b3a", "env": "#2a5d8a",
+    "comment": "#a8957a", "bracket": "#a0522d", "number": "#2a5d8a"
+  }
+}

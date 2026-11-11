@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' ws: data: blob:"
+    />
+    <title>OpenTex</title>
+  </head>
+  <body>
+    <header class="toolbar">
+      <button class="icon" id="btn-sidebar" title="Toggle sidebar (Ctrl/Cmd+B)">
+        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="7.5" y1="3.5" x2="7.5" y2="16.5" /></svg>
+      </button>
+      <span id="project-name" class="project-name">OpenTex</span>
+      <span class="spacer"></span>
+      <select id="engine" title="TeX engine for this project">
+        <option value="pdflatex">pdfLaTeX</option>
+        <option value="xelatex">XeLaTeX</option>
+        <option value="lualatex">LuaLaTeX</option>
+      </select>
+      <button class="primary" id="btn-compile" title="Compile (Ctrl/Cmd+Enter)">
+        <svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg><span>Compile</span>
+      </button>
+      <button class="icon" id="btn-focus" title="Focus mode (Ctrl/Cmd+Shift+F)">
+        <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /></svg>
+      </button>
+      <button class="icon" id="btn-pdf" title="Toggle PDF (Ctrl/Cmd+Shift+P)">
+        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="12.5" y1="3.5" x2="12.5" y2="16.5" /></svg>
+      </button>
+      <button class="icon" id="btn-settings" title="Settings (Ctrl/Cmd+,)">
+        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6" /><path d="M10 2.5v2.2M10 15.3v2.2M2.5 10h2.2M15.3 10h2.2M4.7 4.7l1.6 1.6M13.7 13.7l1.6 1.6M4.7 15.3l1.6-1.6M13.7 6.3l1.6-1.6" /></svg>
+      </button>
+    </header>
+
+    <div class="main">
+      <aside class="sidebar" id="sidebar">
+        <div class="pane-head">
+          <span>Files</span>
+          <button class="icon small" id="btn-new-file" title="New file (Ctrl/Cmd+N)">
+            <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg>
+          </button>
+        </div>
+        <div id="tree" class="tree"></div>
+      </aside>
+      <div class="splitter" data-target="sidebar"></div>
+
+      <section class="editor-col">
+        <div class="tabs" id="tabs"></div>
+        <div id="editor"></div>
+        <div id="welcome" class="welcome">
+          <h1>OpenTex</h1>
+          <p>Open the folder that holds your paper. OpenTex finds the main <code>.tex</code> file and compiles it with your own TeX installation.</p>
+          <button class="primary big" id="btn-open">Open Folder…</button>
+          <p class="hint" id="welcome-tex"></p>
+        </div>
+        <div class="problems hidden" id="problems">
+          <div class="pane-head">
+            <span id="problems-title">Problems</span>
+            <span class="spacer"></span>
+            <button class="link" id="btn-log">View log</button>
+            <button class="icon small" id="btn-problems-close" title="Hide">
+              <svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" /></svg>
+            </button>
+          </div>
+          <ul id="problems-list"></ul>
+        </div>
+      </section>
+
+      <div class="splitter" data-target="pdf-col"></div>
+      <section class="pdf-col" id="pdf-col">
+        <div class="pane-head">
+          <button class="icon small" id="pdf-zoom-out" title="Zoom out">−</button>
+          <span id="pdf-zoom">Fit</span>
+          <button class="icon small" id="pdf-zoom-in" title="Zoom in">+</button>
+          <button class="link" id="pdf-fit">Fit width</button>
+          <span class="spacer"></span>
+          <span id="pdf-pages" class="muted"></span>
+        </div>
+        <div id="pdf" class="pdf"><div class="pdf-empty">Compile to see the PDF here.</div></div>
+      </section>
+    </div>
+
+    <footer class="statusbar">
+      <span id="st-tex"></span>
+      <label class="st-main">Main file <select id="st-main"></select></label>
+      <span class="spacer"></span>
+      <span id="st-compile"></span>
+      <span id="st-cursor"></span>
+    </footer>
+
+    <button id="focus-exit" title="Exit focus mode (Esc)">Exit focus</button>
+
+    <dialog id="settings-dialog"></dialog>
+    <dialog id="modal"></dialog>
+    <dialog id="log-dialog" class="wide">
+      <div class="pane-head"><span>Compile log</span><span class="spacer"></span><button class="link" data-close>Close</button></div>
+      <pre id="log-text"></pre>
+    </dialog>
+    <div id="ctx-menu" class="ctx-menu hidden"></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

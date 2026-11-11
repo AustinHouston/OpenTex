@@ -1,0 +1,14 @@
+{
+  "name": "Solarized Dark",
+  "dark": true,
+  "colors": {
+    "bg": "#002b36", "panel": "#073642", "panelAlt": "#0d4250", "border": "#174652",
+    "text": "#93a1a1", "muted": "#657b83", "accent": "#268bd2", "accentText": "#fdf6e3",
+    "selection": "#174a5a", "cursor": "#eee8d5", "activeLine": "#04313c",
+    "error": "#dc322f", "warning": "#b58900", "pdfBg": "#00212b"
+  },
+  "syntax": {
+    "command": "#6c71c4", "math": "#859900", "env": "#268bd2",
+    "comment": "#586e75", "bracket": "#cb4b16", "number": "#2aa198"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Light",
+  "dark": false,
+  "colors": {
+    "bg": "#ffffff", "panel": "#f4f4f2", "panelAlt": "#e8e8e4", "border": "#dcdcd6",
+    "text": "#24292f", "muted": "#6e7781", "accent": "#2f6feb", "accentText": "#ffffff",
+    "selection": "#cfe0ff", "cursor": "#24292f", "activeLine": "#f6f8fa",
+    "error": "#cf222e", "warning": "#9a6700", "pdfBg": "#e4e4e0"
+  },
+  "syntax": {
+    "command": "#8250df", "math": "#0a7b52", "env": "#0550ae",
+    "comment": "#8c959f", "bracket": "#953800", "number": "#0550ae"
+  }
+}

@@ -97,6 +97,7 @@ export interface EditorHooks {
   onChange: () => void
   onCursor: (line: number, col: number) => void
   onSelection?: (view: EditorView) => void
+  onTyped?: (chars: number) => void
 }
 
 export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: () => CompletionData): Extension[] {
@@ -124,7 +125,15 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: (
     latexCompletions(completion),
     keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
     EditorView.updateListener.of((u) => {
-      if (u.docChanged) hooks.onChange()
+      if (u.docChanged) {
+        hooks.onChange()
+        // Count characters typed or deleted by the user (not reloads from disk).
+        if (u.transactions.some((t) => t.isUserEvent('input') || t.isUserEvent('delete'))) {
+          let n = 0
+          u.changes.iterChanges((fa, ta, fb, tb) => (n += Math.max(ta - fa, tb - fb)))
+          hooks.onTyped?.(Math.min(n, 50))
+        }
+      }
       if (u.selectionSet || u.docChanged || u.viewportChanged || u.geometryChanged) hooks.onSelection?.(u.view)
       if (u.selectionSet || u.docChanged) {
         const pos = u.state.selection.main.head

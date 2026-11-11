@@ -108,9 +108,21 @@ async function recentProjects(): Promise<string[]> {
   return ((await loadSettings()).recentProjects ?? []).filter((p) => existsSync(p))
 }
 
+/** Turn a plugin on or off everywhere (from the Plugins menu). */
+async function setPluginEnabled(id: string, on: boolean): Promise<void> {
+  const off = new Set((await loadSettings()).disabledPlugins ?? [])
+  if (on) off.delete(id)
+  else off.add(id)
+  const s = await saveSettings({ disabledPlugins: [...off] })
+  for (const c of windows.values()) c.win.webContents.send('settings:changed', s, { enabledPlugin: on ? id : null })
+  buildMenu()
+}
+
 async function buildMenu(): Promise<void> {
   const isMac = process.platform === 'darwin'
   const recent = await recentProjects()
+  const plugins = await listPlugins()
+  const disabled = new Set((await loadSettings()).disabledPlugins ?? [])
   const template: MenuItemConstructorOptions[] = [
     ...(isMac ? [{ role: 'appMenu' as const }] : []),
     {
@@ -180,6 +192,32 @@ async function buildMenu(): Promise<void> {
         { label: 'Show Log', accelerator: 'CmdOrCtrl+Shift+L', click: () => send('show-log') },
         { type: 'separator' },
         { label: 'Install TinyTeX…', click: () => send('install-tinytex') }
+      ]
+    },
+    {
+      label: 'Insert',
+      submenu: [
+        { label: 'Table…', click: () => send('insert-table') },
+        { label: 'Equation', click: () => send('insert', 'equation') },
+        { label: 'Inline Math', click: () => send('insert', 'inline-math') },
+        { label: 'Figure…', click: () => send('insert-figure') },
+        { type: 'separator' },
+        { label: 'Symbols and Equations Panel', accelerator: 'CmdOrCtrl+Shift+I', click: () => send('show-insert') }
+      ]
+    },
+    {
+      label: 'Plugins',
+      submenu: [
+        ...plugins.map((p): MenuItemConstructorOptions => ({
+          label: `${p.icon ? p.icon + '  ' : ''}${p.name}`,
+          type: 'checkbox',
+          checked: !disabled.has(p.id),
+          toolTip: p.description,
+          click: (item) => setPluginEnabled(p.id, item.checked)
+        })),
+        ...(plugins.length ? [{ type: 'separator' as const }] : []),
+        { label: 'Open Plugins Folder', click: async () => shell.openPath(userPluginsDir()) },
+        { label: 'Plugin Settings…', click: () => send('settings') }
       ]
     },
     { role: 'windowMenu' },
@@ -289,6 +327,7 @@ function registerIpc(): void {
   ipcMain.handle('settings:get', () => loadSettings())
   ipcMain.handle('settings:set', async (e, patch: Partial<Settings>) => {
     const s = await saveSettings(patch)
+    if ('disabledPlugins' in patch) buildMenu() // keep the Plugins menu checkmarks in sync
     // Keep every window's look in sync (themes, fonts, zoom…); layout stays per window until reload.
     if (!('layout' in patch && Object.keys(patch).length === 1)) {
       for (const c of windows.values()) if (c.win.webContents.id !== e.sender.id) c.win.webContents.send('settings:changed', s)

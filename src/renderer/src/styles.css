@@ -347,3 +347,26 @@ body.focus .cm-ot-cpoint { display: none; }
 .c-broken { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--error); padding: 1px 6px 1px 2px; margin: -2px 0 4px -2px; border-radius: 5px; }
 .c-broken svg { width: 14px; height: 14px; }
 .c-broken:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
+
+/* Insert panel */
+.insert-panel { overflow: auto; padding: 4px 10px 16px; }
+.ins-sec { margin-bottom: 14px; }
+.ins-sec h4 { margin: 6px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+.ins-sec h5 { margin: 10px 0 4px; font-size: 11px; color: var(--muted); font-weight: 500; }
+.ins-grid { display: grid; grid-template-columns: repeat(8, 18px); gap: 3px; }
+.ins-cell { width: 18px; height: 18px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: var(--bg); }
+.ins-cell.on { background: color-mix(in srgb, var(--accent) 35%, var(--bg)); border-color: var(--accent); }
+.ins-hint { font-size: 11px; color: var(--muted); margin-top: 4px; min-height: 14px; }
+.ins-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ins-row select { flex: 1; min-width: 0; font-size: 12px; }
+.ins-btn { border: 1px solid var(--border); background: var(--bg); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+.ins-btn:hover { border-color: var(--accent); background: var(--bg); }
+.ins-btn.wide { flex: 1 1 auto; }
+.ins-tmpl { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 4px; margin-top: 6px; }
+.ins-tmpl .ins-btn { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 4px; }
+.ins-tmpl .g { font-family: 'Times New Roman', 'STIX Two Math', serif; font-size: 16px; line-height: 1.2; }
+.ins-tmpl .l { font-size: 10px; color: var(--muted); }
+.ins-search { width: 100%; font-size: 12px; padding: 5px 8px; margin-bottom: 2px; }
+.ins-syms { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 3px; }
+.ins-sym { height: 30px; padding: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; font-family: 'Times New Roman', 'STIX Two Math', 'Cambria Math', serif; font-size: 17px; }
+.ins-sym:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }

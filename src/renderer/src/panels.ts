@@ -57,6 +57,11 @@ export class PluginPanels {
     for (const id of this.frames.keys()) this.post(id, { type: 'theme', theme: this.themePayload() })
   }
 
+  /** Typing activity: characters changed since the last message (sent at most every 250 ms). */
+  broadcastActivity(chars: number): void {
+    for (const id of this.frames.keys()) this.post(id, { type: 'activity', chars, at: Date.now() })
+  }
+
   broadcastContext(): void {
     for (const id of this.frames.keys()) this.post(id, { type: 'context', context: this.host.context() })
   }

@@ -16,6 +16,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - Compile with latexmk (or pdfLaTeX/XeLaTeX/LuaLaTeX + BibTeX/Biber directly), compile-on-save, clickable error list
 - Built-in PDF viewer that keeps your place between compiles
 - 12 built-in themes with previews in Settings, plus your own
+- **Insert panel** (`Ctrl/Cmd+Shift+I`, or the Insert menu): pick a table size from a grid, add numbered or inline equations and templates (fractions, roots, sums, integrals, derivatives, matrices, cases), insert a figure from your project's images, or click any of 150+ symbols: every Greek letter in both cases, operators, relations, arrows, sets, physics symbols and accents, with search. Symbols are wrapped in `$…$` automatically when you're not already in math, and OpenTex offers to add packages such as `amssymb` when a symbol needs one.
 - Interface zoom with `Ctrl/Cmd +` and `Ctrl/Cmd −`
 - **Movable panels:** Files, PDF, Comments and plugin panels can be dragged by their title bar to the left, either right-hand column, or across the bottom, stacked, resized, collapsed (click the arrow or double-click the title) or hidden. The PDF is optional. The layout toolbar button shows hidden panels and resets the layout.
 - **Plugins** that add panels on the right, such as the built-in **Forest Timer** (a Pomodoro timer with a pixel forest that grows while you work)
@@ -91,12 +92,13 @@ Projects that used the older format (`%@comment` lines in the `.tex` files) are 
 
 ## Plugins
 
-Plugins add panels to the right-hand dock. Turn them on or off in **Settings → Plugins**. To write one, make a folder in the plugins folder (Settings → *Open plugins folder*) with:
+Plugins add panels you can place anywhere. Turn them on or off from the **Plugins** menu (or Settings → Plugins). Built in: **Forest Timer** (a Pomodoro timer with a growing pixel forest), **Lava Lamp** (a retro pixel lava lamp in several colors) and **Starship** (a pixel spaceship flying through space that speeds up the more you type). To write one, make a folder in the plugins folder (Settings → *Open plugins folder*) with:
 
 - `plugin.json`: `{ "id": "my-plugin", "name": "My Plugin", "description": "…", "icon": "🔖", "panel": "index.html" }`
 - `index.html`: an ordinary web page. Add `<script src="opentex-sdk.js"></script>` to get:
   - `OpenTex.onTheme(fn)`: the current theme (its colors are also set as CSS variables such as `--bg`, `--text`, `--accent`)
   - `OpenTex.onContext(fn)`: the open project, file and word count
+  - `OpenTex.onActivity(fn)`: called while you type, with how many characters changed since the last call
   - `OpenTex.storage.get(key)` / `OpenTex.storage.set(key, value)`: saved between sessions
   - `OpenTex.notify(title, body)`: a system notification
 

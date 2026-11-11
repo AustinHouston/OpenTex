@@ -13,6 +13,7 @@ import { findQuote, parseComments } from './comments'
 import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Placed, placedIn, setComments, StoreFile, Thread, today } from './review'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
 import { PluginPanels } from './panels'
+import { buildInsertPanel, insertAtCursor } from './insert'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
@@ -56,6 +57,7 @@ const extensions = [...makeExtensions(
       scheduleLiveCompile()
       scheduleWords()
     },
+    onTyped: (n) => noteTyping(n),
     onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
     onSelection: () => placeBubble()
   },
@@ -1006,6 +1008,7 @@ async function refreshIndex(): Promise<void> {
     else scanTex(text, labels, commands)
   }
   completion = { citations, labels: [...labels].sort(), commands: [...commands] }
+  if (project.mainFile) mainTextCache = textOf(project.mainFile) ?? (await api.readFile(project.mainFile).catch(() => ''))
 }
 
 let wordsTimer = 0
@@ -1046,6 +1049,18 @@ function scheduleLiveCompile(): void {
 }
 
 // ---------- Plugins ----------
+// Typing activity for plugins (e.g. the spaceship speeds up while you type).
+let typedSince = 0
+let typingTimer = 0
+function noteTyping(n: number): void {
+  typedSince += n
+  if (typingTimer) return
+  typingTimer = window.setTimeout(() => {
+    typingTimer = 0
+    plugins?.broadcastActivity(typedSince)
+    typedSince = 0
+  }, 250)
+}
 let allPlugins: PluginInfo[] = []
 // ---------- Panels ----------
 let layoutSaveTimer = 0
@@ -1066,14 +1081,57 @@ function setupPanels(saved: unknown): void {
   layout.add({ id: 'files', title: 'Files', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
   layout.add({ id: 'pdf', title: 'PDF', body: $('pdf'), extras: $('pdf-extras'), defaultZone: 'right' })
   layout.add({ id: 'comments', title: 'Comments', body: $('comments'), extras: $('comments-extras'), defaultZone: 'side', onVisible: () => scheduleComments() })
+  layout.add({ id: 'insert', title: 'Insert', body: $('insert-panel'), defaultZone: 'side' })
   layout.render()
   updatePanelButtons()
+}
+
+// ---------- Insert panel helpers ----------
+let mainTextCache = ''
+const mainText = (): string => (project?.mainFile ? (textOf(project.mainFile) ?? mainTextCache) : '')
+function hasPackage(pkg: string): boolean {
+  const alts: Record<string, string[]> = { amsmath: ['amsmath', 'mathtools'], amssymb: ['amssymb'], graphicx: ['graphicx'], booktabs: ['booktabs'] }
+  const names = alts[pkg] ?? [pkg]
+  const text = mainText().replace(/(^|[^\\])%.*$/gm, '$1')
+  return [...text.matchAll(/\\usepackage(?:\[[^\]]*\])?\{([^}]*)\}/g)].some((m) => m[1].split(',').some((n) => names.includes(n.trim())))
+}
+/** Make sure the main file loads a package, asking first. */
+async function ensurePackage(pkg: string): Promise<boolean> {
+  if (!project?.mainFile || hasPackage(pkg)) return true
+  const main = project.mainFile
+  const r = await ask(`This needs the ${pkg} package, which ${main} doesn’t load yet. Add \\usepackage{${pkg}} to it?`, [`Add ${pkg}`, 'Insert anyway', 'Cancel'])
+  if (r === 2 || r === -1) return false
+  if (r === 1) return true
+  const line = `\\usepackage{${pkg}}\n`
+  const place = (text: string): number => {
+    const m = [...text.matchAll(/^\\usepackage.*$/gm)].pop()
+    if (m) return m.index! + m[0].length + 1
+    const b = text.indexOf('\\begin{document}')
+    return b >= 0 ? b : 0
+  }
+  const f = files.get(main)
+  if (f) {
+    const st = stateOf(main)!
+    const tr = st.update({ changes: { from: place(st.doc.toString()), insert: line } })
+    if (main === active) view.dispatch(tr)
+    else f.state = tr.state
+    f.dirty = true
+    renderTabs()
+  } else {
+    const text = await api.readFile(main)
+    const at = place(text)
+    await api.writeFile(main, text.slice(0, at) + line + text.slice(at))
+  }
+  mainTextCache = mainText()
+  setCompileStatus(`Added \\usepackage{${pkg}} to ${main}`, 'ok')
+  return true
 }
 
 function updatePanelButtons(): void {
   $('btn-sidebar').classList.toggle('on', layout.isVisible('files'))
   $('btn-pdf').classList.toggle('on', layout.isVisible('pdf'))
   $('btn-comment').classList.toggle('on', layout.isVisible('comments'))
+  $('btn-insert').classList.toggle('on', layout.isVisible('insert'))
 }
 
 function panelsMenu(): void {
@@ -1421,6 +1479,14 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'import-refs': () => importRefs(),
   'show-comments': () => layout.show('comments'),
   'sync-forward': () => syncForward(),
+  'show-insert': () => layout.toggle('insert'),
+  'insert-table': () => layout.show('insert'),
+  'insert-figure': () => layout.show('insert'),
+  insert: (kind: string) => {
+    if (!active?.endsWith('.tex')) return setCompileStatus('Open a .tex file first', 'warn')
+    if (kind === 'equation') insertAtCursor(view, '\\begin{equation}\n  ¦\n  \\label{eq:}\n\\end{equation}', { ownLine: true })
+    else insertAtCursor(view, '$¦$')
+  },
   'zoom-in': () => zoom(1),
   'zoom-out': () => zoom(-1),
   'zoom-reset': () => zoom(0),
@@ -1432,10 +1498,14 @@ const actions: Record<string, (...args: any[]) => unknown> = {
 
 function wire(): void {
   api.on('menu', (a: string, ...args: unknown[]) => actions[a]?.(...args))
-  api.on('settings:changed', (s: Settings) => {
+  api.on('settings:changed', (s: Settings, info?: { enabledPlugin?: string | null }) => {
+    const pluginsChanged = JSON.stringify(s.disabledPlugins) !== JSON.stringify(settings.disabledPlugins)
     settings = s
     applySettings()
     api.setZoom(s.uiZoom || 1)
+    if (pluginsChanged) plugins.setPlugins(allPlugins, s.disabledPlugins ?? [])
+    // A plugin just switched on from the Plugins menu: show its panel.
+    if (info?.enabledPlugin && project) layout.show(`plugin:${info.enabledPlugin}`)
   })
   api.on('tex:progress', (line: string) => progressSink?.(line))
   api.on('project:changed', (paths: string[]) => onDiskChange(paths))
@@ -1458,6 +1528,14 @@ function wire(): void {
   $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
   $('btn-comment').onclick = () => layout.toggle('comments')
+  $('btn-insert').onclick = () => layout.toggle('insert')
+  buildInsertPanel($('insert-panel'), {
+    view: () => (active?.endsWith('.tex') ? view : null),
+    images: () => (project ? allFiles(project.tree, (p) => /\.(png|jpe?g|eps|pdf)$/i.test(p) && p !== lastPdf && p !== project!.mainFile?.replace(/\.tex$/i, '.pdf')) : []),
+    hasPackage,
+    ensurePackage,
+    notice: (m) => setCompileStatus(m, 'warn')
+  })
   $('btn-panels').onclick = (e) => {
     e.stopPropagation()
     panelsMenu()

@@ -1,0 +1,8 @@
+{
+  "id": "starship",
+  "name": "Starship",
+  "description": "A little pixel spaceship flying through space, past asteroids, ringed planets, suns and black holes. The more you type, the faster it flies, all the way up to warp speed.",
+  "version": "1.0.0",
+  "panel": "index.html",
+  "icon": "🚀"
+}

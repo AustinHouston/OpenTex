@@ -1632,6 +1632,7 @@ async function init(): Promise<void> {
   allPlugins = await api.listPlugins()
   setupPanels(settings.layout)
   plugins.setPlugins(allPlugins, settings.disabledPlugins ?? [])
+  ribbon?.renderPlugins() // the list wasn't loaded yet when the ribbon was first drawn
   await refreshTex()
   if (!tex.found) {
     const r = await ask('OpenTex needs a TeX installation to turn your .tex files into PDFs, and none was found on this computer.', [

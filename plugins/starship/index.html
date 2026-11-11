@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Starship</title>
+    <style>
+      :root { --bg: #fff; --panel: #f4f4f2; --border: #dcdcd6; --text: #24292f; --muted: #6e7781; --accent: #2f6feb; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: var(--panel); color: var(--text); }
+      body { padding: 6px; display: flex; }
+      .frame { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+      canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid var(--border); border-radius: 6px; background: #0b0f22; }
+      /* Wide, short panels (e.g. docked along the bottom): a thinner margin so the view keeps its height. */
+      @media (min-aspect-ratio: 9/5) { body { padding: 4px 6px; } }
+    </style>
+  </head>
+  <body>
+    <div class="frame" id="frame"><canvas id="space" width="128" height="96" aria-label="A pixel spaceship flying through space. It speeds up while you type."></canvas></div>
+    <script src="opentex-sdk.js"></script>
+    <script src="starship.js"></script>
+  </body>
+</html>

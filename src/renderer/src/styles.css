@@ -286,3 +286,13 @@ body.dragging-panel .zone.drop-target { outline: 2px dashed var(--accent); outli
 .drop-line { position: fixed; z-index: 30; background: var(--accent); border-radius: 2px; pointer-events: none; }
 
 .zone-v.all-collapsed { min-width: 0; }
+
+/* Import dialogs */
+.modal-body.import { max-width: 560px; }
+.modal-body.import p { line-height: 1.5; }
+.howto { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; font-size: 13px; }
+.howto ol { margin: 4px 0 0; padding-left: 20px; }
+.howto li { margin: 2px 0; }
+kbd { font: 11px var(--editor-font); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); }
+.welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+button.secondary { border: 1px solid var(--border); background: var(--panel); }

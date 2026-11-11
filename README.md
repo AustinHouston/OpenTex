@@ -50,6 +50,30 @@ No administrator rights are needed on either system.
 
 Some managed computers hide the *Open Anyway* / *Run anyway* buttons because policy only allows signed apps. If you don't see them, ask your IT help desk to approve OpenTex. It's open source, so they can review the code or build it themselves. Signed releases (see [Code signing](#code-signing)) remove this step entirely.
 
+## Bringing in your existing work
+
+### Word documents
+
+Choose **File → Import Word Document…**, or drag a `.docx` file onto the OpenTex window. OpenTex makes a new project folder next to it (you can pick another place) containing:
+
+- `main.tex`, with headings, formatting, lists, tables and footnotes, and Word equations converted to LaTeX math
+- `media/`, holding the document's pictures
+- `refs.bib`, if the document has citations from Zotero, Mendeley or EndNote that Pandoc can read
+
+Tracked changes are accepted, and Word comments become [OpenTex comments](#comments). Your Word file isn't changed.
+
+The conversion uses [Pandoc](https://pandoc.org), a free document converter. The first time, OpenTex offers to download it (about 35 MB) into its own folder, with no administrator rights needed. If your network blocks that, install Pandoc from pandoc.org (on Windows, the `.msi` installs just for you), and OpenTex will find it.
+
+Older `.doc` files must be saved as `.docx` in Word first. Pictures stored in Windows-only formats (EMF/WMF) must be re-saved as PNG; OpenTex lists any it finds.
+
+### EndNote, Zotero and Mendeley libraries
+
+Choose **File → Import References…**, or drag the exported file onto the window. OpenTex adds the references to your project's `.bib` file with readable keys (like `novoselov2004electric`), and skips ones already there. If your main file has no bibliography yet, it offers to add one.
+
+- **EndNote:** select all references, choose **File → Export…**, and pick **XML** as the type.
+- **Zotero / Mendeley:** export the library or collection as **BibTeX** or **RIS**. Zotero's CSL JSON works too.
+- Downloads from Web of Science, Scopus or PubMed in RIS format also work.
+
 ## Comments
 
 Comments are ordinary LaTeX comment lines, so they never appear in the PDF and they survive email, Dropbox, git and other editors:

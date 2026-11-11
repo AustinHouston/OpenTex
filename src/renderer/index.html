@@ -50,7 +50,11 @@
           <div id="welcome" class="welcome">
             <h1>OpenTex</h1>
             <p>Open the folder that holds your paper. OpenTex finds the main <code>.tex</code> file and compiles it with your own TeX installation.</p>
-            <button class="primary big" id="btn-open">Open Folder…</button>
+            <div class="welcome-actions">
+              <button class="primary big" id="btn-open">Open Folder…</button>
+              <button class="big secondary" id="btn-import-word">Import Word Document…</button>
+            </div>
+            <p class="hint">You can also drag a Word file (.docx) or an exported EndNote, Zotero or Mendeley library onto this window.</p>
             <p class="hint" id="welcome-tex"></p>
           </div>
           <div class="problems hidden" id="problems">

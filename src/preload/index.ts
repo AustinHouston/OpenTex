@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webFrame } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
 
 // The only bridge between the page and the system. Everything goes through IPC handlers in src/main/index.ts.
 const api = {
@@ -33,6 +33,14 @@ const api = {
   openPluginsFolder: () => ipcRenderer.invoke('plugins:openFolder'),
   pluginStorageGet: (id: string) => ipcRenderer.invoke('plugins:storageGet', id),
   pluginStorageSet: (id: string, key: string, value: unknown) => ipcRenderer.invoke('plugins:storageSet', id, key, value),
+  chooseWord: () => ipcRenderer.invoke('word:choose'),
+  chooseFolder: (title: string, defaultPath?: string) => ipcRenderer.invoke('folder:choose', title, defaultPath),
+  findPandoc: () => ipcRenderer.invoke('pandoc:find'),
+  installPandoc: () => ipcRenderer.invoke('pandoc:install'),
+  importWord: (docx: string, parent: string, keepComments: boolean) => ipcRenderer.invoke('word:import', docx, parent, keepComments),
+  chooseRefs: () => ipcRenderer.invoke('refs:choose'),
+  /** Full path of a file dropped onto the window. */
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
   closeOk: () => ipcRenderer.send('app:close-ok'),
   on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress' | 'context-menu', fn: (...args: any[]) => void) => {
     ipcRenderer.on(channel, (_e, ...args) => fn(...args))

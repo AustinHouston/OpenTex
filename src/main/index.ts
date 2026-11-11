@@ -6,6 +6,7 @@ import { Project } from './project'
 import { cancelCompile, compile, detectTex } from './tex'
 import { gitStatus, synctexForward, synctexInverse } from './extras'
 import { builtinPluginsDir, listPlugins, pluginStorageGet, pluginStorageSet, registerPluginScheme, servePlugins, userPluginsDir } from './plugins'
+import { findPandoc, importWord, installPandoc, pandocVersion } from './pandoc'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
 
@@ -67,6 +68,10 @@ function buildMenu(): void {
       submenu: [
         { label: 'Open Folder…', accelerator: 'CmdOrCtrl+O', click: () => send('open-folder') },
         { label: 'New File…', accelerator: 'CmdOrCtrl+N', click: () => send('new-file') },
+        { type: 'separator' },
+        { label: 'Import Word Document…', click: () => send('import-word') },
+        { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
+        { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => send('close-tab') },
         { type: 'separator' },
@@ -191,6 +196,39 @@ function registerIpc(): void {
   ipcMain.handle('git:status', () => (project ? gitStatus(project.root) : null))
   ipcMain.handle('edit:command', (_e, cmd: 'cut' | 'copy' | 'paste' | 'selectAll') => win?.webContents[cmd]())
   ipcMain.handle('spell:add', (_e, word: string) => win?.webContents.session.addWordToSpellCheckerDictionary(word))
+  // ---------- Importing ----------
+  ipcMain.handle('word:choose', async () => {
+    const r = await dialog.showOpenDialog(win!, { title: 'Import a Word document', properties: ['openFile'], filters: [{ name: 'Word documents', extensions: ['docx'] }] })
+    return r.canceled ? null : (r.filePaths[0] ?? null)
+  })
+  ipcMain.handle('folder:choose', async (_e, title: string, defaultPath?: string) => {
+    const r = await dialog.showOpenDialog(win!, { title, defaultPath, properties: ['openDirectory', 'createDirectory'] })
+    return r.canceled ? null : (r.filePaths[0] ?? null)
+  })
+  ipcMain.handle('pandoc:find', async () => {
+    const p = await findPandoc()
+    const v = p && (await pandocVersion(p))
+    return v ? { path: p, version: v } : null
+  })
+  ipcMain.handle('pandoc:install', () => installPandoc(progress))
+  ipcMain.handle('word:import', async (_e, docx: string, parent: string, keepComments: boolean) => {
+    const p = await findPandoc()
+    if (!p) throw new Error('Pandoc is not installed')
+    if (!/\.docx$/i.test(docx)) throw new Error('Only .docx files can be imported (in Word, use File → Save As → Word Document).')
+    return importWord(p, docx, parent, keepComments)
+  })
+  ipcMain.handle('refs:choose', async () => {
+    const r = await dialog.showOpenDialog(win!, {
+      title: 'Choose an exported reference library',
+      properties: ['openFile'],
+      filters: [{ name: 'Reference libraries', extensions: ['xml', 'ris', 'txt', 'bib', 'json', 'nbib', 'enw'] }, { name: 'All files', extensions: ['*'] }]
+    })
+    const file = r.canceled ? null : r.filePaths[0]
+    if (!file) return null
+    const stat = await fs.stat(file)
+    if (stat.size > 80 * 1024 * 1024) throw new Error('That file is too large to be a reference library.')
+    return { name: file.split(/[\\/]/).pop(), text: await fs.readFile(file, 'utf8') }
+  })
   ipcMain.handle('plugins:list', () => listPlugins())
   ipcMain.handle('plugins:openFolder', async () => {
     await listPlugins()

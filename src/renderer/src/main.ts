@@ -12,6 +12,7 @@ import { ask, contextMenu, promptText } from './ui'
 import { CommentThread, commentHighlight, entryLine, parseComments } from './comments'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
 import { PluginPanels } from './panels'
+import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
 
@@ -856,6 +857,213 @@ async function commentAction(t: CommentThread, kind: 'reply' | 'resolve' | 'reop
 }
 
 
+// ---------- Importing: references ----------
+const FORMAT_NAMES: Record<RefFormat, string> = { 'endnote-xml': 'EndNote XML', ris: 'RIS', 'csl-json': 'CSL JSON (Zotero)', bibtex: 'BibTeX' }
+
+/** A modal built from HTML; resolves with the clicked button's value (or '' on Escape). */
+function modal(html: string, setup?: (d: HTMLDialogElement) => void): Promise<string> {
+  const d = $<HTMLDialogElement>('modal')
+  d.innerHTML = html
+  setup?.(d)
+  return new Promise((resolve) => {
+    let value = ''
+    d.querySelectorAll<HTMLButtonElement>('[data-value]').forEach((b) =>
+      b.addEventListener('click', () => {
+        value = b.dataset.value!
+        d.close()
+      })
+    )
+    d.addEventListener('close', () => resolve(value), { once: true })
+    d.showModal()
+  })
+}
+
+async function importRefs(file?: { name: string; text: string }): Promise<void> {
+  if (!project) {
+    await ask('Open your paper’s folder first (File → Open Folder…), then import references into it.', ['OK'])
+    return
+  }
+  if (!file) {
+    const go = await modal(`<div class="modal-body import">
+      <p><b>Import references</b></p>
+      <p>Choose a reference library exported from EndNote, Zotero, Mendeley, Web of Science or PubMed. OpenTex adds the references to your <code>.bib</code> file so you can cite them with <code>\\cite{…}</code>.</p>
+      <div class="howto"><b>From EndNote</b><ol><li>Select all references (<kbd>Ctrl/Cmd</kbd>+<kbd>A</kbd>).</li><li>Choose <b>File → Export…</b></li><li>Set <b>Save as type</b> (Windows) or <b>Format</b> (Mac) to <b>XML</b>, and save.</li></ol></div>
+      <div class="howto"><b>From Zotero or Mendeley</b><ol><li>Select the references or collection.</li><li>Choose <b>Export…</b> and pick <b>BibTeX</b> or <b>RIS</b>.</li></ol></div>
+      <p class="hint">You can also drag the exported file onto the OpenTex window.</p>
+    </div><div class="modal-actions"><button data-value="">Cancel</button><button class="primary" data-value="choose">Choose file…</button></div>`)
+    if (go !== 'choose') return
+    try {
+      file = (await api.chooseRefs()) ?? undefined
+    } catch (e) {
+      await ask((e as Error).message.replace(/^.*Error: /, ''), ['OK'])
+      return
+    }
+    if (!file) return
+  }
+  const fmt = detectFormat(file.text, file.name)
+  if (!fmt) {
+    await ask(`OpenTex couldn’t recognize “${file.name}” as a reference library. From EndNote, export as XML; from Zotero or Mendeley, export as BibTeX or RIS.`, ['OK'])
+    return
+  }
+  let refs
+  try {
+    refs = parseRefs(file.text, fmt)
+  } catch (e) {
+    await ask((e as Error).message, ['OK'])
+    return
+  }
+  if (!refs.length) {
+    await ask(`No references were found in “${file.name}”.`, ['OK'])
+    return
+  }
+  const bibs = allFiles(project.tree, (p) => p.endsWith('.bib'))
+  const options = [...bibs.map((b) => `<option value="${b}">${b}</option>`), `<option value="__new">New file: refs.bib</option>`].join('')
+  let target = ''
+  const go = await modal(
+    `<div class="modal-body import"><p><b>Found ${refs.length} reference${refs.length === 1 ? '' : 's'}</b> in <span data-name></span> (${FORMAT_NAMES[fmt]}).</p>
+     <p><label>Add them to <select data-target>${options}</select></label></p>
+     <p class="hint">References already in that file (same DOI, or same title and year) are skipped.</p></div>
+     <div class="modal-actions"><button data-value="">Cancel</button><button class="primary" data-value="go">Import</button></div>`,
+    (d) => {
+      d.querySelector('[data-name]')!.textContent = `“${file!.name}”`
+      const sel = d.querySelector<HTMLSelectElement>('[data-target]')!
+      target = sel.value
+      sel.onchange = () => (target = sel.value)
+    }
+  )
+  if (go !== 'go') return
+  let bibPath = target
+  if (target === '__new') {
+    bibPath = 'refs.bib'
+    for (let i = 2; bibs.includes(bibPath); i++) bibPath = `refs-${i}.bib`
+  }
+  if (files.get(bibPath)?.dirty) await save(bibPath, false)
+  const existing = bibs.includes(bibPath) ? await api.readFile(bibPath) : ''
+  const merged = mergeIntoBib(existing, refs)
+  if (merged.added.length) await api.writeFile(bibPath, merged.text)
+  await reloadTree()
+  await onDiskChange([bibPath])
+  await refreshIndex()
+  const base = bibPath.replace(/\.bib$/, '')
+  const mainText = project.mainFile ? (textOf(project.mainFile) ?? (await api.readFile(project.mainFile).catch(() => ''))) : ''
+  const hasBib = new RegExp(`\\\\(bibliography|addbibresource)\\{[^}]*${base.split('/').pop()}`).test(mainText)
+  const summary = `Added ${merged.added.length} reference${merged.added.length === 1 ? '' : 's'} to ${bibPath}${merged.duplicates ? ` (${merged.duplicates} already there)` : ''}. Type \\cite{ to use them.`
+  if (merged.added.length && project.mainFile && !hasBib && /\\end\{document\}/.test(mainText)) {
+    const r = await ask(`${summary}\n\nYour main file doesn’t list ${bibPath} yet. Add a bibliography at the end of ${project.mainFile}?`, ['Add bibliography', 'Not now'])
+    if (r === 0) {
+      await openFile(project.mainFile)
+      const doc = view.state.doc.toString()
+      const at = doc.lastIndexOf('\\end{document}')
+      view.dispatch({ changes: { from: at, insert: `\\bibliographystyle{plain}\n\\bibliography{${base}}\n\n` } })
+      await save(project.mainFile)
+    }
+  } else await ask(summary, ['OK'])
+}
+
+// ---------- Importing: Word ----------
+async function importWordDoc(docx?: string): Promise<void> {
+  docx = docx ?? (await api.chooseWord()) ?? undefined
+  if (!docx) return
+  if (!/\.docx$/i.test(docx)) {
+    await ask('Only .docx files can be imported. In Word, open the document and use File → Save As → Word Document (.docx) first.', ['OK'])
+    return
+  }
+  const name = docx.split(/[\\/]/).pop()!
+  let parent = docx.replace(/[\\/][^\\/]+$/, '')
+  let keepComments = true
+  const go = await modal(
+    `<div class="modal-body import"><p><b>Import <span data-name></span></b></p>
+     <p>OpenTex makes a new project folder with <code>main.tex</code>, a <code>media</code> folder for the figures and, if the document has Zotero, Mendeley or EndNote citations, a <code>refs.bib</code>. Your Word file isn’t changed.</p>
+     <p>New folder goes in: <code data-parent></code> <button class="link" data-change>Change…</button></p>
+     <p><label><input type="checkbox" data-comments checked /> Keep Word comments as OpenTex comments</label></p>
+     <p class="hint">Tracked changes are accepted. Equations become LaTeX math.</p></div>
+     <div class="modal-actions"><button data-value="">Cancel</button><button class="primary" data-value="go">Import</button></div>`,
+    (d) => {
+      d.querySelector('[data-name]')!.textContent = `“${name}”`
+      d.querySelector('[data-parent]')!.textContent = parent
+      d.querySelector<HTMLButtonElement>('[data-change]')!.onclick = async () => {
+        const p = await api.chooseFolder('Where should the new project folder go?', parent)
+        if (p) {
+          parent = p
+          d.querySelector('[data-parent]')!.textContent = p
+        }
+      }
+      const cb = d.querySelector<HTMLInputElement>('[data-comments]')!
+      cb.onchange = () => (keepComments = cb.checked)
+    }
+  )
+  if (go !== 'go') return
+  if (!(await api.findPandoc())) {
+    const r = await ask(
+      'To convert Word files, OpenTex uses Pandoc, a free, widely used document converter (about 35 MB). OpenTex can download it from the Pandoc project on GitHub and keep it in its own folder. No administrator password is needed.',
+      ['Download Pandoc', 'I’ll install it myself', 'Cancel']
+    )
+    if (r === 1) {
+      window.open('https://pandoc.org/installing.html')
+      await ask('Install Pandoc (the Windows .msi installs just for you without admin rights), then try the import again.', ['OK'])
+      return
+    }
+    if (r !== 0) return
+    const ok = await withProgress('Getting Pandoc', () => api.installPandoc())
+    if (!ok) {
+      await ask('Pandoc could not be downloaded (your network may block it). You can install it from pandoc.org instead, then import again.', ['OK'])
+      return
+    }
+  }
+  type Res = { ok: boolean; folder: string; log: string; citations: number; comments: number; images: number; unsupportedImages: string[] }
+  let res: Res | null = null
+  const ok = await withProgress(`Converting ${name}`, async () => {
+    progressSink?.('Converting with Pandoc…')
+    try {
+      res = (await api.importWord(docx!, parent, keepComments)) as Res
+    } catch (e) {
+      progressSink?.((e as Error).message.replace(/^.*Error: /, ''))
+      return false
+    }
+    if (res.log.trim()) progressSink?.(res.log.trim())
+    progressSink?.(res.ok ? `Created ${res.folder}` : 'The conversion did not finish.')
+    return res.ok
+  })
+  const r = res as Res | null
+  if (!ok || !r) return
+  await setProject(await api.openProject(r.folder))
+  const parts = [`${r.images} figure${r.images === 1 ? '' : 's'}`, `${r.comments} comment${r.comments === 1 ? '' : 's'}`, `${r.citations} reference${r.citations === 1 ? '' : 's'}`]
+  let msg = `Imported ${name}: ${parts.join(', ')}. OpenTex will compile it now. Look over the result, especially tables and figure placement.`
+  if (!r.citations) msg += '\n\nNo linked citations were found. If the document cites from EndNote, use File → Import References to bring in the library.'
+  if (r.unsupportedImages.length) msg += `\n\n${r.unsupportedImages.length} picture(s) are in a Windows-only format LaTeX can’t use (${r.unsupportedImages.join(', ')}). In Word, right-click each one → Save as Picture → PNG, and put it in the media folder.`
+  await ask(msg, ['OK'])
+  compile()
+}
+
+// Drop files onto the window: .docx → Word import; reference libraries → reference import.
+document.addEventListener(
+  'dragover',
+  (e) => {
+    if (e.dataTransfer?.types.includes('Files')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    }
+  },
+  true
+)
+document.addEventListener(
+  'drop',
+  async (e) => {
+    const f = e.dataTransfer?.files?.[0]
+    if (!f) return
+    e.preventDefault()
+    e.stopPropagation()
+    if (/\.docx$/i.test(f.name)) {
+      const path = api.pathForFile(f)
+      if (path) importWordDoc(path)
+      else ask('Save the Word file to your computer first, then drag it from Finder or File Explorer (or use File → Import Word Document…).', ['OK'])
+    }
+    else if (/\.(xml|ris|bib|json|txt|nbib|enw)$/i.test(f.name)) importRefs({ name: f.name, text: await f.text() })
+    else if (/\.doc$/i.test(f.name)) ask('Old .doc files can’t be imported. In Word, use File → Save As → Word Document (.docx) first.', ['OK'])
+  },
+  true
+)
+
 // ---------- Wiring ----------
 async function chooseFolder(): Promise<void> {
   await setProject(await api.chooseProject())
@@ -873,6 +1081,8 @@ const actions: Record<string, () => unknown> = {
   compile: () => compile(),
   'add-comment': () => addComment(),
   'install-tinytex': () => installTinyTex(),
+  'import-word': () => importWordDoc(),
+  'import-refs': () => importRefs(),
   'show-comments': () => layout.show('comments'),
   'sync-forward': () => syncForward(),
   'zoom-in': () => zoom(1),
@@ -892,6 +1102,7 @@ function wire(): void {
     if (await confirmDiscardAll()) api.closeOk()
   })
   $('btn-open').onclick = chooseFolder
+  $('btn-import-word').onclick = () => importWordDoc()
   $('btn-compile').onclick = () => compile()
   $('btn-focus').onclick = () => actions.focus()
   $('focus-exit').onclick = () => setFocus(false)

@@ -1218,6 +1218,10 @@ function wire(): void {
   $('btn-import-word').onclick = () => importWordDoc()
   $('wl-new').onclick = () => newProject()
   $('wl-example').onclick = () => openExample()
+  $('wl-window').onclick = () => api.newWindow()
+  // Show the right shortcut for this system.
+  const newWindowKeys = navigator.platform.startsWith('Mac') ? '⇧⌘N' : 'Ctrl+Shift+N'
+  document.querySelectorAll('[data-keys=new-window]').forEach((el) => (el.textContent = newWindowKeys))
   $('btn-compile').onclick = () => compile()
   $('btn-focus').onclick = () => actions.focus()
   $('focus-exit').onclick = () => setFocus(false)

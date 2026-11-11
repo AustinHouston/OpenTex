@@ -30,6 +30,7 @@ const api = {
   editCommand: (cmd: 'cut' | 'copy' | 'paste' | 'selectAll') => ipcRenderer.invoke('edit:command', cmd),
   addToDictionary: (word: string) => ipcRenderer.invoke('spell:add', word),
   listPlugins: () => ipcRenderer.invoke('plugins:list'),
+  setPluginEnabled: (id: string, on: boolean) => ipcRenderer.invoke('plugins:setEnabled', id, on),
   openPluginsFolder: () => ipcRenderer.invoke('plugins:openFolder'),
   pluginStorageGet: (id: string) => ipcRenderer.invoke('plugins:storageGet', id),
   pluginStorageSet: (id: string, key: string, value: unknown) => ipcRenderer.invoke('plugins:storageSet', id, key, value),

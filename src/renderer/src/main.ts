@@ -14,6 +14,8 @@ import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Pl
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
 import { PluginPanels } from './panels'
 import { buildInsertBar, insertAtCursor } from './insert'
+import { Ribbon } from './ribbon'
+import { applyDesign, currentDesign, CustomDesign, PRESETS } from './design'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
@@ -131,6 +133,8 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   }
   await loadComments()
   await migrateLegacyComments()
+  mainTextCache = info.mainFile ? (textOf(info.mainFile) ?? (await api.readFile(info.mainFile).catch(() => ''))) : ''
+  ribbon?.renderDesign()
 }
 
 function refreshProjectUi(): void {
@@ -273,6 +277,10 @@ async function save(path = active, maybeCompile = true): Promise<void> {
   f.saved = text
   f.dirty = false
   syncAnchors(path, state)
+  if (path === project?.mainFile) {
+    mainTextCache = text
+    ribbon?.renderDesign()
+  }
   renderTabs()
   refreshIndex()
   refreshGit()
@@ -1087,8 +1095,39 @@ function setupPanels(saved: unknown): void {
 }
 
 // ---------- Insert toolbar helpers ----------
+let ribbon: Ribbon | null = null
+
+/** Switch the main file to a design preset (or back to Custom). */
+async function applyDesignPreset(id: string): Promise<void> {
+  if (!project?.mainFile) return
+  const main = project.mainFile
+  const text = textOf(main) ?? (await api.readFile(main))
+  const saved = project.config.design?.custom as CustomDesign | undefined
+  const r = applyDesign(text, id, saved)
+  if (r.error) {
+    await ask(r.error, ['OK'])
+    return
+  }
+  if (r.custom !== saved) project.config = await api.setProjectConfig({ design: { custom: r.custom } })
+  if (files.has(main)) {
+    // Through the editor, so Undo works.
+    const st = stateOf(main)!
+    const tr = st.update({ changes: { from: 0, to: st.doc.length, insert: r.text }, userEvent: 'input' })
+    if (main === active) view.dispatch(tr)
+    else files.get(main)!.state = tr.state
+    files.get(main)!.dirty = true
+    await save(main, false)
+  } else await api.writeFile(main, r.text)
+  mainTextCache = r.text
+  ribbon?.renderDesign()
+  const name = id === 'custom' ? 'your Custom setup' : PRESETS.find((p) => p.id === id)!.name
+  setCompileStatus(`Design: ${name}${id !== 'custom' && r.custom ? ' (your previous setup is saved as Custom)' : ''}`, 'ok')
+  compile()
+}
+
 function openInsertTool(id: string): void {
   if (settings.showInsertBar === false) updateSettings({ showInsertBar: true })
+  ribbon?.select('insert', false)
   setTimeout(() => document.querySelector<HTMLButtonElement>(`#ribbon [data-tool="${id}"]`)?.click(), 50)
 }
 let mainTextCache = ''
@@ -1508,7 +1547,10 @@ function wire(): void {
     settings = s
     applySettings()
     api.setZoom(s.uiZoom || 1)
-    if (pluginsChanged) plugins.setPlugins(allPlugins, s.disabledPlugins ?? [])
+    if (pluginsChanged) {
+      plugins.setPlugins(allPlugins, s.disabledPlugins ?? [])
+      ribbon?.renderPlugins()
+    }
     // A plugin just switched on from the Plugins menu: show its panel.
     if (info?.enabledPlugin && project) layout.show(`plugin:${info.enabledPlugin}`)
   })
@@ -1533,7 +1575,24 @@ function wire(): void {
   $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
   $('btn-comment').onclick = () => layout.toggle('comments')
-  buildInsertBar($('ribbon'), $('ins-pop'), {
+  ribbon = new Ribbon($('ribbon'), {
+    run: (a) => (a === 'new-window' ? api.newWindow() : actions[a]?.()),
+    recentMenu: async (x, y) => {
+      const recent = await api.recentProjects()
+      contextMenu(x, y, recent.length ? recent.map((r) => [`${r.name}   ·   ${r.parent}`, async () => setProject(await api.openProject(r.path))] as [string, () => void]) : [['No recent folders', () => {}]])
+    },
+    plugins: () => ({ list: allPlugins, disabled: settings.disabledPlugins ?? [] }),
+    setPlugin: (id, on) => api.setPluginEnabled(id, on),
+    openPluginsFolder: () => api.openPluginsFolder(),
+    design: () => ({ current: project?.mainFile ? currentDesign(mainText()) : null, hasCustom: Boolean(project?.config.design?.custom) }),
+    applyDesign: (id) => applyDesignPreset(id),
+    editPreamble: async () => {
+      if (!project?.mainFile) return
+      await openFile(project.mainFile)
+      goToLine(view, 1)
+    }
+  })
+  buildInsertBar($('rb-insert'), $('ins-pop'), {
     view: () => (active?.endsWith('.tex') ? view : null),
     images: () => (project ? allFiles(project.tree, (p) => /\.(png|jpe?g|eps|pdf)$/i.test(p) && p !== lastPdf && p !== project!.mainFile?.replace(/\.tex$/i, '.pdf')) : []),
     hasPackage,

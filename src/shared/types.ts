@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
 export interface ProjectConfig {
   mainFile?: string
   engine?: Engine
+  design?: { custom?: unknown } // see renderer/src/design.ts (CustomDesign)
 }
 
 export interface TreeNode {

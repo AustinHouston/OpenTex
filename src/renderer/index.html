@@ -40,7 +40,20 @@
       </button>
     </header>
 
-    <nav class="ribbon" id="ribbon" aria-label="Insert"></nav>
+    <nav class="ribbon" id="ribbon" aria-label="Ribbon">
+      <div class="rb-tabs" role="tablist">
+        <button class="rb-tab" data-tab="file" role="tab">File</button>
+        <button class="rb-tab" data-tab="insert" role="tab">Insert</button>
+        <button class="rb-tab" data-tab="design" role="tab">Design</button>
+        <button class="rb-tab" data-tab="plugins" role="tab">Plugins</button>
+      </div>
+      <div class="rb-body">
+        <div class="rb-pane" data-pane="file"></div>
+        <div class="rb-pane" data-pane="insert" id="rb-insert"></div>
+        <div class="rb-pane" data-pane="design"></div>
+        <div class="rb-pane" data-pane="plugins"></div>
+      </div>
+    </nav>
     <div id="ins-pop" class="ins-pop hidden"></div>
     <div class="workspace" id="workspace">
       <div class="ws-row">

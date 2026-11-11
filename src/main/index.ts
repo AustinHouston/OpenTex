@@ -207,7 +207,7 @@ async function buildMenu(): Promise<void> {
         { label: 'Cross-reference', click: () => send('insert', 'reference') },
         { label: 'Footnote', click: () => send('insert', 'footnote') },
         { type: 'separator' },
-        { label: 'Show Insert Toolbar', accelerator: 'CmdOrCtrl+Shift+I', click: () => send('show-insert') }
+        { label: 'Show Ribbon', accelerator: 'CmdOrCtrl+Shift+I', click: () => send('show-insert') }
       ]
     },
     {
@@ -405,6 +405,7 @@ function registerIpc(): void {
     return { name: basename(file), text: await fs.readFile(file, 'utf8') }
   })
   ipcMain.handle('plugins:list', () => listPlugins())
+  ipcMain.handle('plugins:setEnabled', (_e, id: string, on: boolean) => setPluginEnabled(id, on))
   ipcMain.handle('plugins:openFolder', async () => {
     await listPlugins()
     shell.openPath(userPluginsDir())

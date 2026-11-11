@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lava Lamp</title>
+    <style>
+      :root { --bg: #fff; --panel: #f4f4f2; --panelAlt: #e8e8e4; --border: #dcdcd6; --text: #24292f; --muted: #6e7781; --accent: #2f6feb; --accentText: #fff; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      canvas { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+      /* Colour swatches: a small row in the corner that fades in while the pointer is over the panel. */
+      .bar { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 5px; padding: 4px 6px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25); opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+      .bar.show, .bar:hover, .bar:focus-within { opacity: 0.94; pointer-events: auto; }
+      .sw { width: 13px; height: 13px; padding: 0; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.3); cursor: pointer; }
+      .sw:hover { transform: scale(1.15); }
+      .sw[aria-pressed='true'] { box-shadow: 0 0 0 1.5px var(--bg), 0 0 0 3px var(--text); }
+      .sw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="lava" aria-label="Inside a pixel-art lava lamp"></canvas>
+    <div class="bar" id="bar" role="toolbar" aria-label="Lava lamp colours"></div>
+    <script src="opentex-sdk.js"></script>
+    <script src="lava.js"></script>
+  </body>
+</html>

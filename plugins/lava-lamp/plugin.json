@@ -1,0 +1,8 @@
+{
+  "id": "lava-lamp",
+  "name": "Lava Lamp",
+  "description": "Look inside a retro pixel-art lava lamp: glowing wax slowly rises, stretches, splits, merges and sinks, edge to edge in its panel. Seven colour schemes.",
+  "version": "1.0.0",
+  "panel": "index.html",
+  "icon": "🫧"
+}

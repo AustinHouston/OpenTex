@@ -349,8 +349,31 @@ body.focus .cm-ot-cpoint { display: none; }
 .c-broken:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
 
 /* Insert toolbar (like Word's Insert tab) and its drop-downs */
-.ribbon { height: 38px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--border); background: var(--panel); overflow-x: auto; }
+.ribbon { flex: none; background: var(--panel); border-bottom: 1px solid var(--border); }
 body.no-project .ribbon, body.focus .ribbon, body.no-ribbon .ribbon { display: none; }
+.rb-tabs { display: flex; gap: 2px; padding: 0 10px; }
+.rb-tab { font-size: 12.5px; padding: 5px 12px 6px; border-radius: 6px 6px 0 0; color: var(--muted); border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; position: relative; }
+.rb-tab:hover { color: var(--text); background: none; }
+.rb-tab.on { color: var(--accent); background: var(--bg); border-color: var(--border); font-weight: 600; }
+.rb-body { background: var(--bg); border-top: 1px solid var(--border); }
+body.ribbon-collapsed .rb-body { display: none; }
+.rb-pane { height: 44px; display: flex; align-items: center; gap: 2px; padding: 0 8px; overflow-x: auto; overflow-y: hidden; }
+.rb-pane.hidden { display: none; }
+/* Design gallery */
+.ds-gallery { gap: 4px; }
+.ds-card { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; white-space: nowrap; color: var(--text); background: var(--panel); }
+.ds-card svg { width: 26px; height: 32px; color: var(--text); flex: none; }
+.ds-card:hover { border-color: var(--accent); background: var(--panel); }
+.ds-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent); font-weight: 600; }
+.ds-card:disabled { opacity: 0.45; cursor: default; }
+.ds-note { font-size: 11px; color: var(--muted); margin-left: 6px; max-width: 360px; line-height: 1.3; white-space: normal; }
+/* Plugins tab */
+.pl-tiles { gap: 4px; }
+.pl-tile { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; background: var(--panel); color: var(--text); white-space: nowrap; }
+.pl-tile .pl-icon { font-size: 16px; }
+.pl-tile .pl-state { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: var(--panelAlt); color: var(--muted); }
+.pl-tile.on { border-color: var(--accent); }
+.pl-tile.on .pl-state { background: var(--accent); color: var(--accentText); }
 .rb-group { display: flex; gap: 1px; }
 .rb-sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; flex: none; }
 .rb-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; font-size: 12.5px; color: var(--text); white-space: nowrap; }

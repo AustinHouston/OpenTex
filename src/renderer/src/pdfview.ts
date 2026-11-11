@@ -144,11 +144,11 @@ export class PdfView {
     const text = document.createElement('div')
     text.className = 'textLayer'
     slot.appendChild(text)
-    try {
-      await new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp }).render()
-    } catch {
+    // Not awaited: the text layer can wait indefinitely while the PDF panel is hidden, and nothing
+    // (compiling, opening a project) should be held up by it.
+    new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp }).render().catch(() => {
       /* text selection is optional */
-    }
+    })
   }
 
   /** Page and PDF-point coordinates under a screen position. */

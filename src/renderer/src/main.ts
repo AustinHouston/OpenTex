@@ -9,7 +9,8 @@ import { PdfView } from './pdfview'
 import { openSettings } from './settings-ui'
 import { applyTheme, BUILT_IN } from './themes'
 import { ask, contextMenu, promptText } from './ui'
-import { CommentThread, commentHighlight, entryLine, parseComments } from './comments'
+import { findQuote, parseComments } from './comments'
+import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Placed, placedIn, setComments, StoreFile, Thread, today } from './review'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
 import { PluginPanels } from './panels'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
@@ -60,7 +61,7 @@ const extensions = [...makeExtensions(
   },
   false,
   () => completion
-), commentHighlight]
+), commentField, commentClicks((id) => focusCard(id))]
 const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
 
@@ -123,8 +124,10 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   if (info.mainFile) {
     await openFile(info.mainFile)
     const pdfPath = info.mainFile.replace(/\.tex$/i, '.pdf')
-    if (allFiles(info.tree, (p) => p === pdfPath).length) await showPdf(pdfPath)
+    if (allFiles(info.tree, (p) => p === pdfPath).length) void showPdf(pdfPath) // don't hold up opening the project
   }
+  await loadComments()
+  await migrateLegacyComments()
 }
 
 function refreshProjectUi(): void {
@@ -194,6 +197,7 @@ async function openFile(path: string): Promise<void> {
     }
     files.set(path, { path, saved: text, dirty: false, state: EditorState.create({ doc: text, extensions }) })
     tabOrder.push(path)
+    placeIn(path)
   }
   switchTo(path)
 }
@@ -265,6 +269,7 @@ async function save(path = active, maybeCompile = true): Promise<void> {
   await api.writeFile(path, text)
   f.saved = text
   f.dirty = false
+  syncAnchors(path, state)
   renderTabs()
   refreshIndex()
   refreshGit()
@@ -289,6 +294,10 @@ async function onDiskChange(paths: string[]): Promise<void> {
   if (!project) return
   const structural = paths.some((p) => !/\.(aux|log|fls|fdb_latexmk|synctex\.gz|out|toc|bbl|blg|bcf|xml)$/i.test(p))
   if (structural) reloadTree()
+  if (paths.includes(COMMENTS_FILE)) {
+    const now = await api.readFile(COMMENTS_FILE).catch(() => '')
+    if (now !== storeText) await loadComments() // a collaborator's comments arrived
+  }
   for (const p of paths) {
     const f = files.get(p)
     if (!f) continue
@@ -303,12 +312,16 @@ async function onDiskChange(paths: string[]): Promise<void> {
       if (p === active) view.dispatch(tr)
       else f.state = tr.state
       f.dirty = false
+      placeIn(p) // match the comments to the new text
       renderTabs()
     } else {
       setCompileStatus(`${p} changed on disk; your unsaved edits are kept`, 'warn')
     }
   }
-  if (paths.some((p) => p.endsWith('.tex'))) scheduleComments()
+  if (paths.some((p) => p.endsWith('.tex'))) {
+    await checkDetached()
+    scheduleComments()
+  }
   if (paths.some((p) => /\.(tex|bib)$/.test(p))) refreshIndex()
   if (structural) refreshGit()
   if (lastPdf && paths.includes(lastPdf) && !compiling && Date.now() - lastPdfLoad > 2000) showPdf(lastPdf)
@@ -513,45 +526,137 @@ async function offerMissing(missing: string[]): Promise<void> {
   if (await withProgress('Installing missing packages', () => api.installMissing(missing))) compile()
 }
 
-// ---------- Comments ----------
+// ---------- Comments (kept in comments.opentex.json, never in the .tex text) ----------
+let store: Thread[] = []
+let storeText = '' // last contents read or written, to tell our own writes from a collaborator's
+const detached = new Set<string>() // comments whose text can't be found any more
+let autoMigrate = false
 let commentsTimer = 0
 function scheduleComments(): void {
   clearTimeout(commentsTimer)
-  commentsTimer = window.setTimeout(renderComments, 400)
+  commentsTimer = window.setTimeout(renderComments, 200)
 }
 
 function textOf(path: string): string | null {
   if (path === active) return view.state.doc.toString()
   return files.get(path)?.state.doc.toString() ?? null
 }
+const stateOf = (path: string): EditorState | null => (path === active ? view.state : (files.get(path)?.state ?? null))
 
-async function allThreads(): Promise<CommentThread[]> {
-  if (!project) return []
-  const out: CommentThread[] = []
-  for (const f of allFiles(project.tree, (p) => p.endsWith('.tex'))) {
-    const text = textOf(f) ?? (await api.readFile(f).catch(() => ''))
-    if (text.includes('%@')) out.push(...parseComments(text, f))
+async function loadComments(): Promise<void> {
+  store = []
+  detached.clear()
+  if (!project) return
+  storeText = await api.readFile(COMMENTS_FILE).catch(() => '')
+  if (storeText.trim()) {
+    try {
+      const d = JSON.parse(storeText) as StoreFile
+      store = Array.isArray(d.threads) ? d.threads.filter((t) => t && t.id && t.file) : []
+    } catch {
+      setCompileStatus(`${COMMENTS_FILE} could not be read, so comments are not shown`, 'warn')
+    }
   }
-  return out
+  for (const f of files.keys()) placeIn(f)
+  await checkDetached()
+  scheduleComments()
 }
 
-async function renderComments(): Promise<void> {
-  const threads = await allThreads()
-  const open = threads.filter((t) => !t.resolved).length
+async function saveComments(): Promise<void> {
+  if (!project) return
+  if (!store.length && !storeText) return // nothing to save and no file yet
+  storeText = JSON.stringify({ version: 1, threads: store } satisfies StoreFile, null, 2) + '\n'
+  await api.writeFile(COMMENTS_FILE, storeText)
+}
+
+function applyPlaced(path: string, placed: Placed[]): void {
+  const f = files.get(path)
+  if (!f) return
+  if (path === active) view.dispatch({ effects: setComments.of(placed) })
+  else f.state = f.state.update({ effects: setComments.of(placed) }).state
+}
+
+/** Match a file's comments to its current text and show them in its editor. */
+function placeIn(path: string): void {
+  const state = stateOf(path)
+  if (!state) return
+  const text = state.doc.toString()
+  const placed: Placed[] = []
+  for (const t of store.filter((x) => x.file === path)) {
+    const r = locate(text, t)
+    if (r) {
+      placed.push({ id: t.id, ...r, resolved: t.resolved })
+      detached.delete(t.id)
+    } else detached.add(t.id)
+  }
+  applyPlaced(path, placed)
+}
+
+/** Redraw a file's comments at their current (live) positions, e.g. after resolving one. */
+function redraw(path: string, extra?: Placed): void {
+  const state = stateOf(path)
+  if (!state) return
+  const byId = new Map(store.map((t) => [t.id, t]))
+  const placed = placedIn(state)
+    .filter((p) => byId.has(p.id) && p.id !== extra?.id)
+    .map((p) => ({ ...p, resolved: byId.get(p.id)!.resolved }))
+  if (extra) placed.push(extra)
+  applyPlaced(path, placed)
+}
+
+/** On save: record where each comment is now, so the comments file matches the saved text. */
+function syncAnchors(path: string, state: EditorState): void {
+  const mine = store.filter((t) => t.file === path)
+  if (!mine.length) return
+  const text = state.doc.toString()
+  const live = new Map(placedIn(state).map((p) => [p.id, p]))
+  const before = JSON.stringify(mine)
+  for (const t of mine) {
+    const p = live.get(t.id)
+    if (p) {
+      Object.assign(t, anchorAt(text, p.from, p.to))
+      detached.delete(t.id)
+    } else detached.add(t.id) // its text was deleted
+  }
+  if (JSON.stringify(mine) !== before) saveComments()
+  scheduleComments()
+}
+
+/** For files that aren't open, check against the text on disk which comments still fit. */
+async function checkDetached(): Promise<void> {
+  const disk = new Map<string, string | null>()
+  for (const t of store) {
+    if (files.has(t.file)) continue
+    if (!disk.has(t.file)) disk.set(t.file, await api.readFile(t.file).catch(() => null))
+    const text = disk.get(t.file)
+    if (text != null && locate(text, t)) detached.delete(t.id)
+    else detached.add(t.id)
+  }
+}
+
+function lineOf(t: Thread): number | null {
+  const state = stateOf(t.file)
+  const p = state && placedIn(state).find((x) => x.id === t.id)
+  return p ? state!.doc.lineAt(p.from).number : null
+}
+
+function renderComments(): void {
+  const open = store.filter((t) => !t.resolved).length
   $('comment-count').textContent = open ? String(open) : ''
   $('btn-comment').innerHTML = $('btn-comment').innerHTML.replace(/<span class="count">.*?<\/span>/, '') + (open ? `<span class="count">${open}</span>` : '')
   if (!layout.isVisible('comments')) return
   const showResolved = ($('show-resolved') as HTMLInputElement).checked
   const list = $('comments-list')
-  const shown = threads.filter((t) => showResolved || !t.resolved)
+  const shown = store.filter((t) => showResolved || !t.resolved)
   if (!shown.length) {
-    list.innerHTML = `<div class="c-empty">${threads.length ? 'No open comments.' : 'No comments yet. Select some text in the editor or the PDF and click <b>+ Comment</b>, or right-click it. You can also press Ctrl/Cmd+Shift+M on any line.'}</div>`
+    list.innerHTML = `<div class="c-empty">${store.length ? 'No open comments.' : 'No comments yet. Select some text in the editor or the PDF and click <b>+ Comment</b>, or right-click it. Press Ctrl/Cmd+Shift+M to comment at the cursor.'}</div>`
     return
   }
   list.replaceChildren(
     ...shown.map((t) => {
       const card = document.createElement('div')
-      card.className = `c-card${t.resolved ? ' resolved' : ''}`
+      const broken = detached.has(t.id)
+      card.className = `c-card${t.resolved ? ' resolved' : ''}${broken ? ' detached' : ''}`
+      card.dataset.id = t.id
       const entry = (e: { author: string; date: string; text: string }, cls = ''): HTMLElement => {
         const d = document.createElement('div')
         d.className = cls
@@ -561,17 +666,30 @@ async function renderComments(): Promise<void> {
         d.querySelector('.c-text')!.textContent = e.text
         return d
       }
-      if (t.quote) {
+      if (broken) {
+        const b = document.createElement('button')
+        b.className = 'c-broken'
+        b.title = 'The text this comment was on has changed or moved. Click to re-link it.'
+        b.innerHTML = '<svg viewBox="0 0 20 20"><path d="M8.5 11.5l3-3M7 9.2 5.4 10.8a2.6 2.6 0 0 0 3.7 3.7l1.6-1.6M13 10.8l1.6-1.6a2.6 2.6 0 0 0-3.7-3.7L9.3 7.1M4 4l2 2M16 16l-2-2"/></svg> Not found in the text · Re-link'
+        b.onclick = (e) => {
+          e.stopPropagation()
+          relink(t)
+        }
+        card.appendChild(b)
+      }
+      if (t.quote.trim()) {
         const q = document.createElement('div')
         q.className = 'c-quote'
-        q.textContent = `“${t.quote}”`
+        const short = t.quote.replace(/\s+/g, ' ').trim()
+        q.textContent = `“${short.length > 140 ? short.slice(0, 140) + '…' : short}”`
         card.appendChild(q)
       }
       card.appendChild(entry(t))
       t.replies.forEach((r) => card.appendChild(entry(r, 'c-reply')))
       const ctx = document.createElement('div')
       ctx.className = 'c-ctx'
-      ctx.textContent = `${t.file}:${t.targetLine}  ${t.context}`
+      const ln = lineOf(t)
+      ctx.textContent = `${t.file}${ln ? `:${ln}` : ''}`
       card.appendChild(ctx)
       const actions = document.createElement('div')
       actions.className = 'c-actions'
@@ -584,17 +702,41 @@ async function renderComments(): Promise<void> {
         }
         actions.appendChild(b)
       }
-      btn('Reply', () => commentAction(t, 'reply'))
-      btn(t.resolved ? 'Reopen' : 'Resolve', () => commentAction(t, t.resolved ? 'reopen' : 'resolve'))
-      btn('Delete', () => commentAction(t, 'delete'))
+      btn('Reply', () => replyTo(t))
+      btn(t.resolved ? 'Reopen' : 'Resolve', () => setResolved(t, !t.resolved))
+      if (!broken) btn('Re-link', () => relink(t))
+      btn('Delete', () => deleteThread(t))
       card.appendChild(actions)
-      card.onclick = async () => {
-        await openFile(t.file)
-        goToLine(view, t.targetLine)
-      }
+      card.onclick = () => showThread(t)
       return card
     })
   )
+}
+
+/** Jump to a comment's text in the editor and select it. */
+async function showThread(t: Thread): Promise<void> {
+  if (detached.has(t.id)) {
+    await relink(t)
+    return
+  }
+  await openFile(t.file)
+  const p = placedIn(view.state).find((x) => x.id === t.id)
+  if (!p) return
+  view.dispatch({ selection: { anchor: p.from, head: p.to }, effects: EditorView.scrollIntoView(p.from, { y: 'center' }) })
+  view.focus()
+}
+
+/** Clicking commented text in the editor highlights its card. */
+function focusCard(id: string): void {
+  if (!store.some((t) => t.id === id)) return
+  if (!layout.isVisible('comments')) layout.show('comments')
+  renderComments()
+  const card = $('comments-list').querySelector<HTMLElement>(`[data-id="${id}"]`)
+  if (!card) return
+  card.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  card.classList.remove('flash')
+  void card.offsetWidth
+  card.classList.add('flash')
 }
 
 async function authorName(): Promise<string | null> {
@@ -605,30 +747,147 @@ async function authorName(): Promise<string | null> {
 }
 
 /**
- * Add a comment. With no target it uses the editor selection (or the cursor's line).
- * From the PDF, `target` names the source file and line found with SyncTeX.
+ * Add a comment on the editor selection (or at the cursor). From the PDF, `target` names the
+ * source file and line found with SyncTeX, and the PDF text, which is looked up near that line.
  */
 async function addComment(target?: { file: string; line: number; quote: string }): Promise<void> {
   if (!target && (!active || !active.endsWith('.tex'))) {
-    await ask('Open a .tex file and select the text (or put the cursor on the line) you want to comment on.', ['OK'])
+    await ask('Open a .tex file and select the text (or click where) you want to comment.', ['OK'])
     return
   }
   const sel = view.state.selection.main
-  const quote = target ? target.quote : view.state.sliceDoc(sel.from, sel.to)
-  const fromPos = sel.from
+  const shownQuote = target ? target.quote : view.state.sliceDoc(sel.from, sel.to)
   hideBubble()
   const name = await authorName()
   if (!name) return
-  const text = await promptText(quote ? `Comment on “${quote.length > 80 ? quote.slice(0, 80) + '…' : quote}”:` : 'Comment:')
-  if (!text) return
+  const short = shownQuote.replace(/\s+/g, ' ').trim()
+  const body = await promptText(short ? `Comment on “${short.length > 80 ? short.slice(0, 80) + '…' : short}”:` : 'Comment:')
+  if (!body) return
+  let from = sel.from
+  let to = sel.to
   if (target) {
     await openFile(target.file)
-    goToLine(view, target.line)
+    const doc = view.state.doc
+    const line = doc.line(Math.min(Math.max(1, target.line), doc.lines))
+    const end = doc.line(Math.min(doc.lines, line.number + 4)).to
+    const hit = findQuote(doc.sliceString(line.from, end), target.quote)
+    from = hit ? line.from + hit[0] : line.from
+    to = hit ? line.from + hit[1] : line.from
   }
-  const line = target ? view.state.doc.line(Math.min(target.line, view.state.doc.lines)) : view.state.doc.lineAt(fromPos)
-  const indent = line.text.match(/^\s*/)![0]
-  view.dispatch({ changes: { from: line.from, insert: entryLine('comment', name, text, indent, quote) + '\n' } })
-  layout.show('comments')
+  const t: Thread = { id: newId(), file: active!, ...anchorAt(view.state.doc.toString(), from, to), author: name, date: today(), text: body.trim(), replies: [], resolved: false }
+  store.push(t)
+  redraw(active!, { id: t.id, from, to, resolved: false })
+  await saveComments()
+  focusCard(t.id)
+}
+
+async function replyTo(t: Thread): Promise<void> {
+  const name = await authorName()
+  if (!name) return
+  const text = await promptText('Reply:')
+  if (!text) return
+  t.replies.push({ author: name, date: today(), text: text.trim() })
+  await saveComments()
+  renderComments()
+}
+
+async function setResolved(t: Thread, resolved: boolean): Promise<void> {
+  t.resolved = resolved
+  redraw(t.file)
+  await saveComments()
+  renderComments()
+}
+
+async function deleteThread(t: Thread): Promise<void> {
+  if ((await ask('Delete this comment and its replies?', ['Delete', 'Cancel'])) !== 0) return
+  store = store.filter((x) => x !== t)
+  detached.delete(t.id)
+  redraw(t.file)
+  await saveComments()
+  renderComments()
+}
+
+/** Attach a comment to the text selected in the editor (or the cursor position). */
+async function relink(t: Thread): Promise<void> {
+  const sel = view.state.selection.main
+  if (!active || !active.endsWith('.tex') || (sel.empty && !detached.has(t.id))) {
+    await ask(`Select the text this comment belongs to${t.quote.trim() ? ` (it was on “${t.quote.replace(/\s+/g, ' ').trim().slice(0, 60)}”)` : ''}, then click Re-link on the comment.`, ['OK'])
+    if (!active || active !== t.file) await openFile(t.file).catch(() => {})
+    return
+  }
+  if (sel.empty && (await ask('Nothing is selected. Attach the comment at the cursor position?', ['Attach here', 'Cancel'])) !== 0) return
+  const oldFile = t.file
+  Object.assign(t, { file: active }, anchorAt(view.state.doc.toString(), sel.from, sel.to))
+  detached.delete(t.id)
+  if (oldFile !== active) redraw(oldFile)
+  redraw(active, { id: t.id, from: sel.from, to: sel.to, resolved: t.resolved })
+  await saveComments()
+  focusCard(t.id)
+}
+
+/** Convert comments written as %@comment lines (older OpenTex, and Word import) into the comments file. */
+async function migrateLegacyComments(): Promise<void> {
+  if (!project) return
+  const found: { file: string; text: string }[] = []
+  for (const f of allFiles(project.tree, (p) => p.endsWith('.tex'))) {
+    const text = textOf(f) ?? (await api.readFile(f).catch(() => ''))
+    if (/^\s*%@comment\[/m.test(text)) found.push({ file: f, text })
+  }
+  const auto = autoMigrate
+  autoMigrate = false
+  if (!found.length) return
+  if (!auto) {
+    const r = await ask('This project has comments written as %@comment lines in its .tex files (the older OpenTex format). Move them into OpenTex’s comments file? Your text stays the same; only those comment lines are removed.', ['Move them', 'Not now'])
+    if (r !== 0) return
+  }
+  for (const { file, text } of found) {
+    if (files.get(file)?.dirty) await save(file, false)
+    const threads = parseComments(text, file)
+    const lines = text.split('\n')
+    const removed = new Set<number>()
+    for (const t of threads) for (let i = t.line - 1; i <= t.endLine - 1; i++) removed.add(i)
+    const kept: string[] = []
+    const newIndex: number[] = []
+    lines.forEach((l, i) => {
+      newIndex[i] = kept.length
+      if (!removed.has(i)) kept.push(l)
+    })
+    const newText = kept.join('\n')
+    const starts: number[] = []
+    let off = 0
+    for (const l of kept) {
+      starts.push(off)
+      off += l.length + 1
+    }
+    for (const t of threads) {
+      const at = starts[Math.min(newIndex[Math.min(t.targetLine - 1, lines.length - 1)] ?? 0, starts.length - 1)] ?? 0
+      let from = at
+      let to = at
+      if (t.quote) {
+        const hit = findQuote(newText.slice(at, at + 3000), t.quote)
+        if (hit) {
+          from = at + hit[0]
+          to = at + hit[1]
+        }
+      }
+      store.push({ id: newId(), file, ...anchorAt(newText, from, to), author: t.author, date: t.date, text: t.text, replies: t.replies.map((r) => ({ author: r.author, date: r.date, text: r.text })), resolved: t.resolved })
+    }
+    await api.writeFile(file, newText)
+    const f = files.get(file)
+    if (f) {
+      // Replace the open copy right away so the comments land on the new text.
+      const st = stateOf(file)!
+      const tr = st.update({ changes: { from: 0, to: st.doc.length, insert: newText } })
+      if (file === active) view.dispatch(tr)
+      else f.state = tr.state
+      f.saved = newText
+      f.dirty = false
+    }
+  }
+  await saveComments()
+  for (const f of files.keys()) placeIn(f)
+  renderTabs()
+  scheduleComments()
 }
 
 // ---------- "+ Comment" bubble over selections ----------
@@ -698,7 +957,7 @@ function showContextMenu(spell: { misspelled: string; suggestions: string[] }): 
       items.push([`Add “${spell.misspelled}” to dictionary`, () => api.addToDictionary(spell.misspelled)])
     }
     const sel = view.state.selection.main
-    if (!sel.empty || !items.length) items.push([sel.empty ? 'Add comment on this line' : 'Add comment on selection', () => addComment()])
+    if (!sel.empty || !items.length) items.push([sel.empty ? 'Add comment here' : 'Add comment on selection', () => addComment()])
     items.push(['Show in PDF', () => syncForward()])
     if (!sel.empty) items.push(['Cut', () => api.editCommand('cut')], ['Copy', () => api.editCommand('copy')])
     items.push(['Paste', () => api.editCommand('paste')])
@@ -823,41 +1082,6 @@ function panelsMenu(): void {
   items.push(['Reset layout', () => layout.reset()])
   contextMenu(r.left - 120, r.bottom + 4, items)
 }
-
-/** Edit a thread in the editor (so it can be undone), after re-finding it in the current text. */
-async function commentAction(t: CommentThread, kind: 'reply' | 'resolve' | 'reopen' | 'delete'): Promise<void> {
-  let reply = ''
-  let name = ''
-  if (kind === 'reply') {
-    name = (await authorName()) ?? ''
-    if (!name) return
-    reply = (await promptText('Reply:')) ?? ''
-    if (!reply) return
-  }
-  if (kind === 'delete' && (await ask('Delete this comment thread?', ['Delete', 'Cancel'])) !== 0) return
-  await openFile(t.file)
-  const cur = parseComments(view.state.doc.toString(), t.file).find((x) => x.line === t.line && x.text === t.text)
-  if (!cur) {
-    scheduleComments()
-    return
-  }
-  const doc = view.state.doc
-  const end = doc.line(cur.endLine)
-  if (kind === 'reply') {
-    // Replies go before the resolved marker, if any.
-    const at = cur.resolved ? doc.line(cur.endLine - 1).to : end.to
-    view.dispatch({ changes: { from: at, insert: '\n' + entryLine('reply', name, reply, cur.indent) } })
-  } else if (kind === 'resolve') {
-    view.dispatch({ changes: { from: end.to, insert: `\n${cur.indent}%@resolved` } })
-  } else if (kind === 'reopen') {
-    view.dispatch({ changes: { from: doc.line(cur.endLine - 1).to, to: end.to } })
-  } else {
-    const start = doc.line(cur.line).from
-    view.dispatch({ changes: { from: start, to: Math.min(end.to + 1, doc.length) } })
-  }
-  scheduleComments()
-}
-
 
 // ---------- Importing: references ----------
 const FORMAT_NAMES: Record<RefFormat, string> = { 'endnote-xml': 'EndNote XML', ris: 'RIS', 'csl-json': 'CSL JSON (Zotero)', bibtex: 'BibTeX' }
@@ -1028,6 +1252,7 @@ async function importWordDoc(docx?: string): Promise<void> {
   })
   const r = res as Res | null
   if (!ok || !r) return
+  autoMigrate = true // Word comments arrive as %@comment lines; move them into the comments file
   await setProject(await api.openProject(r.folder))
   const parts = [`${r.images} figure${r.images === 1 ? '' : 's'}`, `${r.comments} comment${r.comments === 1 ? '' : 's'}`, `${r.citations} reference${r.citations === 1 ? '' : 's'}`]
   let msg = `Imported ${name}: ${parts.join(', ')}. OpenTex will compile it now. Look over the result, especially tables and figure placement.`
@@ -1069,6 +1294,9 @@ document.addEventListener(
 // ---------- Welcome page, new projects, closing folders ----------
 async function showWelcome(): Promise<void> {
   project = null
+  store = []
+  storeText = ''
+  detached.clear()
   files.clear()
   tabOrder = []
   active = null

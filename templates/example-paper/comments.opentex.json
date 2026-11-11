@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "threads": [
+    {
+      "id": "cexample1",
+      "file": "sections/methods.tex",
+      "quote": "work like comments in Word",
+      "prefix": "ial t}\n\\end{align}\n\nComments in OpenTex ",
+      "suffix": ": select text, click \\textbf{+ Comment},",
+      "pos": 920,
+      "author": "OpenTex",
+      "date": "2026-11-11",
+      "text": "This is an OpenTex comment. Click it to jump here, reply below, or resolve it when you're done. To add your own, select any text and click “+ Comment”.",
+      "replies": [],
+      "resolved": false
+    }
+  ]
+}

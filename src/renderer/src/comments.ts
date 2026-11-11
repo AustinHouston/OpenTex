@@ -1,5 +1,5 @@
-// Comments live inside the .tex source as special LaTeX comment lines, so they travel with the
-// file (email, Dropbox, git), survive edits in any editor, and never reach the PDF:
+// The older comment format: %@comment lines inside the .tex source. OpenTex now keeps comments in
+// comments.opentex.json (see review.ts); this parser is used to convert old projects and Word imports:
 //
 //   %@comment[Austin Houston, 2026-11-11]{the quoted text}: Is this the right reference?
 //   %@reply[Jane Doe, 2026-11-12]: Fixed, thanks.
@@ -7,8 +7,6 @@
 //   The line being commented on comes right after the thread. The {quoted text} part is
 //   optional; when present, that text is highlighted in the lines below the thread.
 
-import { RangeSetBuilder } from '@codemirror/state'
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view'
 
 export interface CommentEntry {
   author: string
@@ -83,53 +81,4 @@ export function findQuote(text: string, quote: string): [number, number] | null 
   const re = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'))
   const m = re.exec(text)
   return m ? [m.index, m.index + m[0].length] : null
-}
-
-/** Editor styling: comment threads get a tinted card look; the commented line gets a margin bar. */
-export const commentHighlight = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    constructor(view: EditorView) {
-      this.decorations = this.build(view)
-    }
-    update(u: ViewUpdate): void {
-      if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view)
-    }
-    build(view: EditorView): DecorationSet {
-      const doc = view.state.doc
-      const b = new RangeSetBuilder<Decoration>()
-      if (!doc.toString().includes('%@')) return b.finish()
-      const threads = parseComments(doc.toString(), '')
-      for (const t of threads) {
-        const cls = t.resolved ? 'ot-c-line ot-c-resolved' : 'ot-c-line'
-        for (let n = t.line; n <= t.endLine; n++) {
-          const line = doc.line(n)
-          b.add(line.from, line.from, Decoration.line({ class: cls + (n === t.line ? ' ot-c-first' : '') + (n === t.endLine ? ' ot-c-last' : '') }))
-          const head = line.text.match(/^\s*%@(?:comment|reply)\[[^\]]*\]:|^\s*%@resolved/)
-          if (head) b.add(line.from, line.from + head[0].length, Decoration.mark({ class: 'ot-c-head' }))
-        }
-        if (!t.resolved && t.targetLine <= doc.lines) {
-          const target = doc.line(t.targetLine)
-          b.add(target.from, target.from, Decoration.line({ class: 'ot-c-target' }))
-        }
-      }
-      // Quoted text is highlighted in the lines below its thread (ranges must be added in order).
-      const quotes: [number, number][] = []
-      for (const t of threads) {
-        if (t.resolved || !t.quote || t.targetLine > doc.lines) continue
-        const from = doc.line(t.targetLine).from
-        const to = doc.line(Math.min(doc.lines, t.targetLine + 30)).to
-        const hit = findQuote(doc.sliceString(from, to), t.quote)
-        if (hit) quotes.push([from + hit[0], from + hit[1]])
-      }
-      const all: [number, number, Decoration][] = []
-      for (const [a, z] of quotes) all.push([a, z, Decoration.mark({ class: 'cm-ot-quote' })])
-      return mergeInOrder(b.finish(), all)
-    }
-  },
-  { decorations: (v) => v.decorations }
-)
-
-function mergeInOrder(set: DecorationSet, extra: [number, number, Decoration][]): DecorationSet {
-  return extra.length ? set.update({ add: extra.map(([a, z, d]) => d.range(a, z)), sort: true }) : set
 }

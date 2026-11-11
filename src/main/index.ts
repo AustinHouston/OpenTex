@@ -71,6 +71,11 @@ function createWindow(openFolder?: string): BrowserWindow {
       win.webContents.send('app:before-close')
     }
   })
+  // If the page crashes, log why and bring it back instead of leaving a blank window.
+  win.webContents.on('render-process-gone', (_e, d) => {
+    console.error(`[opentex] window ${id} renderer gone: ${d.reason} (exit ${d.exitCode})`)
+    if (d.reason !== 'clean-exit' && !win.isDestroyed()) win.reload()
+  })
   win.on('closed', () => {
     ctx.project?.close()
     windows.delete(id)

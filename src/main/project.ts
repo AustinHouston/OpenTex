@@ -36,7 +36,7 @@ export class Project {
       if (e.isDirectory()) {
         if (IGNORED_DIRS.has(e.name)) continue
         nodes.push({ name: e.name, path: this.rel(full), dir: true, children: await this.tree(full, depth + 1) })
-      } else if (!BUILD_EXT.test(e.name)) {
+      } else if (!BUILD_EXT.test(e.name) && e.name !== 'comments.opentex.json') {
         nodes.push({ name: e.name, path: this.rel(full), dir: false })
       }
     }

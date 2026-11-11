@@ -332,3 +332,18 @@ body.no-project .statusbar .st-main { display: none !important; }
 .np-template label small { font-weight: 400; color: var(--muted); font-size: 12px; }
 .np-template label:has(input:checked) { border-color: var(--accent); }
 .np-template input { display: none; }
+
+/* Comments: highlighted like Word, stored outside the text */
+.cm-ot-cmt { background: color-mix(in srgb, var(--warning) 26%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--warning) 80%, transparent); border-radius: 2px; cursor: pointer; }
+.cm-ot-cmt.resolved { background: none; border-bottom: none; cursor: text; }
+.cm-ot-cpoint { display: inline-flex; vertical-align: -2px; margin: 0 1px; color: var(--warning); cursor: pointer; }
+.cm-ot-cpoint svg { width: 14px; height: 14px; fill: color-mix(in srgb, var(--warning) 25%, transparent); stroke: currentColor; stroke-width: 1.6; }
+.cm-ot-cpoint.resolved { display: none; }
+body.focus .cm-ot-cmt { background: none; border-bottom: none; }
+body.focus .cm-ot-cpoint { display: none; }
+.c-card.flash { animation: cflash 1.2s ease-out; }
+@keyframes cflash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.c-card.detached { border-left-color: var(--error); }
+.c-broken { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--error); padding: 1px 6px 1px 2px; margin: -2px 0 4px -2px; border-radius: 5px; }
+.c-broken svg { width: 14px; height: 14px; }
+.c-broken:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }

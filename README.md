@@ -79,16 +79,15 @@ Choose **File → Import References…**, or drag the exported file onto the win
 
 ## Comments
 
-Comments are ordinary LaTeX comment lines, so they never appear in the PDF and they survive email, Dropbox, git and other editors:
+Comments work like comments in Word. Select a word, a sentence or several paragraphs, in the editor or in the PDF, and click the **+ Comment** bubble (or right-click). To comment on a single spot, put the cursor there and press `Ctrl/Cmd+Shift+M`. Commented text is highlighted, and clicking it shows the comment in the **Comments** panel, where you can reply, resolve or delete it.
 
-```latex
-%@comment[Jane Doe, 2026-11-10]{Poisson equation}: Should we cite Jackson for this?
-%@reply[Austin Houston, 2026-11-11]: Yes, adding it.
-%@resolved
-We solve the Poisson equation...
-```
+Your `.tex` files are never touched. Comments are kept in `comments.opentex.json` in the project folder, so they travel with the folder (email, Dropbox, git) and never appear in the PDF. Each comment remembers the text it's on and the words around it:
 
-A thread belongs to the line right below it, and the optional `{…}` part is the text it's about (highlighted in the editor). To comment, **select text in the editor or in the PDF** and click the **+ Comment** bubble, or right-click it. Commenting on PDF text uses SyncTeX to find the matching source line. The **Comments** panel on the right lists every thread in the project, with Reply, Resolve and Delete. Set your name once in Settings.
+- When you edit in OpenTex, comments move with the text.
+- When a file is changed outside OpenTex (another editor, a collaborator, git), OpenTex finds each comment's text again.
+- If a comment's text was rewritten or deleted, the comment is marked **Not found in the text**. Select the right text and click **Re-link** to attach it again.
+
+Projects that used the older format (`%@comment` lines in the `.tex` files) are converted when you open them, and comments from Word documents come across the same way. Set your name once in Settings.
 
 ## Plugins
 

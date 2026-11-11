@@ -1,0 +1,3 @@
+{ "name": "Ocean", "dark": false,
+  "colors": { "bg": "#f7fbfd", "panel": "#eaf3f8", "panelAlt": "#d9e9f2", "border": "#c6dce8", "text": "#1e3442", "muted": "#5f7d8e", "accent": "#0f7fa8", "accentText": "#ffffff", "selection": "#c8e6f5", "cursor": "#1e3442", "activeLine": "#eef6fa", "error": "#c4314b", "warning": "#9a6b00", "pdfBg": "#d6e6ee" },
+  "syntax": { "command": "#0f7fa8", "math": "#13896f", "env": "#5b5fc7", "comment": "#8aa3b1", "bracket": "#c2611f", "number": "#5b5fc7" } }

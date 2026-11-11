@@ -14,7 +14,18 @@ export class PdfView {
   private resizeTimer = 0
   private lastWidth = 0
 
+  private scale = 1
+  /** Called with a page point (PDF points from the top-left) when the user double-clicks the PDF. */
+  onInverse: ((page: number, x: number, y: number) => void) | null = null
+
   constructor(private host: HTMLElement, private zoomLabel: HTMLElement, private pagesLabel: HTMLElement) {
+    host.addEventListener('dblclick', (e) => {
+      const hit = this.pointAt(e.clientX, e.clientY)
+      if (hit && this.onInverse) {
+        window.getSelection()?.removeAllRanges()
+        this.onInverse(hit.page, hit.x, hit.y)
+      }
+    })
     new ResizeObserver(() => {
       const w = this.host.clientWidth
       if (this.zoom !== 'fit' || !this.doc || Math.abs(w - this.lastWidth) < 4) return
@@ -59,6 +70,7 @@ export class PdfView {
     const base = first.getViewport({ scale: 1 })
     this.fitScale = Math.max(0.2, (this.host.clientWidth - 28) / base.width)
     const scale = this.zoom === 'fit' ? this.fitScale : this.zoom
+    this.scale = scale
     this.zoomLabel.textContent = this.zoom === 'fit' ? 'Fit' : `${Math.round(scale * 100)}%`
     this.pagesLabel.textContent = `${doc.numPages} page${doc.numPages === 1 ? '' : 's'}`
 
@@ -72,6 +84,8 @@ export class PdfView {
       slot.style.width = `${Math.floor(vp.width)}px`
       slot.style.height = `${Math.floor(vp.height)}px`
       slot.dataset.page = String(i)
+      slot.style.setProperty('--scale-factor', String(scale))
+      slot.style.setProperty('--total-scale-factor', String(scale))
       slots.push(slot)
       wrap.appendChild(slot)
     }
@@ -124,7 +138,55 @@ export class PdfView {
       if (gen === this.generation) console.warn('PDF page render failed', e)
       return
     }
-    if (gen === this.generation || !slot.isConnected) slot.replaceChildren(canvas)
+    if (!(gen === this.generation || !slot.isConnected)) return
+    slot.replaceChildren(canvas)
+    // Invisible, selectable text on top of the picture (for copying and commenting).
+    const text = document.createElement('div')
+    text.className = 'textLayer'
+    slot.appendChild(text)
+    try {
+      await new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp }).render()
+    } catch {
+      /* text selection is optional */
+    }
+  }
+
+  /** Page and PDF-point coordinates under a screen position. */
+  pointAt(clientX: number, clientY: number): { page: number; x: number; y: number } | null {
+    const slot = (document.elementFromPoint(clientX, clientY) as HTMLElement | null)?.closest<HTMLElement>('.pdf-page')
+    if (!slot) return null
+    const r = slot.getBoundingClientRect()
+    return { page: Number(slot.dataset.page), x: (clientX - r.left) / this.scale, y: (clientY - r.top) / this.scale }
+  }
+
+  /** The text selected in the PDF, with the point where it starts. */
+  selection(): { text: string; page: number; x: number; y: number; rect: DOMRect } | null {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return null
+    const range = sel.getRangeAt(0)
+    if (!this.host.contains(range.commonAncestorContainer)) return null
+    const rect = range.getClientRects()[0] ?? range.getBoundingClientRect()
+    const hit = this.pointAt(rect.left + 2, rect.top + rect.height / 2)
+    const text = sel.toString().replace(/\s+/g, ' ').trim()
+    return hit && text ? { text, ...hit, rect: range.getBoundingClientRect() } : null
+  }
+
+  /** Scroll to a box (PDF points) and flash a highlight on it. */
+  showBox(box: { page: number; x: number; y: number; w: number; h: number }): void {
+    const slot = this.host.querySelector<HTMLElement>(`.pdf-page[data-page="${box.page}"]`)
+    if (!slot) return
+    const mark = document.createElement('div')
+    mark.className = 'pdf-flash'
+    Object.assign(mark.style, {
+      left: `${box.x * this.scale - 4}px`,
+      top: `${box.y * this.scale - 3}px`,
+      width: `${Math.max(box.w, 30) * this.scale + 8}px`,
+      height: `${Math.max(box.h, 8) * this.scale + 6}px`
+    })
+    slot.appendChild(mark)
+    const top = slot.offsetTop + box.y * this.scale - this.host.clientHeight / 3
+    this.host.scrollTo({ top, behavior: 'smooth' })
+    setTimeout(() => mark.remove(), 1600)
   }
 
   clear(): void {

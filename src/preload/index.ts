@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 
 // The only bridge between the page and the system. Everything goes through IPC handlers in src/main/index.ts.
 const api = {
@@ -23,8 +23,18 @@ const api = {
   installTinyTex: () => ipcRenderer.invoke('tinytex:install'),
   canInstallPackages: () => ipcRenderer.invoke('tex:canInstallPackages'),
   installMissing: (files: string[]) => ipcRenderer.invoke('tex:installMissing', files),
+  setZoom: (factor: number) => webFrame.setZoomFactor(factor),
+  synctexForward: (file: string, line: number, pdf: string) => ipcRenderer.invoke('synctex:forward', file, line, pdf),
+  synctexInverse: (pdf: string, page: number, x: number, y: number) => ipcRenderer.invoke('synctex:inverse', pdf, page, x, y),
+  gitStatus: () => ipcRenderer.invoke('git:status'),
+  editCommand: (cmd: 'cut' | 'copy' | 'paste' | 'selectAll') => ipcRenderer.invoke('edit:command', cmd),
+  addToDictionary: (word: string) => ipcRenderer.invoke('spell:add', word),
+  listPlugins: () => ipcRenderer.invoke('plugins:list'),
+  openPluginsFolder: () => ipcRenderer.invoke('plugins:openFolder'),
+  pluginStorageGet: (id: string) => ipcRenderer.invoke('plugins:storageGet', id),
+  pluginStorageSet: (id: string, key: string, value: unknown) => ipcRenderer.invoke('plugins:storageSet', id, key, value),
   closeOk: () => ipcRenderer.send('app:close-ok'),
-  on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress', fn: (...args: any[]) => void) => {
+  on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress' | 'context-menu', fn: (...args: any[]) => void) => {
     ipcRenderer.on(channel, (_e, ...args) => fn(...args))
   }
 }

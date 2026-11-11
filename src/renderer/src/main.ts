@@ -10,6 +10,9 @@ import { openSettings } from './settings-ui'
 import { applyTheme, BUILT_IN } from './themes'
 import { ask, contextMenu, promptText } from './ui'
 import { CommentThread, commentHighlight, entryLine, parseComments } from './comments'
+import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
+import { Dock } from './panels'
+import type { PluginInfo } from '../../shared/types'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -35,6 +38,8 @@ let compileQueued = false
 let lastPdf: string | null = null
 let lastPdfLoad = 0
 let focusOn = false
+let completion: CompletionData = { citations: [], labels: [], commands: [] }
+let liveTimer = 0
 
 const extensions = [...makeExtensions(
   {
@@ -45,10 +50,14 @@ const extensions = [...makeExtensions(
         renderTabs()
       }
       scheduleComments()
+      scheduleLiveCompile()
+      scheduleWords()
     },
-    onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`)
+    onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
+    onSelection: () => placeBubble()
   },
-  false
+  false,
+  () => completion
 ), commentHighlight]
 const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
@@ -62,13 +71,19 @@ function applySettings(): void {
   r.setProperty('--editor-font-size', `${settings.fontSize}px`)
   r.setProperty('--editor-line-height', String(settings.lineHeight))
   r.setProperty('--focus-width', `${settings.focusWidth}ch`)
-  view.dispatch({ effects: dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)) })
+  view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
   view.requestMeasure()
+  dock?.broadcastTheme()
+}
+
+function currentTheme(): Theme {
+  return themes.find((t) => t.name === settings.theme) ?? BUILT_IN[0]
 }
 
 async function updateSettings(patch: Partial<Settings>): Promise<void> {
   settings = await api.setSettings(patch)
   applySettings()
+  if ('disabledPlugins' in patch) dock.setPlugins(allPlugins, settings.disabledPlugins)
   if ('texPath' in patch) await refreshTex()
 }
 
@@ -99,6 +114,8 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   ;($('engine') as HTMLSelectElement).value = info.config.engine ?? settings.engine
   refreshProjectUi()
   scheduleComments()
+  refreshIndex()
+  refreshGit()
   if (info.mainFile) {
     await openFile(info.mainFile)
     const pdfPath = info.mainFile.replace(/\.tex$/i, '.pdf')
@@ -181,7 +198,9 @@ function switchTo(path: string): void {
   if (active && files.has(active)) files.get(active)!.state = view.state
   active = path
   view.setState(files.get(path)!.state)
-  view.dispatch({ effects: dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)) })
+  view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
+  hideBubble()
+  updateWords()
   renderTabs()
   refreshProjectUi()
   view.focus()
@@ -243,6 +262,8 @@ async function save(path = active, maybeCompile = true): Promise<void> {
   f.saved = text
   f.dirty = false
   renderTabs()
+  refreshIndex()
+  refreshGit()
   if (maybeCompile && settings.compileOnSave && /\.(tex|bib|sty|cls)$/i.test(path)) compile()
 }
 
@@ -284,6 +305,8 @@ async function onDiskChange(paths: string[]): Promise<void> {
     }
   }
   if (paths.some((p) => p.endsWith('.tex'))) scheduleComments()
+  if (paths.some((p) => /\.(tex|bib)$/.test(p))) refreshIndex()
+  if (structural) refreshGit()
   if (lastPdf && paths.includes(lastPdf) && !compiling && Date.now() - lastPdfLoad > 2000) showPdf(lastPdf)
 }
 
@@ -381,6 +404,34 @@ function showProblems(list: Problem[], open: boolean): void {
   if (!list.length) $('problems').classList.add('hidden')
 }
 
+// ---------- Interface zoom ----------
+const ZOOMS = [0.6, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2]
+function zoom(dir: 1 | -1 | 0): void {
+  const cur = settings.uiZoom || 1
+  let next = 1
+  if (dir !== 0) {
+    const i = ZOOMS.findIndex((z) => z >= cur - 0.001)
+    next = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? ZOOMS.indexOf(1) : i) + dir))]
+  }
+  api.setZoom(next)
+  updateSettings({ uiZoom: next })
+  setCompileStatus(`Interface size ${Math.round(next * 100)}%`)
+}
+document.addEventListener(
+  'keydown',
+  (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+    const k = e.key
+    if (k === '=' || k === '+') zoom(1)
+    else if (k === '-' || k === '_') zoom(-1)
+    else if (k === '0') zoom(0)
+    else return
+    e.preventDefault()
+    e.stopPropagation()
+  },
+  true
+)
+
 // ---------- Focus mode ----------
 let exitTimer = 0
 function setFocus(on: boolean): void {
@@ -422,25 +473,28 @@ function setupSplitters(): void {
     }
   }
   const sw = saved('sidebar-w')
-  const pw = saved('pdf-w')
-  if (sw) document.documentElement.style.setProperty('--sidebar-w', sw)
-  if (pw) document.documentElement.style.setProperty('--pdf-w', pw)
+  for (const k of ['sidebar-w', 'pdf-w', 'dock-w']) {
+    const v = saved(k)
+    if (v) document.documentElement.style.setProperty(`--${k}`, v)
+  }
+  void sw
   document.querySelectorAll<HTMLElement>('.splitter').forEach((sp) => {
     sp.addEventListener('pointerdown', (e) => {
       const target = $(sp.dataset.target!)
-      const isPdf = sp.dataset.target === 'pdf-col'
+      const isPdf = sp.dataset.target === 'pdf-col' || sp.dataset.target === 'dock' // panels right of the divider
+      const varName = sp.dataset.target === 'dock' ? 'dock-w' : sp.dataset.target === 'pdf-col' ? 'pdf-w' : 'sidebar-w'
       const startX = e.clientX
       const startW = target.getBoundingClientRect().width
       sp.setPointerCapture(e.pointerId)
       sp.classList.add('dragging')
       const move = (ev: PointerEvent): void => {
         const w = Math.max(140, startW + (isPdf ? startX - ev.clientX : ev.clientX - startX))
-        document.documentElement.style.setProperty(isPdf ? '--pdf-w' : '--sidebar-w', `${w}px`)
+        document.documentElement.style.setProperty(`--${varName}`, `${w}px`)
       }
       const up = (): void => {
         sp.classList.remove('dragging')
         sp.removeEventListener('pointermove', move)
-        const k = isPdf ? 'pdf-w' : 'sidebar-w'
+        const k = varName
         try {
           localStorage.setItem(k, document.documentElement.style.getPropertyValue(`--${k}`))
         } catch {
@@ -502,7 +556,6 @@ async function offerMissing(missing: string[]): Promise<void> {
 
 // ---------- Comments ----------
 let commentsTimer = 0
-let sidePane: 'files' | 'comments' = 'files'
 function scheduleComments(): void {
   clearTimeout(commentsTimer)
   commentsTimer = window.setTimeout(renderComments, 400)
@@ -527,12 +580,13 @@ async function renderComments(): Promise<void> {
   const threads = await allThreads()
   const open = threads.filter((t) => !t.resolved).length
   $('comment-count').textContent = open ? String(open) : ''
-  if (sidePane !== 'comments') return
+  $('btn-comment').innerHTML = $('btn-comment').innerHTML.replace(/<span class="count">.*?<\/span>/, '') + (open ? `<span class="count">${open}</span>` : '')
+  if (!dock.isOpen() || dock.current !== 'comments') return
   const showResolved = ($('show-resolved') as HTMLInputElement).checked
   const list = $('comments-list')
   const shown = threads.filter((t) => showResolved || !t.resolved)
   if (!shown.length) {
-    list.innerHTML = `<div class="c-empty">${threads.length ? 'No open comments.' : 'No comments yet. Put the cursor on a line and press the comment button (or Ctrl/Cmd+Shift+M).'}</div>`
+    list.innerHTML = `<div class="c-empty">${threads.length ? 'No open comments.' : 'No comments yet. Select some text in the editor or the PDF and click <b>+ Comment</b>, or right-click it. You can also press Ctrl/Cmd+Shift+M on any line.'}</div>`
     return
   }
   list.replaceChildren(
@@ -548,11 +602,17 @@ async function renderComments(): Promise<void> {
         d.querySelector('.c-text')!.textContent = e.text
         return d
       }
+      if (t.quote) {
+        const q = document.createElement('div')
+        q.className = 'c-quote'
+        q.textContent = `“${t.quote}”`
+        card.appendChild(q)
+      }
       card.appendChild(entry(t))
       t.replies.forEach((r) => card.appendChild(entry(r, 'c-reply')))
       const ctx = document.createElement('div')
       ctx.className = 'c-ctx'
-      ctx.textContent = `${t.file}:${t.endLine + 1}  ${t.context}`
+      ctx.textContent = `${t.file}:${t.targetLine}  ${t.context}`
       card.appendChild(ctx)
       const actions = document.createElement('div')
       actions.className = 'c-actions'
@@ -571,7 +631,7 @@ async function renderComments(): Promise<void> {
       card.appendChild(actions)
       card.onclick = async () => {
         await openFile(t.file)
-        goToLine(view, t.endLine + 1)
+        goToLine(view, t.targetLine)
       }
       return card
     })
@@ -585,20 +645,194 @@ async function authorName(): Promise<string | null> {
   return name
 }
 
-async function addComment(): Promise<void> {
-  if (!active || !active.endsWith('.tex')) {
-    await ask('Open a .tex file and put the cursor on the line you want to comment on.', ['OK'])
+/**
+ * Add a comment. With no target it uses the editor selection (or the cursor's line).
+ * From the PDF, `target` names the source file and line found with SyncTeX.
+ */
+async function addComment(target?: { file: string; line: number; quote: string }): Promise<void> {
+  if (!target && (!active || !active.endsWith('.tex'))) {
+    await ask('Open a .tex file and select the text (or put the cursor on the line) you want to comment on.', ['OK'])
     return
   }
+  const sel = view.state.selection.main
+  const quote = target ? target.quote : view.state.sliceDoc(sel.from, sel.to)
+  const fromPos = sel.from
+  hideBubble()
   const name = await authorName()
   if (!name) return
-  const text = await promptText('Comment:')
+  const text = await promptText(quote ? `Comment on “${quote.length > 80 ? quote.slice(0, 80) + '…' : quote}”:` : 'Comment:')
   if (!text) return
-  const line = view.state.doc.lineAt(view.state.selection.main.head)
+  if (target) {
+    await openFile(target.file)
+    goToLine(view, target.line)
+  }
+  const line = target ? view.state.doc.line(Math.min(target.line, view.state.doc.lines)) : view.state.doc.lineAt(fromPos)
   const indent = line.text.match(/^\s*/)![0]
-  view.dispatch({ changes: { from: line.from, insert: entryLine('comment', name, text, indent) + '\n' } })
-  showSide('comments')
+  view.dispatch({ changes: { from: line.from, insert: entryLine('comment', name, text, indent, quote) + '\n' } })
+  dock.show('comments')
 }
+
+// ---------- "+ Comment" bubble over selections ----------
+let pointerDown = false
+document.addEventListener('pointerdown', (e) => {
+  if (!(e.target as HTMLElement).closest('#comment-bubble')) pointerDown = true
+})
+document.addEventListener('pointerup', () => {
+  pointerDown = false
+  setTimeout(placeBubble, 0)
+})
+function hideBubble(): void {
+  $('comment-bubble').classList.add('hidden')
+}
+/** Show the bubble above a non-empty selection in the editor or the PDF. */
+function placeBubble(): void {
+  const b = $('comment-bubble')
+  if (pointerDown || focusOn || !project) return hideBubble()
+  const pdfSel = pdf.selection()
+  if (pdfSel) {
+    b.dataset.source = 'pdf'
+    b.style.left = `${pdfSel.rect.left + Math.min(pdfSel.rect.width, 240) / 2}px`
+    b.style.top = `${pdfSel.rect.top - 8}px`
+    b.classList.remove('hidden')
+    return
+  }
+  const sel = view.state.selection.main
+  if (sel.empty || !view.hasFocus || !active?.endsWith('.tex')) return hideBubble()
+  const start = view.coordsAtPos(sel.from)
+  const host = $('editor').getBoundingClientRect()
+  if (!start || start.top < host.top || start.top > host.bottom) return hideBubble()
+  const end = view.coordsAtPos(sel.to)
+  const left = end && Math.abs(end.top - start.top) < 4 ? (start.left + end.left) / 2 : start.left + 30
+  b.dataset.source = 'editor'
+  b.style.left = `${Math.max(host.left + 40, Math.min(left, host.right - 50))}px`
+  b.style.top = `${start.top - 8}px`
+  b.classList.remove('hidden')
+}
+async function commentFromPdf(): Promise<void> {
+  const s = pdf.selection()
+  if (!s || !lastPdf) return
+  hideBubble()
+  const hit = await api.synctexInverse(lastPdf, s.page, s.x, s.y)
+  if (!hit) {
+    await ask('Could not find where this text is in the source. Compile again (SyncTeX data is made during compiling), then try once more.', ['OK'])
+    return
+  }
+  window.getSelection()?.removeAllRanges()
+  await addComment({ file: hit.file, line: hit.line, quote: s.text })
+}
+
+// ---------- Right-click menus (editor and PDF), with spelling suggestions ----------
+let lastContext: { target: HTMLElement; x: number; y: number } | null = null
+document.addEventListener('contextmenu', (e) => {
+  lastContext = { target: e.target as HTMLElement, x: e.clientX, y: e.clientY }
+})
+function showContextMenu(spell: { misspelled: string; suggestions: string[] }): void {
+  const c = lastContext
+  if (!c) return
+  const items: [string, () => void][] = []
+  if (c.target.closest('#editor')) {
+    const pos = view.posAtCoords({ x: c.x, y: c.y })
+    const word = pos !== null ? view.state.wordAt(pos) : null
+    if (spell.misspelled && word) {
+      for (const s of spell.suggestions) items.push([`✓ ${s}`, () => view.dispatch({ changes: { from: word.from, to: word.to, insert: s } })])
+      if (!spell.suggestions.length) items.push(['(no spelling suggestions)', () => {}])
+      items.push([`Add “${spell.misspelled}” to dictionary`, () => api.addToDictionary(spell.misspelled)])
+    }
+    const sel = view.state.selection.main
+    if (!sel.empty || !items.length) items.push([sel.empty ? 'Add comment on this line' : 'Add comment on selection', () => addComment()])
+    items.push(['Show in PDF', () => syncForward()])
+    if (!sel.empty) items.push(['Cut', () => api.editCommand('cut')], ['Copy', () => api.editCommand('copy')])
+    items.push(['Paste', () => api.editCommand('paste')])
+  } else if (c.target.closest('#pdf')) {
+    if (pdf.selection()) items.push(['Add comment on selection', () => commentFromPdf()], ['Copy', () => api.editCommand('copy')])
+    items.push(['Show source here', () => {
+      const hit = pdf.pointAt(c.x, c.y)
+      if (hit) syncInverse(hit.page, hit.x, hit.y)
+    }])
+  } else return
+  hideBubble()
+  contextMenu(c.x, c.y, items)
+}
+
+// ---------- SyncTeX ----------
+async function syncForward(): Promise<void> {
+  if (!active || !lastPdf || !active.endsWith('.tex')) return
+  const line = view.state.doc.lineAt(view.state.selection.main.head).number
+  const box = await api.synctexForward(active, line, lastPdf)
+  if (box) {
+    document.body.classList.remove('no-pdf')
+    pdf.showBox(box)
+  } else setCompileStatus('No PDF position for this line yet. Compile first.', 'warn')
+}
+async function syncInverse(page: number, x: number, y: number): Promise<void> {
+  if (!lastPdf) return
+  const hit = await api.synctexInverse(lastPdf, page, x, y)
+  if (!hit) return setCompileStatus('No source position found. Compile again to refresh SyncTeX.', 'warn')
+  await openFile(hit.file)
+  goToLine(view, hit.line)
+}
+pdf.onInverse = (page, x, y) => syncInverse(page, x, y)
+
+// ---------- Index for autocomplete, word count, git, live compile ----------
+async function refreshIndex(): Promise<void> {
+  if (!project) return
+  const labels = new Set<string>()
+  const commands = new Set<string>()
+  const citations: CompletionData['citations'] = []
+  for (const f of allFiles(project.tree, (p) => /\.(tex|bib)$/.test(p))) {
+    const text = textOf(f) ?? (await api.readFile(f).catch(() => ''))
+    if (f.endsWith('.bib')) citations.push(...scanBib(text))
+    else scanTex(text, labels, commands)
+  }
+  completion = { citations, labels: [...labels].sort(), commands: [...commands] }
+}
+
+let wordsTimer = 0
+function scheduleWords(): void {
+  clearTimeout(wordsTimer)
+  wordsTimer = window.setTimeout(updateWords, 600)
+}
+function updateWords(): void {
+  const el = $('st-words')
+  if (!active || !/\.tex$/.test(active)) {
+    el.textContent = ''
+    return
+  }
+  const sel = view.state.selection.main
+  const n = countWords(view.state.doc.toString())
+  const s = sel.empty ? 0 : countWords(view.state.sliceDoc(sel.from, sel.to))
+  el.textContent = `${n.toLocaleString()} words${s ? ` (${s.toLocaleString()} selected)` : ''}`
+  el.title = 'Approximate count for this file, ignoring LaTeX commands, math and comments'
+  dock?.broadcastContext()
+}
+
+async function refreshGit(): Promise<void> {
+  const g = project ? await api.gitStatus() : null
+  const el = $('st-git')
+  el.textContent = g ? `⎇ ${g.branch}${g.changed ? ` · ${g.changed} changed` : ''}` : ''
+  el.title = g ? 'Git branch and number of files with uncommitted changes' : ''
+}
+
+function scheduleLiveCompile(): void {
+  if (!settings.liveCompile) return
+  clearTimeout(liveTimer)
+  liveTimer = window.setTimeout(async () => {
+    if (active && /\.(tex|bib)$/.test(active) && files.get(active)?.dirty) {
+      await save(active, false)
+      compile()
+    }
+  }, 1500)
+}
+
+// ---------- Plugins ----------
+let allPlugins: PluginInfo[] = []
+const dock = new Dock($('dock-tabs'), $('dock'), {
+  storageGet: (id) => api.pluginStorageGet(id),
+  storageSet: (id, k, v) => api.pluginStorageSet(id, k, v),
+  theme: () => currentTheme(),
+  context: () => ({ project: project?.name ?? null, file: active, words: Number(($('st-words').textContent ?? '').replace(/[^0-9]/g, '').slice(0, 9)) || 0 }),
+  onShow: (panel) => panel === 'comments' && renderComments()
+})
 
 /** Edit a thread in the editor (so it can be undone), after re-finding it in the current text. */
 async function commentAction(t: CommentThread, kind: 'reply' | 'resolve' | 'reopen' | 'delete'): Promise<void> {
@@ -634,14 +868,6 @@ async function commentAction(t: CommentThread, kind: 'reply' | 'resolve' | 'reop
   scheduleComments()
 }
 
-function showSide(pane: 'files' | 'comments'): void {
-  sidePane = pane
-  document.body.classList.remove('no-sidebar')
-  document.querySelectorAll<HTMLElement>('.side-tab').forEach((b) => b.classList.toggle('on', b.dataset.side === pane))
-  $('tree').classList.toggle('hidden', pane !== 'files')
-  $('comments').classList.toggle('hidden', pane !== 'comments')
-  renderComments()
-}
 
 // ---------- Wiring ----------
 async function chooseFolder(): Promise<void> {
@@ -653,14 +879,18 @@ const actions: Record<string, () => unknown> = {
   'new-file': () => newFile(),
   save: () => save(),
   'close-tab': () => active && closeTab(active),
-  settings: () => openSettings(settings, themes, tex, api, updateSettings),
+  settings: () => openSettings(settings, themes, tex, api, updateSettings, allPlugins),
   focus: () => project && setFocus(!focusOn),
   'toggle-sidebar': () => document.body.classList.toggle('no-sidebar'),
   'toggle-pdf': () => document.body.classList.toggle('no-pdf'),
   compile: () => compile(),
   'add-comment': () => addComment(),
   'install-tinytex': () => installTinyTex(),
-  'show-comments': () => showSide('comments'),
+  'show-comments': () => dock.show('comments'),
+  'sync-forward': () => syncForward(),
+  'zoom-in': () => zoom(1),
+  'zoom-out': () => zoom(-1),
+  'zoom-reset': () => zoom(0),
   'show-log': () => {
     $('log-text').textContent = lastLog || 'No compile yet.'
     ;($('log-dialog') as HTMLDialogElement).showModal()
@@ -682,9 +912,15 @@ function wire(): void {
   $('btn-pdf').onclick = actions['toggle-pdf']
   $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
-  $('btn-comment').onclick = () => addComment()
+  $('btn-comment').onclick = () => dock.toggle()
+  $('btn-dock-close').onclick = () => document.body.classList.add('no-dock')
   $('show-resolved').onchange = () => renderComments()
-  document.querySelectorAll<HTMLElement>('.side-tab').forEach((b) => (b.onclick = () => showSide(b.dataset.side as 'files' | 'comments')))
+  const bubble = $('comment-bubble')
+  bubble.addEventListener('pointerdown', (e) => e.preventDefault()) // keep the selection
+  bubble.onclick = () => (bubble.dataset.source === 'pdf' ? commentFromPdf() : addComment())
+  $('editor').addEventListener('scroll', hideBubble, true)
+  $('pdf').addEventListener('scroll', hideBubble)
+  api.on('context-menu', (p: { misspelled: string; suggestions: string[] }) => showContextMenu(p))
   $('btn-log').onclick = actions['show-log']
   $('btn-problems-close').onclick = () => $('problems').classList.add('hidden')
   $('st-compile').onclick = () => problems.length && $('problems').classList.toggle('hidden')
@@ -703,7 +939,11 @@ async function init(): Promise<void> {
   settings = await api.getSettings()
   themes = [...BUILT_IN, ...((await api.userThemes()) as Theme[])]
   applySettings()
+  api.setZoom(settings.uiZoom || 1)
   wire()
+  allPlugins = await api.listPlugins()
+  dock.setPlugins(allPlugins, settings.disabledPlugins ?? [])
+  dock.show('comments')
   await refreshTex()
   if (!tex.found) {
     const r = await ask('OpenTex needs a TeX installation to turn your .tex files into PDFs, and none was found on this computer.', [
@@ -712,7 +952,7 @@ async function init(): Promise<void> {
       'Not now'
     ])
     if (r === 0) await installTinyTex()
-    if (r === 1) openSettings(settings, themes, tex, api, updateSettings)
+    if (r === 1) openSettings(settings, themes, tex, api, updateSettings, allPlugins)
   }
   if (settings.lastProject) await setProject(await api.openProject(settings.lastProject))
 }

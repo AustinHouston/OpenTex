@@ -1,0 +1,3 @@
+{ "name": "Rose", "dark": false,
+  "colors": { "bg": "#fffafa", "panel": "#fbeff1", "panelAlt": "#f5dfe4", "border": "#ecd0d7", "text": "#3d2a31", "muted": "#8f6f7a", "accent": "#c2456e", "accentText": "#ffffff", "selection": "#f6d2de", "cursor": "#3d2a31", "activeLine": "#fdf3f5", "error": "#b3261e", "warning": "#946200", "pdfBg": "#efdfe3" },
+  "syntax": { "command": "#a23b72", "math": "#3d8a6e", "env": "#6c5bc2", "comment": "#b39aa3", "bracket": "#c0622f", "number": "#6c5bc2" } }

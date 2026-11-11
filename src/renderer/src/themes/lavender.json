@@ -1,0 +1,3 @@
+{ "name": "Lavender", "dark": false,
+  "colors": { "bg": "#fbfaff", "panel": "#f1eefb", "panelAlt": "#e4dff6", "border": "#d6cfee", "text": "#2f2a44", "muted": "#7a7396", "accent": "#6d4fd8", "accentText": "#ffffff", "selection": "#e0d8fb", "cursor": "#2f2a44", "activeLine": "#f5f3fd", "error": "#c22f4a", "warning": "#946200", "pdfBg": "#e4e0f0" },
+  "syntax": { "command": "#6d4fd8", "math": "#21876b", "env": "#c0458a", "comment": "#a39dbb", "bracket": "#c0622f", "number": "#c0458a" } }

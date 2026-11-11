@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Forest Timer</title>
+    <style>
+      :root { --bg: #fff; --panel: #f4f4f2; --panelAlt: #e8e8e4; --border: #dcdcd6; --text: #24292f; --muted: #6e7781; --accent: #2f6feb; --accentText: #fff; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--panel); color: var(--text); font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .wrap { padding: 8px 10px 14px; display: flex; flex-direction: column; gap: 10px; }
+      canvas { width: 100%; image-rendering: pixelated; image-rendering: crisp-edges; border-radius: 6px; border: 1px solid var(--border); display: block; }
+      .time { font: 600 38px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; text-align: center; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+      .phase { text-align: center; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+      .dots { display: flex; justify-content: center; gap: 6px; }
+      .dot { width: 9px; height: 9px; border-radius: 2px; border: 1.5px solid var(--muted); }
+      .dot.done { background: var(--accent); border-color: var(--accent); }
+      .dot.now { border-color: var(--accent); }
+      .row { display: flex; gap: 6px; justify-content: center; }
+      button { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+      button:hover { background: var(--panelAlt); }
+      button.primary { background: var(--accent); color: var(--accentText); border-color: var(--accent); font-weight: 600; min-width: 90px; }
+      details { border-top: 1px solid var(--border); padding-top: 8px; color: var(--muted); font-size: 12px; }
+      summary { cursor: pointer; }
+      .grid { display: grid; grid-template-columns: 1fr 64px; gap: 6px 8px; align-items: center; margin-top: 8px; }
+      input[type='number'] { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 3px 6px; }
+      .today { text-align: center; color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <canvas id="scene" width="96" height="60"></canvas>
+      <div class="phase" id="phase">Focus</div>
+      <div class="time" id="time">25:00</div>
+      <div class="dots" id="dots"></div>
+      <div class="row">
+        <button class="primary" id="start">Start</button>
+        <button id="skip" title="End this phase now">Skip</button>
+        <button id="reset" title="Start the cycle over">Reset</button>
+      </div>
+      <div class="today" id="today"></div>
+      <details>
+        <summary>Timer settings</summary>
+        <div class="grid">
+          <label for="s-focus">Focus (minutes)</label><input type="number" id="s-focus" min="1" max="180" />
+          <label for="s-short">Short break</label><input type="number" id="s-short" min="1" max="60" />
+          <label for="s-long">Long break</label><input type="number" id="s-long" min="1" max="120" />
+          <label for="s-cycles">Focus sessions per cycle</label><input type="number" id="s-cycles" min="1" max="12" />
+          <label for="s-auto">Start focus right after a break</label><input type="checkbox" id="s-auto" />
+        </div>
+      </details>
+    </div>
+    <script src="opentex-sdk.js"></script>
+    <script src="forest.js"></script>
+  </body>
+</html>

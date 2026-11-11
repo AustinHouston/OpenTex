@@ -1,0 +1,3 @@
+{ "name": "Paper", "dark": false,
+  "colors": { "bg": "#fffdf8", "panel": "#f5f2ea", "panelAlt": "#ebe6da", "border": "#ddd6c6", "text": "#2b2a27", "muted": "#7f796d", "accent": "#3b6ea8", "accentText": "#ffffff", "selection": "#dbe6f3", "cursor": "#2b2a27", "activeLine": "#faf6ec", "error": "#b3261e", "warning": "#946200", "pdfBg": "#e9e4d8" },
+  "syntax": { "command": "#7b3fa0", "math": "#2c7a4b", "env": "#3b6ea8", "comment": "#a39c8d", "bracket": "#a0522d", "number": "#3b6ea8" } }

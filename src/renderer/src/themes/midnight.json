@@ -1,0 +1,3 @@
+{ "name": "Midnight", "dark": true,
+  "colors": { "bg": "#0f1724", "panel": "#141e2e", "panelAlt": "#1d2a3f", "border": "#24344d", "text": "#cdd6e4", "muted": "#7a8aa3", "accent": "#6aa7ff", "accentText": "#0b1220", "selection": "#25406a", "cursor": "#e6edf7", "activeLine": "#131d2d", "error": "#ff7a85", "warning": "#f2c46d", "pdfBg": "#0a111b" },
+  "syntax": { "command": "#b69cff", "math": "#7fe0c0", "env": "#6aa7ff", "comment": "#5c6b82", "bracket": "#ffa26b", "number": "#ff9ec7" } }

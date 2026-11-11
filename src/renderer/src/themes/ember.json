@@ -1,0 +1,3 @@
+{ "name": "Ember", "dark": true,
+  "colors": { "bg": "#221c19", "panel": "#2a221e", "panelAlt": "#372d27", "border": "#43362e", "text": "#e8dccf", "muted": "#a08e7e", "accent": "#f08a4b", "accentText": "#1e120a", "selection": "#5a3a28", "cursor": "#fff2e3", "activeLine": "#271f1b", "error": "#ff7b6b", "warning": "#f5c15c", "pdfBg": "#191411" },
+  "syntax": { "command": "#f2a66b", "math": "#c9d77a", "env": "#e7c06a", "comment": "#7c6c60", "bracket": "#e57f6e", "number": "#d6a0e0" } }

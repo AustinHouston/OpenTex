@@ -1,0 +1,8 @@
+{
+  "id": "forest-timer",
+  "name": "Forest Timer",
+  "description": "A Pomodoro timer with a little pixel forest that grows while you work, turns to autumn on short breaks and to winter on the long break.",
+  "version": "1.0.0",
+  "panel": "index.html",
+  "icon": "🌲"
+}

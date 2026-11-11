@@ -4,8 +4,12 @@ import { dirname, join } from 'path'
 import { Engine, ProjectConfig, Settings } from '../shared/types'
 import { Project } from './project'
 import { cancelCompile, compile, detectTex } from './tex'
+import { gitStatus, synctexForward, synctexInverse } from './extras'
+import { builtinPluginsDir, listPlugins, pluginStorageGet, pluginStorageSet, registerPluginScheme, servePlugins, userPluginsDir } from './plugins'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
+
+registerPluginScheme()
 
 let win: BrowserWindow | null = null
 let project: Project | null = null
@@ -30,6 +34,10 @@ function createWindow(): void {
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url)
     return { action: 'deny' }
+  })
+  // Spelling suggestions and the right-click position go to the page, which draws its own menu.
+  win.webContents.on('context-menu', (_e, p) => {
+    win?.webContents.send('context-menu', { misspelled: p.misspelledWord, suggestions: p.dictionarySuggestions.slice(0, 6) })
   })
   win.on('close', (e) => {
     // Ask the renderer whether there are unsaved changes.
@@ -75,6 +83,11 @@ function buildMenu(): void {
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: () => send('toggle-sidebar') },
         { label: 'Toggle PDF', accelerator: 'CmdOrCtrl+Shift+P', click: () => send('toggle-pdf') },
         { type: 'separator' },
+        // Zoom keys are handled in the page so both Ctrl and Cmd work on macOS.
+        { label: 'Bigger Interface', accelerator: 'CmdOrCtrl+=', registerAccelerator: false, click: () => send('zoom-in') },
+        { label: 'Smaller Interface', accelerator: 'CmdOrCtrl+-', registerAccelerator: false, click: () => send('zoom-out') },
+        { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', registerAccelerator: false, click: () => send('zoom-reset') },
+        { type: 'separator' },
         { role: 'togglefullscreen' },
         { role: 'toggleDevTools' }
       ]
@@ -83,7 +96,9 @@ function buildMenu(): void {
       label: 'Review',
       submenu: [
         { label: 'Add Comment', accelerator: 'CmdOrCtrl+Shift+M', click: () => send('add-comment') },
-        { label: 'Show Comments', click: () => send('show-comments') }
+        { label: 'Show Comments', click: () => send('show-comments') },
+        { type: 'separator' },
+        { label: 'Show Source Line in PDF', accelerator: 'CmdOrCtrl+J', click: () => send('sync-forward') }
       ]
     },
     {
@@ -170,6 +185,19 @@ function registerIpc(): void {
     return compile(need().root, mainFile, engine, tex, s.useLatexmk)
   })
   ipcMain.handle('tex:cancel', () => cancelCompile())
+  const binDir = async (): Promise<string | null> => detectTex((await loadSettings()).texPath).binDir
+  ipcMain.handle('synctex:forward', async (_e, file: string, line: number, pdf: string) => synctexForward(await binDir(), need().root, file, line, pdf))
+  ipcMain.handle('synctex:inverse', async (_e, pdf: string, page: number, x: number, y: number) => synctexInverse(await binDir(), need().root, pdf, page, x, y))
+  ipcMain.handle('git:status', () => (project ? gitStatus(project.root) : null))
+  ipcMain.handle('edit:command', (_e, cmd: 'cut' | 'copy' | 'paste' | 'selectAll') => win?.webContents[cmd]())
+  ipcMain.handle('spell:add', (_e, word: string) => win?.webContents.session.addWordToSpellCheckerDictionary(word))
+  ipcMain.handle('plugins:list', () => listPlugins())
+  ipcMain.handle('plugins:openFolder', async () => {
+    await listPlugins()
+    shell.openPath(userPluginsDir())
+  })
+  ipcMain.handle('plugins:storageGet', (_e, id: string) => pluginStorageGet(id))
+  ipcMain.handle('plugins:storageSet', (_e, id: string, key: string, value: unknown) => pluginStorageSet(id, key, value))
 
   const progress = (line: string): void => win?.webContents.send('tex:progress', line)
   ipcMain.handle('tinytex:install', () => installTinyTex(progress))
@@ -180,7 +208,9 @@ function registerIpc(): void {
   })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await listPlugins()
+  servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()
   buildMenu()
   createWindow()

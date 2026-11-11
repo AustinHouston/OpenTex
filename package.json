@@ -64,7 +64,13 @@
     "artifactName": "OpenTex-${version}-${os}-${arch}.${ext}",
     "dmg": {
       "title": "OpenTex"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "plugins",
+        "to": "plugins"
+      }
+    ]
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.4",

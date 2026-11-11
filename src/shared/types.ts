@@ -16,6 +16,10 @@ export interface Settings {
   focusFullscreen: boolean
   authorName: string
   lastProject: string
+  uiZoom: number
+  spellcheck: boolean
+  liveCompile: boolean
+  disabledPlugins: string[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -31,7 +35,11 @@ export const DEFAULT_SETTINGS: Settings = {
   focusDim: true,
   focusFullscreen: false,
   authorName: '',
-  lastProject: ''
+  lastProject: '',
+  uiZoom: 1,
+  spellcheck: true,
+  liveCompile: false,
+  disabledPlugins: []
 }
 
 /** Stored in <project>/.opentex/project.json so collaborators share it. */
@@ -77,6 +85,16 @@ export interface CompileResult {
   missingFiles: string[] // e.g. ['siunitx.sty'] for the TinyTeX helper
   durationMs: number
   cancelled?: boolean
+}
+
+export interface PluginInfo {
+  id: string
+  name: string
+  description: string
+  version: string
+  panel: string
+  icon: string
+  builtIn: boolean
 }
 
 export interface Theme {

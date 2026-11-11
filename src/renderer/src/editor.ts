@@ -9,6 +9,7 @@ import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/sea
 import { bracketMatching, HighlightStyle, indentOnInput, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { stex } from '@codemirror/legacy-modes/mode/stex'
+import { CompletionData, latexCompletions, spellCompartment, spellExtension } from './assist'
 import { tags as t } from '@lezer/highlight'
 
 // Syntax colors come from CSS variables, so switching theme needs no editor reconfiguration.
@@ -72,9 +73,10 @@ export const dimExtension = (on: boolean): Extension => (on ? dimPlugin : [])
 export interface EditorHooks {
   onChange: () => void
   onCursor: (line: number, col: number) => void
+  onSelection?: (view: EditorView) => void
 }
 
-export function makeExtensions(hooks: EditorHooks, dimOn: boolean): Extension[] {
+export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: () => CompletionData): Extension[] {
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -95,9 +97,12 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean): Extension[] 
     syntaxHighlighting(latexHighlight),
     baseTheme,
     dimCompartment.of(dimExtension(dimOn)),
+    spellCompartment.of(spellExtension(false)),
+    latexCompletions(completion),
     keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) hooks.onChange()
+      if (u.selectionSet || u.docChanged || u.viewportChanged || u.geometryChanged) hooks.onSelection?.(u.view)
       if (u.selectionSet || u.docChanged) {
         const pos = u.state.selection.main.head
         const line = u.state.doc.lineAt(pos)

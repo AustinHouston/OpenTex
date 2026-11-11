@@ -124,7 +124,7 @@ body.no-pdf .pdf-col, body.no-pdf .splitter[data-target='pdf-col'] { display: no
 .textLayer .markedContent { display: contents; }
 .textLayer ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
 .textLayer br::selection { background: transparent; }
-.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: text; user-select: none; }
 .pdf-page canvas { display: block; }
 .pdf-empty { color: var(--muted); text-align: center; margin-top: 40%; }
 #pdf-zoom { min-width: 40px; text-align: center; text-transform: none; }
@@ -334,8 +334,8 @@ body.no-project .statusbar .st-main { display: none !important; }
 .np-template input { display: none; }
 
 /* Comments: highlighted like Word, stored outside the text */
-.cm-ot-cmt { background: color-mix(in srgb, var(--warning) 26%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--warning) 80%, transparent); border-radius: 2px; cursor: pointer; }
-.cm-ot-cmt.resolved { background: none; border-bottom: none; cursor: text; }
+.cm-ot-cmt { background: color-mix(in srgb, var(--warning) 26%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--warning) 80%, transparent); border-radius: 2px; }
+.cm-ot-cmt.resolved { background: none; border-bottom: none; }
 .cm-ot-cpoint { display: inline-flex; vertical-align: -2px; margin: 0 1px; color: var(--warning); cursor: pointer; }
 .cm-ot-cpoint svg { width: 14px; height: 14px; fill: color-mix(in srgb, var(--warning) 25%, transparent); stroke: currentColor; stroke-width: 1.6; }
 .cm-ot-cpoint.resolved { display: none; }
@@ -419,8 +419,15 @@ body.ribbon-collapsed .rb-body { display: none; }
 .ot-mk-filler { text-decoration: underline dashed var(--muted) 1.5px; text-underline-offset: 3px; }
 
 /* Comments panel closed: hide the highlights in the text too. */
-body.comments-off .cm-ot-cmt { background: none; border-bottom: none; cursor: text; }
+body.comments-off .cm-ot-cmt { background: none; border-bottom: none; }
 body.comments-off .cm-ot-cpoint { display: none; }
 
 /* Top-right buttons */
 #btn-pdf .pdf-label { font: 700 10px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: 0.04em; border: 1.5px solid currentColor; border-radius: 4px; padding: 3px 3px 2px; }
+
+/* One steady cursor: an I-beam anywhere you can place the caret or select text (also over
+   comments, the gaps between PDF words and the space below the last line), an arrow on the
+   line numbers. A cursor that changes shape at every word looks like flicker. */
+#editor .cm-scroller, #editor .cm-content { cursor: text; }
+#editor .cm-gutters { cursor: default; }
+.pdf-page .textLayer { cursor: text; }

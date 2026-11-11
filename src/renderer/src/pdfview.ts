@@ -13,6 +13,7 @@ export class PdfView {
   private generation = 0
   private resizeTimer = 0
   private lastWidth = 0
+  private pending: Uint8Array | null = null // a PDF that arrived while the panel was hidden
 
   private scale = 1
   /** Called with a page point (PDF points from the top-left) when the user double-clicks the PDF. */
@@ -28,13 +29,31 @@ export class PdfView {
     })
     new ResizeObserver(() => {
       const w = this.host.clientWidth
+      if (this.pending && w > 0) {
+        const data = this.pending
+        this.pending = null
+        this.load(data)
+        return
+      }
       if (this.zoom !== 'fit' || !this.doc || Math.abs(w - this.lastWidth) < 4) return
       clearTimeout(this.resizeTimer)
       this.resizeTimer = window.setTimeout(() => this.render(), 150)
     }).observe(host)
   }
 
-  async load(data: Uint8Array): Promise<void> {
+  private loading: Promise<void> = Promise.resolve()
+  load(data: Uint8Array): Promise<void> {
+    this.loading = this.doLoad(data)
+    return this.loading
+  }
+
+  private async doLoad(data: Uint8Array): Promise<void> {
+    // Drawing pages costs real time on every compile; while the panel is hidden, wait until it's shown.
+    if (this.host.clientWidth === 0) {
+      this.pending = data
+      return
+    }
+    this.pending = null
     const task = pdfjs.getDocument({ data })
     const doc = await task.promise
     const old = this.task
@@ -172,7 +191,8 @@ export class PdfView {
   }
 
   /** Scroll to a box (PDF points) and flash a highlight on it. */
-  showBox(box: { page: number; x: number; y: number; w: number; h: number }): void {
+  async showBox(box: { page: number; x: number; y: number; w: number; h: number }): Promise<void> {
+    await this.loading.catch(() => {})
     const slot = this.host.querySelector<HTMLElement>(`.pdf-page[data-page="${box.page}"]`)
     if (!slot) return
     const mark = document.createElement('div')
@@ -190,6 +210,7 @@ export class PdfView {
   }
 
   clear(): void {
+    this.pending = null
     this.task?.destroy()
     this.task = null
     this.doc = null

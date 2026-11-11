@@ -1122,6 +1122,7 @@ const layout = new Layout($('workspace'), {} as LayoutState, (state) => {
   clearTimeout(layoutSaveTimer)
   layoutSaveTimer = window.setTimeout(() => api.setSettings({ layout: state }), 300)
   updatePanelButtons()
+  plugins.syncVisibility()
 })
 const plugins = new PluginPanels(layout, {
   storageGet: (id) => api.pluginStorageGet(id),
@@ -1131,6 +1132,11 @@ const plugins = new PluginPanels(layout, {
   highlight: (file, version, marks) => {
     if (file !== active || version !== docVersion) return
     view.dispatch({ effects: setPluginMarks.of(marks as PluginMark[]) })
+  },
+  clearHighlights: () => {
+    const none = setPluginMarks.of([])
+    view.dispatch({ effects: none })
+    for (const [path, f] of files) if (path !== active) f.state = f.state.update({ effects: none }).state
   },
   goTo: async (file, from, to) => {
     if (file !== active) await openFile(file)

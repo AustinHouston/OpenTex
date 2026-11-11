@@ -12,6 +12,8 @@ interface Host {
   /** The open file's text, for plugins with the 'document' permission. */
   document: () => Promise<{ file: string; text: string; version: number; files: { file: string; text: string }[] } | null>
   highlight: (file: string, version: number, marks: unknown[]) => void
+  /** Remove every plugin highlight from the editor (the plugin's panel was closed or turned off). */
+  clearHighlights: () => void
   goTo: (file: string, from: number, to: number) => void
 }
 
@@ -19,6 +21,7 @@ export class PluginPanels {
   private frames = new Map<string, HTMLIFrameElement>()
   private plugins: PluginInfo[] = []
   private docSubs = new Set<string>()
+  private docVisible = new Set<string>() // document plugins whose panel is open
 
   constructor(private layout: Layout, private host: Host) {
     window.addEventListener('message', (e) => this.onMessage(e))
@@ -40,6 +43,32 @@ export class PluginPanels {
       this.layout.add({ id: pid, title: `${p.icon ? p.icon + ' ' : ''}${p.name}`, body, defaultZone: 'side', onVisible: () => this.ensureFrame(p, body) })
     }
     this.layout.render()
+    this.syncVisibility()
+  }
+
+  private visible(id: string): boolean {
+    return this.frames.has(id) && this.plugins.some((p) => p.id === id) && this.layout.isVisible(`plugin:${id}`)
+  }
+
+  /**
+   * Call after any layout change. A plugin that reads the paper only works, and only shows its
+   * highlights, while its panel is open: closing, collapsing or turning it off clears them, and
+   * opening it again sends it the text afresh.
+   */
+  syncVisibility(): void {
+    let hidden = false
+    for (const id of this.docSubs) {
+      const now = this.visible(id)
+      if (now === this.docVisible.has(id)) continue
+      if (now) {
+        this.docVisible.add(id)
+        this.host.document().then((doc) => this.post(id, { type: 'document', document: doc }))
+      } else {
+        this.docVisible.delete(id)
+        hidden = true
+      }
+    }
+    if (hidden) this.host.clearHighlights()
   }
 
   /** Create the frame the first time the panel is shown (or again if moving the panel dropped it). */
@@ -77,9 +106,9 @@ export class PluginPanels {
 
   /** Send the open file's text to plugins that asked for it (call debounced after edits and on tab switch). */
   async broadcastDocument(): Promise<void> {
-    if (![...this.docSubs].some((id) => this.frames.has(id))) return
+    if (!this.docVisible.size) return
     const doc = await this.host.document()
-    for (const id of this.docSubs) if (this.frames.has(id)) this.post(id, { type: 'document', document: doc })
+    for (const id of this.docVisible) this.post(id, { type: 'document', document: doc })
   }
 
   private themePayload(): Theme {
@@ -102,9 +131,11 @@ export class PluginPanels {
     } else if (m.type === 'document:subscribe') {
       if (!this.canReadDocument(id)) return
       this.docSubs.add(id)
+      if (!this.visible(id)) return
+      this.docVisible.add(id)
       this.post(id, { type: 'document', document: await this.host.document() })
     } else if (m.type === 'highlight') {
-      if (this.canReadDocument(id) && Array.isArray(m.marks)) this.host.highlight(String(m.file), Number(m.version), m.marks)
+      if (this.canReadDocument(id) && this.docVisible.has(id) && Array.isArray(m.marks)) this.host.highlight(String(m.file), Number(m.version), m.marks)
     } else if (m.type === 'goto') {
       if (this.canReadDocument(id)) this.host.goTo(String(m.file), Number(m.from) || 0, Number(m.to) || 0)
     } else if (m.type === 'notify') {

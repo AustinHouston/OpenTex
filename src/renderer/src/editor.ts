@@ -1,6 +1,6 @@
 import { Compartment, EditorState, Extension, RangeSetBuilder } from '@codemirror/state'
 import {
-  Decoration, DecorationSet, drawSelection, dropCursor, EditorView, highlightActiveLine,
+  Decoration, DecorationSet, drawSelection, dropCursor, EditorView,
   highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers, rectangularSelection,
   ViewPlugin, ViewUpdate
 } from '@codemirror/view'
@@ -37,6 +37,29 @@ const baseTheme = EditorView.theme({
   '.cm-panels': { backgroundColor: 'var(--panel)', color: 'var(--text)', borderColor: 'var(--border)' },
   '.cm-line.ot-dim': { opacity: '0.28', transition: 'opacity 0.2s' }
 })
+
+/**
+ * Like CodeMirror's highlightActiveLine, but only for an empty selection: the active-line
+ * background sits above the selection layer, so it would hide text you're selecting.
+ */
+const activeLine = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = this.build(view)
+    }
+    update(u: ViewUpdate): void {
+      if (u.docChanged || u.selectionSet || u.viewportChanged) this.decorations = this.build(u.view)
+    }
+    build(view: EditorView): DecorationSet {
+      const b = new RangeSetBuilder<Decoration>()
+      const sel = view.state.selection
+      if (sel.ranges.length === 1 && sel.main.empty) b.add(view.lineBlockAt(sel.main.head).from, view.lineBlockAt(sel.main.head).from, Decoration.line({ class: 'cm-activeLine' }))
+      return b.finish()
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
 
 /** Focus-mode dimming: fade every line outside the paragraph that holds the cursor. */
 export const dimCompartment = new Compartment()
@@ -89,7 +112,7 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: (
     bracketMatching(),
     closeBrackets(),
     rectangularSelection(),
-    highlightActiveLine(),
+    activeLine,
     highlightSelectionMatches(),
     search({ top: true }),
     EditorView.lineWrapping,

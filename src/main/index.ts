@@ -113,7 +113,7 @@ function buildMenu(): void {
     },
     {
       role: 'help',
-      submenu: [{ label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/') }]
+      submenu: [{ label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') }]
     }
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

@@ -33,44 +33,58 @@
           "arch": [
             "universal"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
         }
-      ]
+      ],
+      "artifactName": "OpenTex-mac.${ext}"
     },
     "win": {
       "target": [
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "arm64"
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
           ]
         }
-      ]
+      ],
+      "artifactName": "OpenTex-windows-portable.${ext}"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "artifactName": "OpenTex-Setup-${version}.${ext}"
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "OpenTex-windows-setup.exe"
     },
     "linux": {
       "target": [
         "AppImage"
-      ]
+      ],
+      "artifactName": "OpenTex-linux.${ext}"
     },
-    "publish": {
-      "provider": "github",
-      "releaseType": "draft"
-    },
-    "artifactName": "OpenTex-${version}-${os}-${arch}.${ext}",
     "dmg": {
-      "title": "OpenTex"
+      "title": "OpenTex",
+      "artifactName": "OpenTex-mac.dmg"
     },
     "extraResources": [
       {
         "from": "plugins",
         "to": "plugins"
       }
-    ]
+    ],
+    "afterSign": "scripts/adhoc-sign.cjs"
   },
   "devDependencies": {
     "@codemirror/autocomplete": "^6.20.4",
@@ -89,5 +103,10 @@
     "pdfjs-dist": "^6.5.438",
     "typescript": "^5.9.3",
     "vite": "^7.3.8"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AustinHouston/OpenTex.git"
+  },
+  "homepage": "https://austinhouston.github.io/OpenTex/"
 }

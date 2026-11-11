@@ -20,14 +20,35 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - **Comments** that live in the `.tex` file, so they travel with the paper (see below)
 - **One-click TinyTeX install** if you don't have TeX, and missing packages are installed when a paper needs them
 
+## Download
+
+| Your computer | Download |
+| --- | --- |
+| **Mac** (Apple Silicon or Intel) | **[OpenTex-mac.dmg](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac.dmg)** |
+| **Windows** | **[OpenTex-windows-setup.exe](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-setup.exe)** (installs just for you, no admin needed) |
+| **Windows**, if installers are blocked | **[OpenTex-windows-portable.zip](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-portable.zip)** (nothing to install: unzip and run) |
+
+There's also a download page at <https://austinhouston.github.io/OpenTex/>. All versions are on the [Releases page](https://github.com/AustinHouston/OpenTex/releases).
+
 ## Installing
 
-Download the latest installer from the Releases page: `OpenTex-…-mac-universal.dmg` for macOS or `OpenTex-Setup-….exe` for Windows.
+No administrator rights are needed on either system.
 
-Until the app is code-signed, your computer will warn you the first time:
+### Mac
 
-- **macOS:** open the `.dmg` and drag OpenTex to Applications. The first time you open it, macOS says it can't verify the developer. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
-- **Windows:** if SmartScreen says "Windows protected your PC", click **More info → Run anyway**.
+1. Open **OpenTex-mac.dmg** and drag **OpenTex** to **Applications**. If you aren't allowed to change Applications, drag it to your **Desktop** or **Documents** folder instead. It runs from anywhere.
+2. Open OpenTex. The first time, macOS says it can't verify the developer. Click **Done**.
+3. Open **System Settings → Privacy & Security**, scroll down to the message about OpenTex, and click **Open Anyway**. You only do this once.
+   (On macOS 14 or earlier, you can instead right-click the app, choose **Open**, then **Open** again.)
+
+### Windows
+
+- **Installer:** double-click **OpenTex-windows-setup.exe**. If Windows says *"Windows protected your PC"*, click **More info → Run anyway**. OpenTex installs into your own user folder and adds a Start menu and desktop shortcut.
+- **Portable (if the installer is blocked):** right-click **OpenTex-windows-portable.zip → Properties**, tick **Unblock**, and click **OK**. Then right-click it, choose **Extract All**, and double-click **OpenTex.exe** in the extracted folder. Keep that folder somewhere like Documents.
+
+### On work or government computers
+
+Some managed computers hide the *Open Anyway* / *Run anyway* buttons because policy only allows signed apps. If you don't see them, ask your IT help desk to approve OpenTex. It's open source, so they can review the code or build it themselves. Signed releases (see [Code signing](#code-signing)) remove this step entirely.
 
 ## Comments
 
@@ -101,7 +122,17 @@ Bump `version` in `package.json`, then push a tag:
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)) builds the macOS `.dmg` and the Windows installer and attaches them to a draft release. Publish the draft when you're happy. To sign the apps (which removes the security warnings), add the secrets listed at the top of that workflow file.
+GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)) builds the Mac and Windows downloads and publishes them as a release. The file names stay the same every time, so the download links above always get the newest version.
+
+### Code signing
+
+Unsigned apps trigger the one-time security prompts described in [Installing](#installing), and some managed computers block them outright. Signing removes that:
+
+- **Mac:** an Apple Developer ID (Apple Developer Program, $99/year). With it, the release is signed and notarized, and it opens with no warning.
+- **Windows:** a code-signing certificate. Open-source projects can get one free from the [SignPath Foundation](https://signpath.org/); Azure Trusted Signing is a low-cost alternative.
+- Your institution may already have certificates its IT department can sign with.
+
+Add the certificates as repository secrets (names are listed at the top of the release workflow) and every release after that is signed automatically.
 
 Code layout:
 

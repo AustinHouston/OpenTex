@@ -46,6 +46,23 @@ export function scanTex(text: string, labels: Set<string>, commands: Set<string>
   for (const m of text.matchAll(/\\DeclareMathOperator\*?\{\\([a-zA-Z]+)\}/g)) commands.add(m[1])
 }
 
+/** The value of a BibTeX field, with nested braces handled: title = {The {\TeX}book} -> The {\TeX}book */
+function bibField(entry: string, name: string): string {
+  const m = new RegExp(`\\b${name}\\s*=\\s*`, 'i').exec(entry)
+  if (!m) return ''
+  let i = m.index + m[0].length
+  const open = entry[i]
+  if (open === '"') return entry.slice(i + 1, entry.indexOf('"', i + 1))
+  if (open !== '{') return (entry.slice(i).match(/^[^,\n}]*/) ?? [''])[0]
+  let depth = 0
+  const start = i + 1
+  for (; i < entry.length; i++) {
+    if (entry[i] === '{') depth++
+    else if (entry[i] === '}' && --depth === 0) break
+  }
+  return entry.slice(start, i)
+}
+
 /** Scan a .bib file for entry keys and titles. */
 export function scanBib(text: string): { key: string; title: string }[] {
   const out: { key: string; title: string }[] = []
@@ -53,7 +70,7 @@ export function scanBib(text: string): { key: string; title: string }[] {
   for (const e of entries) {
     const m = e.match(/^@(\w+)\s*\{\s*([^,\s]+)\s*,/)
     if (!m || /^(string|comment|preamble)$/i.test(m[1])) continue
-    const title = (e.match(/\btitle\s*=\s*[{"]+([^}"]*)/i)?.[1] ?? '').replace(/\s+/g, ' ').slice(0, 80)
+    const title = bibField(e, 'title').replace(/\\(LaTeX|TeX)\b/g, '$1').replace(/\\["'`^~=.]/g, '').replace(/[{}\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80)
     out.push({ key: m[2], title })
   }
   return out

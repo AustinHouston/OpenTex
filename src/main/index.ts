@@ -202,7 +202,12 @@ async function buildMenu(): Promise<void> {
         { label: 'Inline Math', click: () => send('insert', 'inline-math') },
         { label: 'Figure…', click: () => send('insert-figure') },
         { type: 'separator' },
-        { label: 'Symbols and Equations Panel', accelerator: 'CmdOrCtrl+Shift+I', click: () => send('show-insert') }
+        { label: 'Symbol…', click: () => send('insert-symbol') },
+        { label: 'Citation', click: () => send('insert', 'citation') },
+        { label: 'Cross-reference', click: () => send('insert', 'reference') },
+        { label: 'Footnote', click: () => send('insert', 'footnote') },
+        { type: 'separator' },
+        { label: 'Show Insert Toolbar', accelerator: 'CmdOrCtrl+Shift+I', click: () => send('show-insert') }
       ]
     },
     {

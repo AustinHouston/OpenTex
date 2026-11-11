@@ -13,7 +13,7 @@ import { findQuote, parseComments } from './comments'
 import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Placed, placedIn, setComments, StoreFile, Thread, today } from './review'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
 import { PluginPanels } from './panels'
-import { buildInsertPanel, insertAtCursor } from './insert'
+import { buildInsertBar, insertAtCursor } from './insert'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
@@ -76,6 +76,7 @@ function applySettings(): void {
   r.setProperty('--editor-font-size', `${settings.fontSize}px`)
   r.setProperty('--editor-line-height', String(settings.lineHeight))
   r.setProperty('--focus-width', `${settings.focusWidth}ch`)
+  document.body.classList.toggle('no-ribbon', settings.showInsertBar === false)
   view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
   view.requestMeasure()
   plugins?.broadcastTheme()
@@ -1081,12 +1082,15 @@ function setupPanels(saved: unknown): void {
   layout.add({ id: 'files', title: 'Files', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
   layout.add({ id: 'pdf', title: 'PDF', body: $('pdf'), extras: $('pdf-extras'), defaultZone: 'right' })
   layout.add({ id: 'comments', title: 'Comments', body: $('comments'), extras: $('comments-extras'), defaultZone: 'side', onVisible: () => scheduleComments() })
-  layout.add({ id: 'insert', title: 'Insert', body: $('insert-panel'), defaultZone: 'side' })
   layout.render()
   updatePanelButtons()
 }
 
-// ---------- Insert panel helpers ----------
+// ---------- Insert toolbar helpers ----------
+function openInsertTool(id: string): void {
+  if (settings.showInsertBar === false) updateSettings({ showInsertBar: true })
+  setTimeout(() => document.querySelector<HTMLButtonElement>(`#ribbon [data-tool="${id}"]`)?.click(), 50)
+}
 let mainTextCache = ''
 const mainText = (): string => (project?.mainFile ? (textOf(project.mainFile) ?? mainTextCache) : '')
 function hasPackage(pkg: string): boolean {
@@ -1131,7 +1135,6 @@ function updatePanelButtons(): void {
   $('btn-sidebar').classList.toggle('on', layout.isVisible('files'))
   $('btn-pdf').classList.toggle('on', layout.isVisible('pdf'))
   $('btn-comment').classList.toggle('on', layout.isVisible('comments'))
-  $('btn-insert').classList.toggle('on', layout.isVisible('insert'))
 }
 
 function panelsMenu(): void {
@@ -1479,13 +1482,15 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'import-refs': () => importRefs(),
   'show-comments': () => layout.show('comments'),
   'sync-forward': () => syncForward(),
-  'show-insert': () => layout.toggle('insert'),
-  'insert-table': () => layout.show('insert'),
-  'insert-figure': () => layout.show('insert'),
+  'show-insert': () => updateSettings({ showInsertBar: !settings.showInsertBar }),
+  'insert-table': () => openInsertTool('table'),
+  'insert-figure': () => openInsertTool('figure'),
+  'insert-symbol': () => openInsertTool('symbol'),
   insert: (kind: string) => {
     if (!active?.endsWith('.tex')) return setCompileStatus('Open a .tex file first', 'warn')
     if (kind === 'equation') insertAtCursor(view, '\\begin{equation}\n  ¦\n  \\label{eq:}\n\\end{equation}', { ownLine: true })
-    else insertAtCursor(view, '$¦$')
+    else if (kind === 'inline-math') insertAtCursor(view, '$¦$')
+    else document.querySelector<HTMLButtonElement>(`#ribbon [data-tool="${kind}"]`)?.click()
   },
   'zoom-in': () => zoom(1),
   'zoom-out': () => zoom(-1),
@@ -1528,8 +1533,7 @@ function wire(): void {
   $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
   $('btn-comment').onclick = () => layout.toggle('comments')
-  $('btn-insert').onclick = () => layout.toggle('insert')
-  buildInsertPanel($('insert-panel'), {
+  buildInsertBar($('ribbon'), $('ins-pop'), {
     view: () => (active?.endsWith('.tex') ? view : null),
     images: () => (project ? allFiles(project.tree, (p) => /\.(png|jpe?g|eps|pdf)$/i.test(p) && p !== lastPdf && p !== project!.mainFile?.replace(/\.tex$/i, '.pdf')) : []),
     hasPackage,

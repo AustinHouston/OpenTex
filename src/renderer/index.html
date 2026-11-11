@@ -26,9 +26,6 @@
       <button class="icon" id="btn-panels" title="Show or hide panels, reset layout">
         <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="2.5" y1="12.5" x2="17.5" y2="12.5" /><line x1="7.5" y1="3.5" x2="7.5" y2="12.5" /></svg>
       </button>
-      <button class="icon" id="btn-insert" title="Insert a table, equation, figure or symbol (Ctrl/Cmd+Shift+I)">
-        <svg viewBox="0 0 20 20"><path d="M14.5 4.5h-9l5 5.5-5 5.5h9" /></svg>
-      </button>
       <button class="icon" id="btn-comment" title="Show or hide comments">
         <svg viewBox="0 0 20 20"><path d="M3.5 4.5h13v9h-7l-4 3v-3h-2z" /></svg>
       </button>
@@ -43,6 +40,8 @@
       </button>
     </header>
 
+    <nav class="ribbon" id="ribbon" aria-label="Insert"></nav>
+    <div id="ins-pop" class="ins-pop hidden"></div>
     <div class="workspace" id="workspace">
       <div class="ws-row">
         <div class="zone zone-v" data-zone="left"></div>
@@ -130,7 +129,6 @@
       </div>
       <div id="pdf" class="pdf"><div class="pdf-empty">Compile to see the PDF here.</div></div>
       <div id="comments-extras"><span id="comment-count" class="pcount"></span></div>
-      <div id="insert-panel" class="insert-panel"></div>
       <div id="comments" class="comments">
         <label class="show-resolved"><input type="checkbox" id="show-resolved" /> Show resolved</label>
         <div id="comments-list"></div>

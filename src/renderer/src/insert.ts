@@ -1,9 +1,11 @@
-// The Insert panel: tables, equations, figures and symbols, inserted at the cursor.
+// The Insert toolbar (like Word's Insert tab): tables, equations, symbols, figures, citations,
+// cross-references and footnotes, inserted at the cursor.
 // Symbols know whether the cursor is in math: inside math they insert \alpha, outside they
 // insert $\alpha$. Anything that needs a package not yet loaded offers to add it.
 
 import type { EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
+import { startCompletion } from '@codemirror/autocomplete'
 
 export interface InsertHost {
   view: () => EditorView | null // null when no .tex file is open
@@ -160,7 +162,7 @@ const TEMPLATES: Tmpl[] = [
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 
-export function buildInsertPanel(el: HTMLElement, host: InsertHost): void {
+function buildSections(el: HTMLElement, host: InsertHost): void {
   const need = (): EditorView | null => {
     const v = host.view()
     if (!v) host.notice('Open a .tex file and put the cursor where you want to insert.')
@@ -323,3 +325,76 @@ export function buildInsertPanel(el: HTMLElement, host: InsertHost): void {
 }
 
 export { insertSnippet as insertAtCursor }
+
+const ICONS: Record<string, string> = {
+  table: '<rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><path d="M2.5 8h15M2.5 12.5h15M7.5 3.5v13M12.5 3.5v13"/>',
+  equation: '<path d="M14.5 4.5h-9l5 5.5-5 5.5h9"/>',
+  symbol: '<text x="10" y="15.5" text-anchor="middle" font-size="15" font-family="Times New Roman, serif" fill="currentColor" stroke="none">Ω</text>',
+  figure: '<rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><circle cx="7" cy="8" r="1.5"/><path d="M3 14.5l4-4 3 3 2.5-2.5 4.5 4"/>',
+  citation: '<path d="M4 3.5h9.5a1.5 1.5 0 0 1 1.5 1.5v11.5H5.5A1.5 1.5 0 0 1 4 15z"/><path d="M4 15a1.5 1.5 0 0 1 1.5-1.5H15M7.5 6.5h4.5M7.5 9h3"/>',
+  reference: '<path d="M8.5 11.5l3-3M7 9.2 5.4 10.8a2.6 2.6 0 0 0 3.7 3.7l1.6-1.6M13 10.8l1.6-1.6a2.6 2.6 0 0 0-3.7-3.7L9.3 7.1"/>',
+  footnote: '<path d="M3.5 5.5h9M3.5 9h9M3.5 12.5h6"/><path d="M14.5 13.5l1.5-1.5v5"/>'
+}
+
+/**
+ * Build the Insert toolbar in `bar`. Table, Equation, Symbol and Figure open a drop-down
+ * (`pop`); Citation, Cross-reference and Footnote insert directly and open autocomplete.
+ */
+export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertHost): void {
+  const store = document.createElement('div')
+  buildSections(store, host)
+  const sections = [...store.querySelectorAll<HTMLElement>('.ins-sec')]
+  const byName: Record<string, HTMLElement> = { table: sections[0], equation: sections[1], figure: sections[2], symbol: sections[3] }
+  const tool = (id: string, label: string, title: string, dropdown: boolean): string =>
+    `<button class="rb-btn" data-tool="${id}" title="${title}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg><span>${label}</span>${dropdown ? '<i class="rb-caret">▾</i>' : ''}</button>`
+  bar.innerHTML = `<div class="rb-group">${tool('table', 'Table', 'Insert a table', true)}${tool('equation', 'Equation', 'Insert an equation or math template', true)}${tool('symbol', 'Symbol', 'Insert a symbol: Greek letters, operators, arrows…', true)}${tool('figure', 'Figure', 'Insert a figure from the project’s images', true)}</div>
+    <div class="rb-sep"></div>
+    <div class="rb-group">${tool('citation', 'Citation', 'Insert \\cite{…} and pick a reference', false)}${tool('reference', 'Cross-reference', 'Insert \\ref{…} to a figure, table, equation or section', false)}${tool('footnote', 'Footnote', 'Insert \\footnote{…}', false)}</div>`
+
+  let openTool: string | null = null
+  const close = (): void => {
+    pop.classList.add('hidden')
+    bar.querySelectorAll('.rb-btn.on').forEach((b) => b.classList.remove('on'))
+    openTool = null
+  }
+  const open = (id: string, btn: HTMLElement): void => {
+    if (openTool === id) return close()
+    close()
+    if (!host.view()) return host.notice('Open a .tex file and put the cursor where you want to insert.')
+    openTool = id
+    btn.classList.add('on')
+    pop.replaceChildren(byName[id])
+    pop.dataset.tool = id
+    pop.classList.remove('hidden')
+    const r = btn.getBoundingClientRect()
+    const w = pop.offsetWidth
+    pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - w - 8))}px`
+    pop.style.top = `${r.bottom + 4}px`
+    pop.style.maxHeight = `${window.innerHeight - r.bottom - 24}px`
+    if (id === 'symbol') setTimeout(() => byName.symbol.querySelector<HTMLInputElement>('[data-search]')?.focus(), 0)
+    if (id === 'figure') byName.figure.querySelector('select')?.dispatchEvent(new Event('focus'))
+  }
+  bar.addEventListener('mousedown', (e) => e.preventDefault()) // keep the editor's cursor
+  bar.querySelectorAll<HTMLButtonElement>('.rb-btn').forEach((b) => {
+    b.onclick = () => {
+      const id = b.dataset.tool!
+      if (byName[id]) return open(id, b)
+      close()
+      const v = host.view()
+      if (!v) return host.notice('Open a .tex file and put the cursor where you want to insert.')
+      insertSnippet(v, id === 'citation' ? '~\\cite{¦}' : id === 'reference' ? '~\\ref{¦}' : '\\footnote{¦}')
+      if (id !== 'footnote') setTimeout(() => startCompletion(v), 0)
+    }
+  })
+  // Inserting from Table, Equation or Figure closes the drop-down; Symbol stays open for more.
+  pop.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest('button')
+    if (b && openTool && openTool !== 'symbol') setTimeout(close, 0)
+  })
+  document.addEventListener('mousedown', (e) => {
+    if (openTool && !pop.contains(e.target as Node) && !bar.contains(e.target as Node)) close()
+  })
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && openTool) close()
+  })
+}

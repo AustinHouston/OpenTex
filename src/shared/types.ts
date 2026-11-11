@@ -21,6 +21,7 @@ export interface Settings {
   spellcheck: boolean
   liveCompile: boolean
   disabledPlugins: string[]
+  showInsertBar: boolean
   layout?: unknown // panel arrangement, see renderer/src/layout.ts
 }
 
@@ -42,7 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   uiZoom: 1,
   spellcheck: true,
   liveCompile: false,
-  disabledPlugins: []
+  disabledPlugins: [],
+  showInsertBar: true
 }
 
 /** Stored in <project>/.opentex/project.json so collaborators share it. */

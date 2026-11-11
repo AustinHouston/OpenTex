@@ -11,7 +11,8 @@ import { applyTheme, BUILT_IN } from './themes'
 import { ask, contextMenu, promptText } from './ui'
 import { CommentThread, commentHighlight, entryLine, parseComments } from './comments'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
-import { Dock } from './panels'
+import { PluginPanels } from './panels'
+import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
@@ -73,7 +74,7 @@ function applySettings(): void {
   r.setProperty('--focus-width', `${settings.focusWidth}ch`)
   view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
   view.requestMeasure()
-  dock?.broadcastTheme()
+  plugins?.broadcastTheme()
 }
 
 function currentTheme(): Theme {
@@ -83,7 +84,7 @@ function currentTheme(): Theme {
 async function updateSettings(patch: Partial<Settings>): Promise<void> {
   settings = await api.setSettings(patch)
   applySettings()
-  if ('disabledPlugins' in patch) dock.setPlugins(allPlugins, settings.disabledPlugins)
+  if ('disabledPlugins' in patch) plugins.setPlugins(allPlugins, settings.disabledPlugins)
   if ('texPath' in patch) await refreshTex()
 }
 
@@ -372,7 +373,6 @@ async function showPdf(path: string): Promise<void> {
     const data: Uint8Array = await api.readBinary(path)
     lastPdf = path
     lastPdfLoad = Date.now()
-    document.body.classList.remove('no-pdf')
     await pdf.load(data)
   } catch (e) {
     console.warn('Could not show PDF', e)
@@ -463,50 +463,6 @@ document.addEventListener(
   true
 )
 
-// ---------- Splitters ----------
-function setupSplitters(): void {
-  const saved = (k: string): string | null => {
-    try {
-      return localStorage.getItem(k)
-    } catch {
-      return null
-    }
-  }
-  const sw = saved('sidebar-w')
-  for (const k of ['sidebar-w', 'pdf-w', 'dock-w']) {
-    const v = saved(k)
-    if (v) document.documentElement.style.setProperty(`--${k}`, v)
-  }
-  void sw
-  document.querySelectorAll<HTMLElement>('.splitter').forEach((sp) => {
-    sp.addEventListener('pointerdown', (e) => {
-      const target = $(sp.dataset.target!)
-      const isPdf = sp.dataset.target === 'pdf-col' || sp.dataset.target === 'dock' // panels right of the divider
-      const varName = sp.dataset.target === 'dock' ? 'dock-w' : sp.dataset.target === 'pdf-col' ? 'pdf-w' : 'sidebar-w'
-      const startX = e.clientX
-      const startW = target.getBoundingClientRect().width
-      sp.setPointerCapture(e.pointerId)
-      sp.classList.add('dragging')
-      const move = (ev: PointerEvent): void => {
-        const w = Math.max(140, startW + (isPdf ? startX - ev.clientX : ev.clientX - startX))
-        document.documentElement.style.setProperty(`--${varName}`, `${w}px`)
-      }
-      const up = (): void => {
-        sp.classList.remove('dragging')
-        sp.removeEventListener('pointermove', move)
-        const k = varName
-        try {
-          localStorage.setItem(k, document.documentElement.style.getPropertyValue(`--${k}`))
-        } catch {
-          /* storage unavailable; widths just won't persist */
-        }
-      }
-      sp.addEventListener('pointermove', move)
-      sp.addEventListener('pointerup', up, { once: true })
-    })
-  })
-}
-
 // ---------- TinyTeX ----------
 /** Run a long task while showing its output in a dialog. */
 async function withProgress(title: string, task: () => Promise<boolean>): Promise<boolean> {
@@ -581,7 +537,7 @@ async function renderComments(): Promise<void> {
   const open = threads.filter((t) => !t.resolved).length
   $('comment-count').textContent = open ? String(open) : ''
   $('btn-comment').innerHTML = $('btn-comment').innerHTML.replace(/<span class="count">.*?<\/span>/, '') + (open ? `<span class="count">${open}</span>` : '')
-  if (!dock.isOpen() || dock.current !== 'comments') return
+  if (!layout.isVisible('comments')) return
   const showResolved = ($('show-resolved') as HTMLInputElement).checked
   const list = $('comments-list')
   const shown = threads.filter((t) => showResolved || !t.resolved)
@@ -669,7 +625,7 @@ async function addComment(target?: { file: string; line: number; quote: string }
   const line = target ? view.state.doc.line(Math.min(target.line, view.state.doc.lines)) : view.state.doc.lineAt(fromPos)
   const indent = line.text.match(/^\s*/)![0]
   view.dispatch({ changes: { from: line.from, insert: entryLine('comment', name, text, indent, quote) + '\n' } })
-  dock.show('comments')
+  layout.show('comments')
 }
 
 // ---------- "+ Comment" bubble over selections ----------
@@ -760,7 +716,10 @@ async function syncForward(): Promise<void> {
   const line = view.state.doc.lineAt(view.state.selection.main.head).number
   const box = await api.synctexForward(active, line, lastPdf)
   if (box) {
-    document.body.classList.remove('no-pdf')
+    if (!layout.isVisible('pdf')) {
+      layout.show('pdf')
+      await new Promise((r) => setTimeout(r, 300)) // let the PDF lay out before scrolling to it
+    }
     pdf.showBox(box)
   } else setCompileStatus('No PDF position for this line yet. Compile first.', 'warn')
 }
@@ -803,7 +762,7 @@ function updateWords(): void {
   const s = sel.empty ? 0 : countWords(view.state.sliceDoc(sel.from, sel.to))
   el.textContent = `${n.toLocaleString()} words${s ? ` (${s.toLocaleString()} selected)` : ''}`
   el.title = 'Approximate count for this file, ignoring LaTeX commands, math and comments'
-  dock?.broadcastContext()
+  plugins?.broadcastContext()
 }
 
 async function refreshGit(): Promise<void> {
@@ -826,13 +785,41 @@ function scheduleLiveCompile(): void {
 
 // ---------- Plugins ----------
 let allPlugins: PluginInfo[] = []
-const dock = new Dock($('dock-tabs'), $('dock'), {
+// ---------- Panels ----------
+let layoutSaveTimer = 0
+const layout = new Layout($('workspace'), {} as LayoutState, (state) => {
+  clearTimeout(layoutSaveTimer)
+  layoutSaveTimer = window.setTimeout(() => api.setSettings({ layout: state }), 300)
+  updatePanelButtons()
+})
+const plugins = new PluginPanels(layout, {
   storageGet: (id) => api.pluginStorageGet(id),
   storageSet: (id, k, v) => api.pluginStorageSet(id, k, v),
   theme: () => currentTheme(),
-  context: () => ({ project: project?.name ?? null, file: active, words: Number(($('st-words').textContent ?? '').replace(/[^0-9]/g, '').slice(0, 9)) || 0 }),
-  onShow: (panel) => panel === 'comments' && renderComments()
+  context: () => ({ project: project?.name ?? null, file: active, words: Number(($('st-words').textContent ?? '').replace(/[^0-9]/g, '').slice(0, 9)) || 0 })
 })
+
+function setupPanels(saved: unknown): void {
+  layout.state = normalizeLayout(saved as LayoutState | undefined)
+  layout.add({ id: 'files', title: 'Files', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
+  layout.add({ id: 'pdf', title: 'PDF', body: $('pdf'), extras: $('pdf-extras'), defaultZone: 'right' })
+  layout.add({ id: 'comments', title: 'Comments', body: $('comments'), extras: $('comments-extras'), defaultZone: 'side', onVisible: () => scheduleComments() })
+  layout.render()
+  updatePanelButtons()
+}
+
+function updatePanelButtons(): void {
+  $('btn-sidebar').classList.toggle('on', layout.isVisible('files'))
+  $('btn-pdf').classList.toggle('on', layout.isVisible('pdf'))
+  $('btn-comment').classList.toggle('on', layout.isVisible('comments'))
+}
+
+function panelsMenu(): void {
+  const r = $('btn-panels').getBoundingClientRect()
+  const items: [string, () => void][] = layout.ids().map((id) => [`${layout.isShown(id) ? '✓' : '\u2003'}  ${layout.title(id)}`, () => (layout.isShown(id) ? layout.hide(id) : layout.show(id))])
+  items.push(['Reset layout', () => layout.reset()])
+  contextMenu(r.left - 120, r.bottom + 4, items)
+}
 
 /** Edit a thread in the editor (so it can be undone), after re-finding it in the current text. */
 async function commentAction(t: CommentThread, kind: 'reply' | 'resolve' | 'reopen' | 'delete'): Promise<void> {
@@ -881,12 +868,12 @@ const actions: Record<string, () => unknown> = {
   'close-tab': () => active && closeTab(active),
   settings: () => openSettings(settings, themes, tex, api, updateSettings, allPlugins),
   focus: () => project && setFocus(!focusOn),
-  'toggle-sidebar': () => document.body.classList.toggle('no-sidebar'),
-  'toggle-pdf': () => document.body.classList.toggle('no-pdf'),
+  'toggle-sidebar': () => layout.toggle('files'),
+  'toggle-pdf': () => layout.toggle('pdf'),
   compile: () => compile(),
   'add-comment': () => addComment(),
   'install-tinytex': () => installTinyTex(),
-  'show-comments': () => dock.show('comments'),
+  'show-comments': () => layout.show('comments'),
   'sync-forward': () => syncForward(),
   'zoom-in': () => zoom(1),
   'zoom-out': () => zoom(-1),
@@ -912,8 +899,11 @@ function wire(): void {
   $('btn-pdf').onclick = actions['toggle-pdf']
   $('btn-settings').onclick = actions.settings
   $('btn-new-file').onclick = () => newFile()
-  $('btn-comment').onclick = () => dock.toggle()
-  $('btn-dock-close').onclick = () => document.body.classList.add('no-dock')
+  $('btn-comment').onclick = () => layout.toggle('comments')
+  $('btn-panels').onclick = (e) => {
+    e.stopPropagation()
+    panelsMenu()
+  }
   $('show-resolved').onchange = () => renderComments()
   const bubble = $('comment-bubble')
   bubble.addEventListener('pointerdown', (e) => e.preventDefault()) // keep the selection
@@ -932,7 +922,6 @@ function wire(): void {
     if (project) project.config = await api.setProjectConfig({ engine: (e.target as HTMLSelectElement).value })
   }
   document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => (b.closest('dialog') as HTMLDialogElement).close()))
-  setupSplitters()
 }
 
 async function init(): Promise<void> {
@@ -942,8 +931,8 @@ async function init(): Promise<void> {
   api.setZoom(settings.uiZoom || 1)
   wire()
   allPlugins = await api.listPlugins()
-  dock.setPlugins(allPlugins, settings.disabledPlugins ?? [])
-  dock.show('comments')
+  setupPanels(settings.layout)
+  plugins.setPlugins(allPlugins, settings.disabledPlugins ?? [])
   await refreshTex()
   if (!tex.found) {
     const r = await ask('OpenTex needs a TeX installation to turn your .tex files into PDFs, and none was found on this computer.', [

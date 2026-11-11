@@ -10,7 +10,7 @@
   </head>
   <body>
     <header class="toolbar">
-      <button class="icon" id="btn-sidebar" title="Toggle sidebar (Ctrl/Cmd+B)">
+      <button class="icon" id="btn-sidebar" title="Show or hide files (Ctrl/Cmd+B)">
         <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="7.5" y1="3.5" x2="7.5" y2="16.5" /></svg>
       </button>
       <span id="project-name" class="project-name">OpenTex</span>
@@ -23,13 +23,16 @@
       <button class="primary" id="btn-compile" title="Compile (Ctrl/Cmd+Enter)">
         <svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg><span>Compile</span>
       </button>
-      <button class="icon" id="btn-comment" title="Comments and panels">
+      <button class="icon" id="btn-panels" title="Show or hide panels, reset layout">
+        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="2.5" y1="12.5" x2="17.5" y2="12.5" /><line x1="7.5" y1="3.5" x2="7.5" y2="12.5" /></svg>
+      </button>
+      <button class="icon" id="btn-comment" title="Show or hide comments">
         <svg viewBox="0 0 20 20"><path d="M3.5 4.5h13v9h-7l-4 3v-3h-2z" /></svg>
       </button>
       <button class="icon" id="btn-focus" title="Focus mode (Ctrl/Cmd+Shift+F)">
         <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /></svg>
       </button>
-      <button class="icon" id="btn-pdf" title="Toggle PDF (Ctrl/Cmd+Shift+P)">
+      <button class="icon" id="btn-pdf" title="Show or hide the PDF (Ctrl/Cmd+Shift+P)">
         <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="12.5" y1="3.5" x2="12.5" y2="16.5" /></svg>
       </button>
       <button class="icon" id="btn-settings" title="Settings (Ctrl/Cmd+,)">
@@ -37,68 +40,61 @@
       </button>
     </header>
 
-    <div class="main">
-      <aside class="sidebar" id="sidebar">
-        <div class="pane-head">
-          <span>Files</span>
-          <span class="spacer"></span>
-          <button class="icon small" id="btn-new-file" title="New file (Ctrl/Cmd+N)">
-            <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg>
-          </button>
-        </div>
-        <div id="tree" class="tree"></div>
-      </aside>
-      <div class="splitter" data-target="sidebar"></div>
-
-      <section class="editor-col">
-        <div class="tabs" id="tabs"></div>
-        <div id="editor"></div>
-        <div id="welcome" class="welcome">
-          <h1>OpenTex</h1>
-          <p>Open the folder that holds your paper. OpenTex finds the main <code>.tex</code> file and compiles it with your own TeX installation.</p>
-          <button class="primary big" id="btn-open">Open Folder…</button>
-          <p class="hint" id="welcome-tex"></p>
-        </div>
-        <div class="problems hidden" id="problems">
-          <div class="pane-head">
-            <span id="problems-title">Problems</span>
-            <span class="spacer"></span>
-            <button class="link" id="btn-log">View log</button>
-            <button class="icon small" id="btn-problems-close" title="Hide">
-              <svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" /></svg>
-            </button>
+    <div class="workspace" id="workspace">
+      <div class="ws-row">
+        <div class="zone zone-v" data-zone="left"></div>
+        <div class="zsplit zsplit-v" data-zone="left"></div>
+        <section class="editor-col">
+          <div class="tabs" id="tabs"></div>
+          <div id="editor"></div>
+          <div id="welcome" class="welcome">
+            <h1>OpenTex</h1>
+            <p>Open the folder that holds your paper. OpenTex finds the main <code>.tex</code> file and compiles it with your own TeX installation.</p>
+            <button class="primary big" id="btn-open">Open Folder…</button>
+            <p class="hint" id="welcome-tex"></p>
           </div>
-          <ul id="problems-list"></ul>
-        </div>
-      </section>
+          <div class="problems hidden" id="problems">
+            <div class="pane-head">
+              <span id="problems-title">Problems</span>
+              <span class="spacer"></span>
+              <button class="link" id="btn-log">View log</button>
+              <button class="icon small" id="btn-problems-close" title="Hide">
+                <svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" /></svg>
+              </button>
+            </div>
+            <ul id="problems-list"></ul>
+          </div>
+        </section>
+        <div class="zsplit zsplit-v" data-zone="right"></div>
+        <div class="zone zone-v" data-zone="right"></div>
+        <div class="zsplit zsplit-v" data-zone="side"></div>
+        <div class="zone zone-v" data-zone="side"></div>
+      </div>
+      <div class="zsplit zsplit-h" data-zone="bottom"></div>
+      <div class="zone zone-h" data-zone="bottom"></div>
+    </div>
 
-      <div class="splitter" data-target="pdf-col"></div>
-      <section class="pdf-col" id="pdf-col">
-        <div class="pane-head">
-          <button class="icon small" id="pdf-zoom-out" title="Zoom out">−</button>
-          <span id="pdf-zoom">Fit</span>
-          <button class="icon small" id="pdf-zoom-in" title="Zoom in">+</button>
-          <button class="link" id="pdf-fit">Fit width</button>
-          <span class="spacer"></span>
-          <span id="pdf-pages" class="muted"></span>
-        </div>
-        <div id="pdf" class="pdf"><div class="pdf-empty">Compile to see the PDF here.</div></div>
-      </section>
-
-      <div class="splitter" data-target="dock"></div>
-      <aside class="dock" id="dock">
-        <div class="pane-head dock-tabs" id="dock-tabs">
-          <button class="dock-tab on" data-panel="comments">Comments <span id="comment-count"></span></button>
-          <span class="spacer"></span>
-          <button class="icon small" id="btn-dock-close" title="Hide panel">
-            <svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" /></svg>
-          </button>
-        </div>
-        <div class="dock-panel" data-panel="comments" id="comments">
-          <label class="show-resolved"><input type="checkbox" id="show-resolved" /> Show resolved</label>
-          <div id="comments-list"></div>
-        </div>
-      </aside>
+    <!-- Panel contents; main.ts moves each into a movable panel. -->
+    <div id="panel-store" hidden>
+      <div id="files-extras">
+        <button class="icon small" id="btn-new-file" title="New file (Ctrl/Cmd+N)">
+          <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg>
+        </button>
+      </div>
+      <div id="tree" class="tree"></div>
+      <div id="pdf-extras" class="pdf-extras">
+        <button class="icon small" id="pdf-zoom-out" title="Zoom out">−</button>
+        <span id="pdf-zoom">Fit</span>
+        <button class="icon small" id="pdf-zoom-in" title="Zoom in">+</button>
+        <button class="link" id="pdf-fit" title="Fit width">Fit</button>
+        <span id="pdf-pages" class="muted"></span>
+      </div>
+      <div id="pdf" class="pdf"><div class="pdf-empty">Compile to see the PDF here.</div></div>
+      <div id="comments-extras"><span id="comment-count" class="pcount"></span></div>
+      <div id="comments" class="comments">
+        <label class="show-resolved"><input type="checkbox" id="show-resolved" /> Show resolved</label>
+        <div id="comments-list"></div>
+      </div>
     </div>
 
     <footer class="statusbar">

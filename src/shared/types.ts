@@ -20,6 +20,7 @@ export interface Settings {
   spellcheck: boolean
   liveCompile: boolean
   disabledPlugins: string[]
+  layout?: unknown // panel arrangement, see renderer/src/layout.ts
 }
 
 export const DEFAULT_SETTINGS: Settings = {

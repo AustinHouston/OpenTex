@@ -137,7 +137,7 @@ body.no-pdf .pdf-col, body.no-pdf .splitter[data-target='pdf-col'] { display: no
 .statusbar .warn { color: var(--warning); }
 
 /* Focus mode: only the text you are writing. */
-body.focus .toolbar, body.focus .sidebar, body.focus .splitter, body.focus .pdf-col,
+body.focus .toolbar, body.focus .zone, body.focus .zsplit,
 body.focus .tabs, body.focus .statusbar, body.focus .problems, body.focus .dock, body.focus .comment-bubble { display: none !important; }
 body.focus .cm-gutters { display: none; }
 body.focus .cm-content { max-width: var(--focus-width); margin: 0 auto; padding: 18vh 32px 45vh; }
@@ -224,3 +224,65 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 
 .plugin-row { display: flex; gap: 8px; align-items: flex-start; }
 .plugin-row .note-inline { font-size: 11px; color: var(--muted); }
+
+/* ---------- Movable panel layout ---------- */
+.workspace { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.ws-row { flex: 1; display: flex; min-height: 0; }
+.editor-col { flex: 1; min-width: 200px; }
+.zone { display: flex; min-width: 0; min-height: 0; background: var(--panel); flex: none; }
+.zone-v { flex-direction: column; min-width: 160px; }
+.zone-h { flex-direction: row; min-height: 90px; border-top: 1px solid var(--border); }
+.zone[data-zone='left'] { border-right: 1px solid var(--border); }
+.zone[data-zone='right'], .zone[data-zone='side'] { border-left: 1px solid var(--border); }
+.zone.empty { display: none; }
+.zsplit { flex: none; z-index: 2; }
+.zsplit-v { width: 5px; margin: 0 -2px; cursor: col-resize; }
+.zsplit-h { height: 5px; margin: -2px 0; cursor: row-resize; }
+.zsplit:hover, .zsplit.dragging { background: var(--accent); opacity: 0.5; }
+.panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.zone-v .panel { min-height: 32px; }
+.zone-h .panel { min-width: 120px; }
+.zone-h .panel + .pdiv + .panel, .zone-h .panel { border-right: 1px solid var(--border); }
+.panel-head { height: 32px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); cursor: grab; user-select: none; border-bottom: 1px solid transparent; }
+.panel-head:active { cursor: grabbing; }
+.panel-head .ptitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-head button { color: var(--muted); padding: 2px 3px; display: inline-flex; align-items: center; }
+.panel-head button:hover { color: var(--text); }
+.panel-head .collapse svg, .panel-head .phide svg { width: 14px; height: 14px; }
+.panel-head .collapse svg { transition: transform 0.15s; }
+.panel.collapsed .panel-head .collapse svg { transform: rotate(-90deg); }
+.panel.collapsed .panel-body { display: none; }
+.panel:not(.collapsed) .panel-head { border-bottom-color: var(--border); }
+.pextras { display: inline-flex; align-items: center; gap: 2px; text-transform: none; letter-spacing: 0; font-size: 12px; }
+.panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.panel-body > * { flex: 1; min-height: 0; }
+.panel-body > .tree, .panel-body > .comments { overflow: auto; }
+.panel-body iframe { border: 0; width: 100%; height: 100%; background: transparent; }
+.zone-v > .panel + .pdiv { border-top: 1px solid var(--border); }
+.pdiv { flex: none; z-index: 2; }
+.pdiv-h { height: 5px; margin: -2px 0; cursor: row-resize; }
+.pdiv-v { width: 5px; margin: 0 -2px; cursor: col-resize; }
+.pdiv:hover { background: var(--accent); opacity: 0.5; }
+.pdiv.inert { cursor: default; pointer-events: none; }
+.pcount { color: var(--accent); font-weight: 600; }
+.pdf-extras { gap: 2px; }
+.pdf-extras #pdf-zoom { min-width: 34px; text-align: center; font-size: 11px; }
+.pdf-extras #pdf-pages { font-size: 11px; margin-left: 4px; }
+
+/* A column whose panels are all collapsed becomes a thin strip with vertical titles. */
+.zone-v.all-collapsed .panel { flex: 0 0 auto !important; }
+.zone-v.all-collapsed .panel-head { writing-mode: vertical-rl; height: auto; width: 100%; padding: 8px 0; gap: 6px; justify-content: flex-start; cursor: pointer; }
+.zone-v.all-collapsed .panel-head .pextras, .zone-v.all-collapsed .panel-head .spacer { display: none; }
+.zone-v.all-collapsed .pdiv { display: none; }
+.zone[data-zone='left'].all-collapsed .panel-head { transform: rotate(180deg); }
+
+/* While dragging a panel: show every zone, including empty ones, as a drop target. */
+body.dragging-panel iframe { pointer-events: none; }
+body.dragging-panel .zone.empty { display: flex; outline: 2px dashed var(--border); outline-offset: -6px; }
+body.dragging-panel .zone-v.empty { width: 70px !important; }
+body.dragging-panel .zone-h.empty { height: 70px !important; }
+body.dragging-panel .zone.drop-target { outline: 2px dashed var(--accent); outline-offset: -6px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.panel.being-dragged { opacity: 0.45; }
+.drop-line { position: fixed; z-index: 30; background: var(--accent); border-radius: 2px; pointer-events: none; }
+
+.zone-v.all-collapsed { min-width: 0; }

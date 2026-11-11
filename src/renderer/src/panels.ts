@@ -1,85 +1,52 @@
-// The right-hand dock: the Comments panel plus one panel per enabled plugin.
-// Plugin pages run in sandboxed frames (no access to files or to OpenTex internals) and talk to
-// OpenTex only through postMessage; see plugins/opentex-sdk.js for the plugin side.
+// Plugin panels. Each enabled plugin becomes a movable panel (see layout.ts) holding a sandboxed
+// frame with no access to files or to OpenTex internals; it talks to OpenTex only through
+// postMessage. See plugins/opentex-sdk.js for the plugin side.
 import type { PluginInfo, Theme } from '../../shared/types'
+import type { Layout } from './layout'
 
 interface Host {
   storageGet: (id: string) => Promise<Record<string, unknown>>
   storageSet: (id: string, key: string, value: unknown) => Promise<void>
   theme: () => Theme
   context: () => Record<string, unknown>
-  onShow: (panel: string) => void
 }
 
-export class Dock {
+export class PluginPanels {
   private frames = new Map<string, HTMLIFrameElement>()
   private plugins: PluginInfo[] = []
-  current = 'comments'
 
-  constructor(private tabs: HTMLElement, private dock: HTMLElement, private host: Host) {
+  constructor(private layout: Layout, private host: Host) {
     window.addEventListener('message', (e) => this.onMessage(e))
-    tabs.querySelector<HTMLElement>('[data-panel=comments]')!.onclick = () => this.show('comments')
   }
 
   setPlugins(list: PluginInfo[], disabled: string[]): void {
     this.plugins = list.filter((p) => !disabled.includes(p.id))
-    this.tabs.querySelectorAll('[data-plugin]').forEach((t) => t.remove())
-    for (const [id, f] of this.frames) {
-      if (!this.plugins.some((p) => p.id === id)) {
-        f.parentElement?.remove()
-        this.frames.delete(id)
+    for (const id of this.layout.ids().filter((x) => x.startsWith('plugin:'))) {
+      if (!this.plugins.some((p) => `plugin:${p.id}` === id)) {
+        this.layout.remove(id)
+        this.frames.delete(id.slice(7))
       }
     }
-    const spacer = this.tabs.querySelector('.spacer')!
     for (const p of this.plugins) {
-      const b = document.createElement('button')
-      b.className = 'dock-tab'
-      b.dataset.panel = `plugin:${p.id}`
-      b.dataset.plugin = p.id
-      b.title = p.description
-      b.textContent = `${p.icon ? p.icon + ' ' : ''}${p.name}`
-      b.onclick = () => this.show(`plugin:${p.id}`)
-      this.tabs.insertBefore(b, spacer)
+      const pid = `plugin:${p.id}`
+      if (this.layout.has(pid)) continue
+      const body = document.createElement('div')
+      body.className = 'plugin-body'
+      this.layout.add({ id: pid, title: `${p.icon ? p.icon + ' ' : ''}${p.name}`, body, defaultZone: 'side', onVisible: () => this.ensureFrame(p, body) })
     }
-    if (this.current.startsWith('plugin:') && !this.plugins.some((p) => `plugin:${p.id}` === this.current)) this.show('comments')
+    this.layout.render()
   }
 
-  get pluginList(): PluginInfo[] {
-    return this.plugins
-  }
-
-  isOpen(): boolean {
-    return !document.body.classList.contains('no-dock')
-  }
-
-  show(panel: string): void {
-    this.current = panel
-    document.body.classList.remove('no-dock')
-    if (panel.startsWith('plugin:')) this.ensureFrame(panel.slice(7))
-    this.tabs.querySelectorAll<HTMLElement>('.dock-tab').forEach((t) => t.classList.toggle('on', t.dataset.panel === panel))
-    this.dock.querySelectorAll<HTMLElement>('.dock-panel').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== panel))
-    this.host.onShow(panel)
-  }
-
-  toggle(panel = this.current): void {
-    if (this.isOpen() && this.current === panel) document.body.classList.add('no-dock')
-    else this.show(panel)
-  }
-
-  private ensureFrame(id: string): void {
-    if (this.frames.has(id)) return
-    const p = this.plugins.find((x) => x.id === id)
-    if (!p) return
-    const wrap = document.createElement('div')
-    wrap.className = 'dock-panel'
-    wrap.dataset.panel = `plugin:${id}`
+  /** Create the frame the first time the panel is shown (or again if moving the panel dropped it). */
+  private ensureFrame(p: PluginInfo, body: HTMLElement): void {
+    const existing = this.frames.get(p.id)
+    if (existing && body.contains(existing)) return
     const f = document.createElement('iframe')
     f.sandbox.add('allow-scripts') // no allow-same-origin: the page can't reach OpenTex or your files
-    f.src = `opentex-plugin://${id}/${p.panel}`
+    f.src = `opentex-plugin://${p.id}/${p.panel}`
     f.title = p.name
-    wrap.appendChild(f)
-    this.dock.appendChild(wrap)
-    this.frames.set(id, f)
+    body.replaceChildren(f)
+    this.frames.set(p.id, f)
   }
 
   private post(id: string, msg: Record<string, unknown>): void {

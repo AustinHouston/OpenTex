@@ -24,11 +24,20 @@
       .grid { display: grid; grid-template-columns: 1fr 64px; gap: 6px 8px; align-items: center; margin-top: 8px; }
       input[type='number'] { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 3px 6px; }
       .today { text-align: center; color: var(--muted); font-size: 12px; }
+      .controls { display: flex; flex-direction: column; gap: 10px; }
+      /* Wide, short panels (e.g. docked along the bottom): scene on the left, controls on the right. */
+      @media (min-aspect-ratio: 9/5) {
+        .wrap { flex-direction: row; align-items: flex-start; height: 100vh; padding: 8px 12px; }
+        canvas { width: auto; height: calc(100vh - 16px); max-width: 60vw; aspect-ratio: 96 / 60; }
+        .controls { flex: 1; min-width: 200px; max-width: 360px; overflow: auto; max-height: calc(100vh - 16px); }
+        .time { font-size: 32px; }
+      }
     </style>
   </head>
   <body>
     <div class="wrap">
       <canvas id="scene" width="96" height="60"></canvas>
+      <div class="controls">
       <div class="phase" id="phase">Focus</div>
       <div class="time" id="time">25:00</div>
       <div class="dots" id="dots"></div>
@@ -48,6 +57,7 @@
           <label for="s-auto">Start focus right after a break</label><input type="checkbox" id="s-auto" />
         </div>
       </details>
+      </div>
     </div>
     <script src="opentex-sdk.js"></script>
     <script src="forest.js"></script>

@@ -14,6 +14,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - Built-in PDF viewer that keeps your place between compiles
 - 12 built-in themes with previews in Settings, plus your own
 - Interface zoom with `Ctrl/Cmd +` and `Ctrl/Cmd −`
+- **Movable panels:** Files, PDF, Comments and plugin panels can be dragged by their title bar to the left, either right-hand column, or across the bottom, stacked, resized, collapsed (click the arrow or double-click the title) or hidden. The PDF is optional. The layout toolbar button shows hidden panels and resets the layout.
 - **Plugins** that add panels on the right, such as the built-in **Forest Timer** (a Pomodoro timer with a pixel forest that grows while you work)
 - **Focus mode** (`Ctrl/Cmd+Shift+F`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
 - **Comments** that live in the `.tex` file, so they travel with the paper (see below)

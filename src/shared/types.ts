@@ -16,6 +16,7 @@ export interface Settings {
   focusFullscreen: boolean
   authorName: string
   lastProject: string
+  recentProjects: string[]
   uiZoom: number
   spellcheck: boolean
   liveCompile: boolean
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: Settings = {
   focusFullscreen: false,
   authorName: '',
   lastProject: '',
+  recentProjects: [],
   uiZoom: 1,
   spellcheck: true,
   liveCompile: false,

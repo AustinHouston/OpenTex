@@ -52,15 +52,16 @@ interface RunOut {
   output: string
 }
 
-let current: ChildProcess | null = null
-let cancelled = false
+// One compile per project folder; several windows can compile at once.
+const running = new Map<string, ChildProcess>()
+const cancelled = new Set<string>()
 
-function run(cmd: string, args: string[], cwd: string, binDir: string): Promise<RunOut> {
+function run(cmd: string, args: string[], cwd: string, binDir: string, key: string): Promise<RunOut> {
   return new Promise((done) => {
     const env = { ...process.env, PATH: binDir + delimiter + (process.env.PATH ?? '') }
     let output = ''
     const p = spawn(join(binDir, exe(cmd)), args, { cwd, env, windowsHide: true })
-    current = p
+    running.set(key, p)
     const timer = setTimeout(() => p.kill(), 5 * 60_000)
     p.stdout.on('data', (d) => (output += d))
     p.stderr.on('data', (d) => (output += d))
@@ -70,22 +71,24 @@ function run(cmd: string, args: string[], cwd: string, binDir: string): Promise<
     })
     p.on('close', (code) => {
       clearTimeout(timer)
-      current = null
+      running.delete(key)
       done({ code, output })
     })
   })
 }
 
-export function cancelCompile(): void {
-  if (current) {
-    cancelled = true
-    current.kill()
+export function cancelCompile(root: string): void {
+  const p = running.get(root)
+  if (p) {
+    cancelled.add(root)
+    p.kill()
   }
 }
 
 export async function compile(root: string, mainFile: string, engine: Engine, tex: TexInfo, useLatexmk: boolean): Promise<CompileResult> {
   const start = Date.now()
-  cancelled = false
+  cancelled.delete(root)
+  const isCancelled = (): boolean => cancelled.has(root)
   const mainAbs = resolve(root, mainFile)
   const cwd = dirname(mainAbs)
   const name = basename(mainAbs)
@@ -98,26 +101,26 @@ export async function compile(root: string, mainFile: string, engine: Engine, te
   let usedLatexmk = false
   if (useLatexmk && tex.latexmk) {
     const flag = { pdflatex: '-pdf', xelatex: '-pdfxe', lualatex: '-pdflua' }[engine]
-    const r = await run('latexmk', [flag, '-f', ...common, name], cwd, binDir)
+    const r = await run('latexmk', [flag, '-f', ...common, name], cwd, binDir, root)
     log += r.output
     // latexmk needs Perl; MiKTeX on Windows often lacks it. Fall back to running the engine directly.
     usedLatexmk = !/perl/i.test(r.output.slice(0, 2000)) || existsSync(join(cwd, `${stem}.pdf`))
   }
-  if (!usedLatexmk && !cancelled) {
+  if (!usedLatexmk && !isCancelled()) {
     log = ''
-    let r = await run(engine, [...common, name], cwd, binDir)
+    let r = await run(engine, [...common, name], cwd, binDir, root)
     log += r.output
     const aux = await fs.readFile(join(cwd, `${stem}.aux`), 'utf8').catch(() => '')
     let rerun = /Rerun to get|Label\(s\) may have changed/.test(r.output)
     if (existsSync(join(cwd, `${stem}.bcf`)) && existsSync(join(binDir, exe('biber')))) {
-      log += (await run('biber', [stem], cwd, binDir)).output
+      log += (await run('biber', [stem], cwd, binDir, root)).output
       rerun = true
     } else if (/\\bibdata/.test(aux)) {
-      log += (await run('bibtex', [stem], cwd, binDir)).output
+      log += (await run('bibtex', [stem], cwd, binDir, root)).output
       rerun = true
     }
-    for (let i = 0; rerun && i < 2 && !cancelled; i++) {
-      r = await run(engine, [...common, name], cwd, binDir)
+    for (let i = 0; rerun && i < 2 && !isCancelled(); i++) {
+      r = await run(engine, [...common, name], cwd, binDir, root)
       log += r.output
       rerun = /Rerun to get|Label\(s\) may have changed/.test(r.output)
     }
@@ -135,7 +138,7 @@ export async function compile(root: string, mainFile: string, engine: Engine, te
     problems,
     missingFiles,
     durationMs: Date.now() - start,
-    cancelled
+    cancelled: isCancelled()
   }
 }
 

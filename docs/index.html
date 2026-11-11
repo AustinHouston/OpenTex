@@ -3,95 +3,313 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenTex: a simple LaTeX editor</title>
-    <link rel="icon" href="icon.png" />
-    <style>
-      :root { --bg: #f7f6f2; --card: #fff; --text: #22272e; --muted: #65707d; --accent: #2c4f9e; --accent2: #2b7a78; --border: #e1ddd3; }
-      @media (prefers-color-scheme: dark) { :root { --bg: #16181c; --card: #1f2227; --text: #e3e6ea; --muted: #9aa3ad; --accent: #6f9cff; --accent2: #5fc0b9; --border: #30343b; } }
-      * { box-sizing: border-box; }
-      body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
-      main { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
-      header { display: flex; align-items: center; gap: 16px; }
-      header img { width: 72px; height: 72px; }
-      h1 { margin: 0; font-size: 34px; }
-      .tag { color: var(--muted); margin: 2px 0 0; }
-      .hero { margin: 32px 0 12px; padding: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; text-align: center; }
-      .btn { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 650; font-size: 18px; padding: 14px 26px; border-radius: 10px; }
-      .btn:hover { filter: brightness(1.08); }
-      .alt { margin-top: 14px; font-size: 14px; color: var(--muted); }
-      .alt a { color: var(--accent); }
-      h2 { font-size: 20px; margin: 36px 0 8px; }
-      ol { padding-left: 22px; }
-      li { margin: 6px 0; }
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 4px 20px 12px; margin-top: 12px; }
-      .note { color: var(--muted); font-size: 14px; }
-      b { font-weight: 650; }
-      footer { margin-top: 40px; color: var(--muted); font-size: 14px; }
-      footer a { color: var(--accent); }
-    </style>
+    <title>OpenTex: LaTeX has never been easier</title>
+    <meta name="description" content="OpenTex is a free, open-source LaTeX editor for scientists, for Mac and Windows. Simple, shareable comments, local files, Word import." />
+    <meta property="og:title" content="OpenTex: LaTeX has never been easier" />
+    <meta property="og:description" content="A free, open-source LaTeX editor for scientists. Mac and Windows." />
+    <meta property="og:image" content="https://austinhouston.github.io/OpenTex/img/app.jpg" />
+    <meta name="theme-color" content="#f8f1e3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1d1913" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="apple-touch-icon" href="img/icon-512.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..600&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600;700&display=swap" />
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <header class="topbar" id="top">
+      <div class="wrap">
+        <a class="brand" href="#top"><img src="icon.png" alt="" width="32" height="32" />OpenTex</a>
+        <nav aria-label="Sections">
+          <a class="opt" href="#why">Why</a>
+          <a class="opt" href="#features">Features</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/AustinHouston/OpenTex">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
     <main>
-      <header>
-        <img src="icon.png" alt="" />
-        <div>
-          <h1>OpenTex</h1>
-          <p class="tag">A simple, reliable LaTeX editor. Free and open source.</p>
+      <!-- ============ HERO ============ -->
+      <section class="hero">
+        <div class="wrap">
+          <img class="hero-icon" src="img/icon-512.png" alt="OpenTex icon" width="148" height="148" />
+          <p class="eyebrow">OpenTex &middot; free &amp; open source</p>
+          <h1>LaTeX has never been <em>easier</em></h1>
+          <p class="lede">A simple LaTeX editor for scientists. Write, compile, comment and share, with your files staying on your own computer. For Mac and Windows.</p>
+
+          <div class="cta">
+            <a class="btn dl-main" href="https://github.com/AustinHouston/OpenTex/releases/latest">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+              <span>Download OpenTex</span>
+            </a>
+            <div class="alt dl-alt"></div>
+            <p class="cta-note">No administrator rights needed. No TeX yet? OpenTex offers to install a small one (TinyTeX) for you on first launch.</p>
+          </div>
+
+          <div class="window">
+            <div class="chrome" aria-hidden="true"><i></i><i></i><i></i></div>
+            <img src="img/app.jpg" width="1400" height="868" alt="The OpenTex window: file tree, LaTeX source, compiled PDF, a comment thread and the Forest Timer." />
+          </div>
         </div>
-      </header>
+      </section>
 
-      <div class="hero">
-        <a class="btn" id="main-btn" href="https://github.com/AustinHouston/OpenTex/releases/latest">Download OpenTex</a>
-        <div class="alt" id="alt"></div>
-      </div>
-      <p class="note">No administrator rights needed. If you don't have TeX yet, OpenTex offers to install a small one for you on first launch.</p>
+      <!-- ============ WHY ============ -->
+      <section class="why" id="why">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="eyebrow">Why OpenTex</p>
+            <h2>Everything a paper needs, nothing it doesn’t</h2>
+          </div>
+        </div>
+        <div class="bands">
+          <div class="band">
+            <div class="wrap">
+              <span class="num" aria-hidden="true">i.</span>
+              <h3>Simple</h3>
+              <p>Only the features you need.<span class="sub">Open a folder, write, press Compile.</span></p>
+            </div>
+          </div>
+          <div class="band">
+            <div class="wrap">
+              <span class="num" aria-hidden="true">ii.</span>
+              <h3>Shareable</h3>
+              <p>Comments and reference libraries are easily shared with collaborators.<span class="sub">Comments live inside the .tex file, so they travel wherever the file goes.</span></p>
+            </div>
+          </div>
+          <div class="band">
+            <div class="wrap">
+              <span class="num" aria-hidden="true">iii.</span>
+              <h3>Local</h3>
+              <p>Own your files.<span class="sub">Plain files in a folder on your computer, friendly to the AI agents of your choice.</span></p>
+            </div>
+          </div>
+          <div class="band">
+            <div class="wrap">
+              <span class="num" aria-hidden="true">iv.</span>
+              <h3>Adaptable</h3>
+              <p>Movable panels, expandable plugins.<span class="sub">Drag panels where you want them, collapse or hide the ones you don't need.</span></p>
+            </div>
+          </div>
+          <div class="band">
+            <div class="wrap">
+              <span class="num" aria-hidden="true">v.</span>
+              <h3>Word conversion</h3>
+              <p>Drag and drop your Word .docx and EndNote library.<span class="sub">Equations stay LaTeX math, Word comments become OpenTex comments.</span></p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <h2 id="mac">Mac</h2>
-      <div class="card">
-        <ol>
-          <li>Open <b>OpenTex-mac.dmg</b> and drag <b>OpenTex</b> into <b>Applications</b>. Not allowed to? Drag it to your <b>Desktop</b> or <b>Documents</b> instead. It runs from anywhere.</li>
-          <li>Open OpenTex. The first time, macOS says it can't verify the developer. Click <b>Done</b>.</li>
-          <li>Open <b>System Settings → Privacy &amp; Security</b>, scroll down, and click <b>Open Anyway</b> next to OpenTex. You only do this once.</li>
-        </ol>
-        <p class="note">On macOS 14 or earlier you can instead right-click the app, choose <b>Open</b>, then <b>Open</b> again.</p>
-      </div>
+      <!-- ============ FEATURES ============ -->
+      <section class="features" id="features">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="eyebrow">Features</p>
+            <h2>A closer look</h2>
+          </div>
 
-      <h2 id="windows">Windows</h2>
-      <div class="card">
-        <ol>
-          <li>Double-click <b>OpenTex-windows-setup.exe</b>. It installs just for you, with no admin prompt.</li>
-          <li>If Windows says <i>"Windows protected your PC"</i>, click <b>More info → Run anyway</b>.</li>
-        </ol>
-        <p class="note">
-          Installer blocked? Use the <a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-portable.zip">portable version</a>:
-          right-click the zip → <b>Properties</b> → tick <b>Unblock</b> → <b>OK</b>, then <b>Extract All</b> and double-click <b>OpenTex.exe</b>.
-        </p>
-      </div>
+          <!-- Classic + spellcheck -->
+          <div class="pair">
+            <div class="card">
+              <span class="tag">Editor</span>
+              <h3>Classic LaTeX features</h3>
+              <p>Syntax highlighting, and autocomplete for <code>\cite{}</code> (keys from your .bib files), <code>\ref{}</code> (from your <code>\label</code>s), environments and commands.</p>
+<pre class="code" aria-label="Example: typing \cite{ein shows matching keys from refs.bib"><span class="ln">9</span>Energy and mass are related by
+<span class="ln">10</span><span class="m">$E = mc^2$</span>, as shown by <span class="c">\cite</span><span class="b">{</span>ein<span class="caret"></span>
+<div class="popup" aria-hidden="true"><div class="on"><span>einstein1905</span><span>refs.bib</span></div></div></pre>
+            </div>
+            <div class="card">
+              <span class="tag">Editor</span>
+              <h3>Spellcheck</h3>
+              <p>Built-in spellcheck that ignores LaTeX commands and math. Right-click a word for suggestions, or to add it to your dictionary.</p>
+<pre class="code" aria-label="Example: a misspelled word underlined, with a right-click menu of suggestions"><span class="ln">6</span>We <span class="squig">solv</span> <span class="c">\begin</span><span class="b">{</span><span class="e">equation</span><span class="b">}</span>
+<span class="ln">7</span>  <span class="c">\nabla</span>^2 <span class="c">\phi</span> = -<span class="c">\frac</span><span class="b">{</span><span class="c">\rho</span><span class="b">}{</span><span class="c">\varepsilon</span>_0<span class="b">}</span>.
+<div class="popup" aria-hidden="true"><div class="on"><span>✓ solve</span><span></span></div><div><span>✓ sold</span><span></span></div><div><span>Add “solv” to dictionary</span><span></span></div><hr /><div><span>Add comment on this line</span><span></span></div><div><span>Show in PDF</span><span></span></div></div></pre>
+            </div>
+          </div>
 
-      <h2>On a work or government computer?</h2>
-      <p>Some managed computers hide the <i>Open Anyway</i> / <i>Run anyway</i> buttons because policy only allows signed apps. If you don't see them, ask your IT help desk to approve OpenTex. It's open source, so they can review the code at the link below.</p>
+          <!-- Comments -->
+          <div class="row">
+            <div class="text">
+              <span class="tag">Collaborate</span>
+              <h3>Comments that work just like Word</h3>
+              <p>Select text in the editor or in the PDF, click <b>+&nbsp;Comment</b>, reply, resolve.</p>
+              <p class="muted">Comments are stored inside the .tex file as ordinary LaTeX comment lines, so they travel with the file over email, Dropbox or git, and never appear in the PDF.</p>
+<pre class="code" style="margin-top:18px"><span class="cmt"><b>%@comment[Jane Doe, 2026-11-10]{selected text}:</b> Should we cite Jackson here?</span></pre>
+            </div>
+            <div class="shot"><img src="img/comments.jpg" width="1400" height="807" loading="lazy" alt="Comment lines highlighted in the source and the matching comment threads in the side panel, with Reply, Resolve and Delete." /></div>
+          </div>
 
-      <footer>
-        <a href="https://github.com/AustinHouston/OpenTex">Source code and documentation on GitHub</a> · <a href="https://github.com/AustinHouston/OpenTex/releases">All versions</a>
-      </footer>
+          <!-- SyncTeX -->
+          <div class="row flip">
+            <div class="text">
+              <span class="tag">Navigate</span>
+              <h3>SyncTeX: source and PDF, linked</h3>
+              <p><b>Double-click</b> anywhere in the PDF to jump to that line of source.</p>
+              <p>Press <kbd>Ctrl</kbd>/<kbd>⌘</kbd>&nbsp;+&nbsp;<kbd>J</kbd> to jump from the source to the matching spot in the PDF.</p>
+            </div>
+            <div class="shot"><img src="img/synctex.jpg" width="1600" height="992" loading="lazy" alt="LaTeX source on the left and the compiled PDF on the right." /></div>
+          </div>
+
+          <!-- Layout -->
+          <div class="row">
+            <div class="text">
+              <span class="tag">Adapt</span>
+              <h3>Panels where you want them</h3>
+              <p>Move panels around, stack them, collapse them or hide them. Here the Forest Timer sits under Files, the PDF is hidden and Comments is collapsed to a strip.</p>
+            </div>
+            <div class="shot"><img src="img/layout.jpg" width="1400" height="868" loading="lazy" alt="A rearranged OpenTex layout: Forest Timer below the file list, a wide editor and a collapsed Comments panel." /></div>
+          </div>
+
+          <!-- Themes -->
+          <div class="row flip">
+            <div class="text">
+              <span class="tag">Stylish</span>
+              <h3>Twelve themes, or your own</h3>
+              <p>Each built-in theme has a live preview. Drop your own theme file into the themes folder to add more.</p>
+              <div class="swatches" aria-label="Built-in themes">
+                <span class="sw"><i style="--a:#ffffff;--b:#2f6feb"></i>Light</span>
+                <span class="sw"><i style="--a:#fffdf8;--b:#3b6ea8"></i>Paper</span>
+                <span class="sw"><i style="--a:#f8f1e3;--b:#a0522d"></i>Sepia</span>
+                <span class="sw"><i style="--a:#f7fbfd;--b:#0f7fa8"></i>Ocean</span>
+                <span class="sw"><i style="--a:#fffafa;--b:#c2456e"></i>Rose</span>
+                <span class="sw"><i style="--a:#fbfaff;--b:#6d4fd8"></i>Lavender</span>
+                <span class="sw"><i style="--a:#1e1f22;--b:#5b9cf8"></i>Dark</span>
+                <span class="sw"><i style="--a:#0f1724;--b:#6aa7ff"></i>Midnight</span>
+                <span class="sw"><i style="--a:#1b221c;--b:#7fc27f"></i>Forest</span>
+                <span class="sw"><i style="--a:#221c19;--b:#f08a4b"></i>Ember</span>
+                <span class="sw"><i style="--a:#002b36;--b:#268bd2"></i>Solarized Dark</span>
+                <span class="sw"><i style="--a:#000000;--b:#ffd400"></i>High Contrast</span>
+              </div>
+            </div>
+            <div class="shot"><img src="img/themes.jpg" width="1200" height="698" loading="lazy" alt="The Settings window with a grid of twelve theme previews." /></div>
+          </div>
+
+          <!-- Focus -->
+          <div class="row">
+            <div class="text">
+              <span class="tag">Focus</span>
+              <h3>Just you and the text</h3>
+              <p>Focus mode (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>&nbsp;+&nbsp;<kbd>Shift</kbd>&nbsp;+&nbsp;<kbd>F</kbd>) hides everything but the text and dims all but the current paragraph.</p>
+            </div>
+            <div class="shot"><img src="img/focus.jpg" width="1200" height="516" loading="lazy" alt="Focus mode in the Dark theme: only the source text, with the next paragraph dimmed." /></div>
+          </div>
+
+          <div class="sec-head" style="margin-bottom:0">
+            <h3>The Forest Timer</h3>
+            <p>A Pomodoro timer plugin whose pixel forest grows while you work, turns to autumn on short breaks and to winter on the long break.</p>
+          </div>
+          <div class="forest">
+            <figure><img src="img/forest-focus.png" width="600" height="1000" loading="lazy" alt="Forest Timer during focus: a green summer meadow." /><figcaption>Focus &middot; summer</figcaption></figure>
+            <figure><img src="img/forest-short.png" width="600" height="1000" loading="lazy" alt="Forest Timer on a short break: autumn trees." /><figcaption>Short break &middot; autumn</figcaption></figure>
+            <figure><img src="img/forest-long.png" width="600" height="1000" loading="lazy" alt="Forest Timer on the long break: a snowy winter forest." /><figcaption>Long break &middot; winter</figcaption></figure>
+          </div>
+
+          <div class="sec-head" style="margin:96px auto 28px">
+            <div class="rule" aria-hidden="true">§</div>
+            <h3 style="margin-top:18px">And also</h3>
+          </div>
+          <div class="extras">
+            <div class="card"><div class="ico" aria-hidden="true">✓</div><h4>No admin rights</h4><p>Installs just for you, on work computers too.</p></div>
+            <div class="card"><div class="ico" aria-hidden="true">T<sub>E</sub>X</div><h4>One-click TinyTeX</h4><p>No LaTeX on your computer? OpenTex offers to install a small one.</p></div>
+            <div class="card"><div class="ico" aria-hidden="true">W</div><h4>Word import</h4><p>Equations stay as LaTeX math; Word comments become OpenTex comments.</p></div>
+            <div class="card"><div class="ico" aria-hidden="true">[1]</div><h4>Reference import</h4><p>Bring in your EndNote, Zotero or Mendeley library.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ INSTALL ============ -->
+      <section class="install" id="install">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="eyebrow">Install</p>
+            <h2>Up and running in a minute</h2>
+            <p>The first launch shows a one-time security prompt. Here is how to get past it.</p>
+          </div>
+
+          <div class="os">
+            <div class="card" id="mac">
+              <h3>Mac <a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac.dmg">Download .dmg</a></h3>
+              <ol class="steps">
+                <li>Open <b>OpenTex-mac.dmg</b> and drag <b>OpenTex</b> into <b>Applications</b>. Not allowed to? Drag it to your <b>Desktop</b> or <b>Documents</b> instead. It runs from anywhere.</li>
+                <li>Open OpenTex. The first time, macOS says it can't verify the developer. Click <b>Done</b>.</li>
+                <li>Open <b>System Settings → Privacy &amp; Security</b>, scroll down, and click <b>Open Anyway</b> next to OpenTex. You only do this once.</li>
+              </ol>
+              <p class="note">On macOS 14 or earlier you can instead right-click the app, choose <b>Open</b>, then <b>Open</b> again.</p>
+            </div>
+
+            <div class="card" id="windows">
+              <h3>Windows <a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-setup.exe">Download .exe</a></h3>
+              <ol class="steps">
+                <li>Double-click <b>OpenTex-windows-setup.exe</b>. It installs just for you, with no admin prompt.</li>
+                <li>If Windows says <i>"Windows protected your PC"</i>, click <b>More info → Run anyway</b>.</li>
+              </ol>
+              <p class="note">
+                Installer blocked? Use the <a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-portable.zip">portable version</a>:
+                right-click the zip → <b>Properties</b> → tick <b>Unblock</b> → <b>OK</b>, then <b>Extract All</b> and double-click <b>OpenTex.exe</b>.
+              </p>
+            </div>
+          </div>
+
+          <aside class="managed">
+            <h3>On a work or government computer?</h3>
+            <p>Some managed computers hide the <i>Open Anyway</i> / <i>Run anyway</i> buttons because policy only allows signed apps. If you don't see them, ask your IT help desk to approve OpenTex. It's open source, so they can review the code <a href="https://github.com/AustinHouston/OpenTex">on GitHub</a>.</p>
+          </aside>
+
+          <div class="final">
+            <h2>Ready to write?</h2>
+            <div class="cta" style="margin-top:0">
+              <a class="btn dl-main" href="https://github.com/AustinHouston/OpenTex/releases/latest">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+                <span>Download OpenTex</span>
+              </a>
+              <div class="alt dl-alt"></div>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <footer>
+      <div class="wrap">
+        <a class="brand" href="#top"><img src="icon.png" alt="" width="26" height="26" />OpenTex</a>
+        <nav aria-label="Project links">
+          <a href="https://github.com/AustinHouston/OpenTex">Source code and documentation on GitHub</a>
+          <a href="https://github.com/AustinHouston/OpenTex/releases">All versions</a>
+          <a href="https://github.com/AustinHouston/OpenTex/blob/main/LICENSE">MIT License</a>
+        </nav>
+      </div>
+    </footer>
+
     <script>
-      // Point the big button at the right file for this computer.
-      const base = 'https://github.com/AustinHouston/OpenTex/releases/latest/download/'
-      const ua = navigator.userAgent
-      const btn = document.getElementById('main-btn')
-      const alt = document.getElementById('alt')
-      if (/Mac/.test(ua) && !/iPhone|iPad/.test(ua)) {
-        btn.href = base + 'OpenTex-mac.dmg'
-        btn.textContent = 'Download for Mac'
-        alt.innerHTML = 'Also for <a href="' + base + 'OpenTex-windows-setup.exe">Windows</a>'
-      } else if (/Windows/.test(ua)) {
-        btn.href = base + 'OpenTex-windows-setup.exe'
-        btn.textContent = 'Download for Windows'
-        alt.innerHTML = '<a href="' + base + 'OpenTex-windows-portable.zip">Portable version (no install)</a> · also for <a href="' + base + 'OpenTex-mac.dmg">Mac</a>'
-      } else {
-        alt.innerHTML = '<a href="' + base + 'OpenTex-mac.dmg">Mac</a> · <a href="' + base + 'OpenTex-windows-setup.exe">Windows</a> · <a href="' + base + 'OpenTex-windows-portable.zip">Windows portable</a>'
-      }
+      // Point the big download buttons at the right file for this computer.
+      ;(function () {
+        var base = 'https://github.com/AustinHouston/OpenTex/releases/latest/download/'
+        var ua = navigator.userAgent
+        var mac = '<a href="' + base + 'OpenTex-mac.dmg">Mac</a>'
+        var win = '<a href="' + base + 'OpenTex-windows-setup.exe">Windows</a>'
+        var portable = '<a href="' + base + 'OpenTex-windows-portable.zip">Windows portable</a>'
+        var href = null, label = null, alt
+        if (/Mac/.test(ua) && !/iPhone|iPad/.test(ua)) {
+          href = base + 'OpenTex-mac.dmg'; label = 'Download for Mac'
+          alt = 'Also for ' + win + ' &middot; ' + portable
+        } else if (/Windows/.test(ua)) {
+          href = base + 'OpenTex-windows-setup.exe'; label = 'Download for Windows'
+          alt = '<a href="' + base + 'OpenTex-windows-portable.zip">Portable version (no install)</a> &middot; also for ' + mac
+        } else {
+          alt = mac + ' &middot; ' + win + ' &middot; ' + portable
+        }
+        document.querySelectorAll('.dl-main').forEach(function (btn) {
+          if (href) { btn.href = href; btn.querySelector('span').textContent = label }
+        })
+        document.querySelectorAll('.dl-alt').forEach(function (el) { el.innerHTML = alt })
+
+        var bar = document.querySelector('.topbar')
+        var onScroll = function () { bar.classList.toggle('scrolled', window.scrollY > 8) }
+        window.addEventListener('scroll', onScroll, { passive: true }); onScroll()
+      })()
     </script>
   </body>
 </html>

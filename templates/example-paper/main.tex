@@ -1,0 +1,41 @@
+% ===================================================================
+%  The OpenTex example paper
+%  Read it side by side with the PDF: every section explains the
+%  LaTeX that produced it. Change anything, then press Compile
+%  (Ctrl/Cmd+Enter) to see what happens.
+% ===================================================================
+
+% The document class sets the overall look. "article" is the usual
+% choice for papers; journals often give you their own class.
+\documentclass[11pt]{article}
+
+% Packages add features. Each one is loaded with \usepackage.
+\usepackage[margin=1in]{geometry} % page margins
+\usepackage{amsmath}              % better equations
+\usepackage{graphicx}             % pictures: \includegraphics
+\usepackage{booktabs}             % nicer tables: \toprule, \midrule
+\usepackage[hidelinks]{hyperref}  % clickable references and links
+
+% Everything before \begin{document} is the "preamble": settings only.
+\title{An Example Paper Written in \LaTeX}
+\author{Your Name\\Your Institution}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% Long papers are easier to work on in pieces. \input{...} pastes in
+% another file, so each section can live in its own file.
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/methods}
+\input{sections/results}
+\input{sections/conclusions}
+
+% The bibliography. \cite{...} commands in the text decide which
+% entries from refs.bib appear here. The style controls the format.
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

@@ -4,6 +4,9 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 
 ## Features
 
+- A welcome page with your recent folders, **New Project** (a blank paper or the example), Open Folder and Import Word
+- **Multiple windows**, each working in its own folder (File → New Window, Open Folder in New Window, Open Recent)
+- An **example paper** (File → Open the Example Paper) laid out like a real paper (abstract, introduction, methods, results, conclusions) that teaches LaTeX as you read it: one sentence per line, paragraphs, citations, figures, tables, equations and cross-references
 - Project folder with file tree (folder and file-type icons, plus tags for main, tex, pdf, refs and images); main `.tex` file is detected automatically (`% !TEX root = …`, or the file with `\documentclass`)
 - LaTeX syntax highlighting, search, bracket matching, tabs
 - Autocomplete for `\cite{…}` (from your `.bib` files), `\ref{…}` (from your `\label`s), environments and commands
@@ -104,6 +107,7 @@ Plugin pages run in a sandboxed frame. They can't read your files or reach the r
 
 | Action | macOS | Windows |
 | --- | --- | --- |
+| New window | ⇧⌘N | Ctrl+Shift+N |
 | Open folder | ⌘O | Ctrl+O |
 | Save | ⌘S | Ctrl+S |
 | Compile | ⌘↩ | Ctrl+Enter |

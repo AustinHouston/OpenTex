@@ -296,3 +296,39 @@ body.dragging-panel .zone.drop-target { outline: 2px dashed var(--accent); outli
 kbd { font: 11px var(--editor-font); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); }
 .welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 button.secondary { border: 1px solid var(--border); background: var(--panel); }
+
+/* Welcome page */
+body.no-project .zone, body.no-project .zsplit, body.no-project .tabs, body.no-project #engine, body.no-project #btn-compile,
+body.no-project #btn-focus, body.no-project #btn-pdf, body.no-project #btn-comment, body.no-project #btn-panels, body.no-project #btn-sidebar,
+body.no-project .statusbar .st-main { display: none !important; }
+.welcome { overflow: auto; align-items: stretch; justify-content: flex-start; text-align: left; padding: 0; }
+.wl-inner { max-width: 860px; width: 100%; margin: 0 auto; padding: 9vh 32px 40px; }
+.wl-head { display: flex; align-items: center; gap: 18px; margin-bottom: 36px; }
+.wl-icon { width: 76px; height: 76px; }
+.wl-head h1 { font-size: 34px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+.wl-tag { margin: 2px 0 0; color: var(--muted); font-size: 16px; max-width: none; }
+.wl-cols { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(260px, 1.2fr); gap: 40px; }
+@media (max-width: 760px) { .wl-cols { grid-template-columns: 1fr; } }
+.wl-cols h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+.wl-action { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; color: var(--text); }
+.wl-action svg { width: 20px; height: 20px; color: var(--accent); flex: none; margin-top: 1px; }
+.wl-action span { display: flex; flex-direction: column; font-size: 14px; font-weight: 550; }
+.wl-action small { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+.wl-recent { list-style: none; margin: 0; padding: 0; }
+.wl-recent li { display: flex; align-items: center; gap: 4px; border-radius: 8px; }
+.wl-recent li:hover { background: var(--panelAlt); }
+.wl-recent .open { flex: 1; min-width: 0; text-align: left; padding: 8px 12px; display: flex; flex-direction: column; border-radius: 8px; }
+.wl-recent .open:hover { background: none; }
+.wl-recent .name { font-weight: 550; font-size: 14px; color: var(--accent); }
+.wl-recent .path { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-recent .side { opacity: 0; color: var(--muted); font-size: 12px; padding: 4px 6px; }
+.wl-recent li:hover .side { opacity: 1; }
+.wl-recent .empty { color: var(--muted); font-size: 13px; padding: 8px 12px; }
+.welcome .hint { color: var(--muted); font-size: 12px; margin-top: 28px; max-width: 640px; }
+.welcome .hint + .hint { margin-top: 6px; }
+.np-grid { display: grid; grid-template-columns: 90px 1fr; gap: 10px 12px; align-items: center; margin-top: 8px; }
+.np-template { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; grid-column: 1 / -1; }
+.np-template label { border: 2px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font-weight: 550; }
+.np-template label small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.np-template label:has(input:checked) { border-color: var(--accent); }
+.np-template input { display: none; }

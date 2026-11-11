@@ -1,7 +1,7 @@
 {
   "name": "opentex",
   "productName": "OpenTex",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A simple, reliable LaTeX editor that uses your local TeX installation.",
   "main": "./out/main/index.js",
   "author": "Austin Houston",
@@ -82,6 +82,10 @@
       {
         "from": "plugins",
         "to": "plugins"
+      },
+      {
+        "from": "templates",
+        "to": "templates"
       }
     ],
     "afterSign": "scripts/adhoc-sign.cjs"

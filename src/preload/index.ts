@@ -41,8 +41,15 @@ const api = {
   chooseRefs: () => ipcRenderer.invoke('refs:choose'),
   /** Full path of a file dropped onto the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),
+  closeProject: () => ipcRenderer.invoke('project:close'),
+  recentProjects: (): Promise<{ path: string; name: string; parent: string }[]> => ipcRenderer.invoke('project:recent'),
+  forgetRecent: (path: string) => ipcRenderer.invoke('project:forgetRecent', path),
+  newWindow: (folder?: string) => ipcRenderer.invoke('window:new', folder),
+  defaultProjectParent: (): Promise<string> => ipcRenderer.invoke('project:defaultParent'),
+  createProject: (parent: string, name: string, template: 'blank' | 'example-paper'): Promise<string> => ipcRenderer.invoke('project:create', parent, name, template),
+  exampleProject: (): Promise<string> => ipcRenderer.invoke('project:example'),
   closeOk: () => ipcRenderer.send('app:close-ok'),
-  on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress' | 'context-menu', fn: (...args: any[]) => void) => {
+  on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress' | 'context-menu' | 'settings:changed', fn: (...args: any[]) => void) => {
     ipcRenderer.on(channel, (_e, ...args) => fn(...args))
   }
 }

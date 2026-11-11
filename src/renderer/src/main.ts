@@ -112,7 +112,9 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   pdf.clear()
   showProblems([], false)
   $('project-name').textContent = info.name
+  document.body.classList.remove('no-project')
   $('welcome').classList.add('hidden')
+  layout.render()
   ;($('engine') as HTMLSelectElement).value = info.config.engine ?? settings.engine
   refreshProjectUi()
   scheduleComments()
@@ -1064,12 +1066,118 @@ document.addEventListener(
   true
 )
 
+// ---------- Welcome page, new projects, closing folders ----------
+async function showWelcome(): Promise<void> {
+  project = null
+  files.clear()
+  tabOrder = []
+  active = null
+  lastPdf = null
+  view.setState(EditorState.create({ doc: '', extensions }))
+  renderTabs()
+  pdf.clear()
+  showProblems([], false)
+  if (focusOn) setFocus(false)
+  $('project-name').textContent = 'OpenTex'
+  document.body.classList.add('no-project')
+  $('welcome').classList.remove('hidden')
+  const list = $('wl-recent')
+  const recent = await api.recentProjects()
+  if (!recent.length) {
+    list.innerHTML = '<li class="empty">Folders you open will appear here.</li>'
+    return
+  }
+  list.replaceChildren(
+    ...recent.map((r) => {
+      const li = document.createElement('li')
+      li.innerHTML = `<button class="open"><span class="name"></span><span class="path"></span></button><button class="side" data-act="window" title="Open in a new window">New window</button><button class="side" data-act="forget" title="Remove from this list">✕</button>`
+      li.querySelector('.name')!.textContent = r.name
+      li.querySelector('.path')!.textContent = r.parent
+      li.title = r.path
+      li.querySelector<HTMLButtonElement>('.open')!.onclick = async () => setProject(await api.openProject(r.path))
+      li.querySelector<HTMLButtonElement>('[data-act=window]')!.onclick = () => api.newWindow(r.path)
+      li.querySelector<HTMLButtonElement>('[data-act=forget]')!.onclick = async () => {
+        await api.forgetRecent(r.path)
+        showWelcome()
+      }
+      return li
+    })
+  )
+}
+
+async function closeFolder(): Promise<void> {
+  if (!project || !(await confirmDiscardAll())) return
+  await api.closeProject()
+  await showWelcome()
+}
+
+async function newProject(preset: 'blank' | 'example-paper' = 'blank'): Promise<void> {
+  let parent = await api.defaultProjectParent()
+  let template: 'blank' | 'example-paper' = preset
+  let name = preset === 'blank' ? 'My Paper' : 'Example Paper'
+  const go = await modal(
+    `<div class="modal-body import"><p><b>New project</b></p>
+     <div class="np-grid">
+       <label for="np-name">Name</label><input type="text" id="np-name" />
+       <span>Location</span><span><code data-parent></code> <button class="link" data-change>Change…</button></span>
+       <div class="np-template">
+         <label><input type="radio" name="np-t" value="blank" /> Blank paper<small>Title, abstract and the usual sections, ready to fill in</small></label>
+         <label><input type="radio" name="np-t" value="example-paper" /> Example paper<small>A short paper full of LaTeX tips, to learn from</small></label>
+       </div>
+     </div></div>
+     <div class="modal-actions"><button data-value="">Cancel</button><button class="primary" data-value="go">Create</button></div>`,
+    (d) => {
+      const input = d.querySelector<HTMLInputElement>('#np-name')!
+      input.value = name
+      input.oninput = () => (name = input.value)
+      d.querySelector('[data-parent]')!.textContent = parent
+      d.querySelector<HTMLButtonElement>('[data-change]')!.onclick = async () => {
+        const p = await api.chooseFolder('Where should the new project folder go?', parent)
+        if (p) {
+          parent = p
+          d.querySelector('[data-parent]')!.textContent = p
+        }
+      }
+      d.querySelectorAll<HTMLInputElement>('input[name=np-t]').forEach((r) => {
+        r.checked = r.value === template
+        r.onchange = () => {
+          template = r.value as typeof template
+          if (input.value === 'My Paper' || input.value === 'Example Paper') input.value = name = template === 'blank' ? 'My Paper' : 'Example Paper'
+        }
+      })
+      setTimeout(() => input.select())
+    }
+  )
+  if (go !== 'go') return
+  let folder: string
+  try {
+    folder = await api.createProject(parent, name, template)
+  } catch (e) {
+    await ask((e as Error).message.replace(/^.*Error: /, ''), ['OK'])
+    return
+  }
+  await setProject(await api.openProject(folder))
+  if (project) compile()
+}
+
+async function openExample(): Promise<void> {
+  const folder = await api.exampleProject()
+  await setProject(await api.openProject(folder))
+  if (project) compile()
+}
+
 // ---------- Wiring ----------
 async function chooseFolder(): Promise<void> {
   await setProject(await api.chooseProject())
 }
 
-const actions: Record<string, () => unknown> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const actions: Record<string, (...args: any[]) => unknown> = {
+  'new-project': () => newProject(),
+  'open-example': () => openExample(),
+  'open-path': async (path: string) => setProject(await api.openProject(path)),
+  'close-folder': () => closeFolder(),
+  'stop-compile': () => api.cancelCompile(),
   'open-folder': chooseFolder,
   'new-file': () => newFile(),
   save: () => save(),
@@ -1095,7 +1203,12 @@ const actions: Record<string, () => unknown> = {
 }
 
 function wire(): void {
-  api.on('menu', (a: string) => actions[a]?.())
+  api.on('menu', (a: string, ...args: unknown[]) => actions[a]?.(...args))
+  api.on('settings:changed', (s: Settings) => {
+    settings = s
+    applySettings()
+    api.setZoom(s.uiZoom || 1)
+  })
   api.on('tex:progress', (line: string) => progressSink?.(line))
   api.on('project:changed', (paths: string[]) => onDiskChange(paths))
   api.on('app:before-close', async () => {
@@ -1103,6 +1216,8 @@ function wire(): void {
   })
   $('btn-open').onclick = chooseFolder
   $('btn-import-word').onclick = () => importWordDoc()
+  $('wl-new').onclick = () => newProject()
+  $('wl-example').onclick = () => openExample()
   $('btn-compile').onclick = () => compile()
   $('btn-focus').onclick = () => actions.focus()
   $('focus-exit').onclick = () => setFocus(false)
@@ -1154,7 +1269,10 @@ async function init(): Promise<void> {
     if (r === 0) await installTinyTex()
     if (r === 1) openSettings(settings, themes, tex, api, updateSettings, allPlugins)
   }
-  if (settings.lastProject) await setProject(await api.openProject(settings.lastProject))
+  // A window opened for a specific folder (File → Open Folder in New Window, Recent → New window).
+  const open = new URLSearchParams(location.search).get('open')
+  if (open) await setProject(await api.openProject(open))
+  if (!project) await showWelcome()
 }
 
 init()

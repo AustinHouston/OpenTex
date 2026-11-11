@@ -1,0 +1,34 @@
+% !TEX root = ../main.tex
+
+\section{Introduction}
+\label{sec:intro}
+
+In \LaTeX{} each sentence gets a new line.
+They will render together normally in the PDF.
+Putting every sentence on its own line keeps the source easy to edit, and makes it easy to see what a collaborator changed.
+
+Paragraphs get a blank line in between.
+A single line break is just a space; it takes an empty line to start a new paragraph, like this one.
+
+Citations are done like this~\cite{Houston1998}.
+The key inside the braces (\texttt{Houston1998}) matches an entry in \texttt{refs.bib}, and \LaTeX{} turns it into a number and adds the reference to the list at the end.
+You can cite several works at once~\cite{Knuth1984, Lamport1994}.
+In OpenTex, type \verb|\cite{| and a list of your references pops up.
+To bring in references from EndNote, Zotero or Mendeley, use \textbf{File $\rightarrow$ Import References}.
+
+You can make text \emph{emphasized}, \textbf{bold}, or \texttt{typewriter}.
+Some characters have special meanings in \LaTeX{} and need a backslash to print them: \%, \$, \&, \#, \_.
+A plain \% starts a comment, which never appears in the PDF.
+% Like this line. Comments are handy for notes to yourself.
+
+You can insert a figure like the one in Section~\ref{sec:results}, and refer to it later by number: see Figure~\ref{fig:example}.
+The number is filled in automatically, so it stays correct when you add or move figures.
+The same works for sections (Section~\ref{sec:methods}), tables (Table~\ref{tab:samples}) and equations (Equation~\ref{eq:model}).
+The \verb|~| is a space that never breaks, so ``Figure'' and its number stay on the same line.
+
+Lists are made like this:
+\begin{itemize}
+  \item each item starts with \verb|\item|,
+  \item use \texttt{enumerate} instead of \texttt{itemize} for a numbered list,
+  \item and lists can be nested.
+\end{itemize}

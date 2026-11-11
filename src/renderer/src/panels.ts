@@ -10,7 +10,7 @@ interface Host {
   theme: () => Theme
   context: () => Record<string, unknown>
   /** The open file's text, for plugins with the 'document' permission. */
-  document: () => { file: string; text: string; version: number } | null
+  document: () => Promise<{ file: string; text: string; version: number; files: { file: string; text: string }[] } | null>
   highlight: (file: string, version: number, marks: unknown[]) => void
   goTo: (file: string, from: number, to: number) => void
 }
@@ -76,8 +76,9 @@ export class PluginPanels {
   }
 
   /** Send the open file's text to plugins that asked for it (call debounced after edits and on tab switch). */
-  broadcastDocument(): void {
-    const doc = this.host.document()
+  async broadcastDocument(): Promise<void> {
+    if (![...this.docSubs].some((id) => this.frames.has(id))) return
+    const doc = await this.host.document()
     for (const id of this.docSubs) if (this.frames.has(id)) this.post(id, { type: 'document', document: doc })
   }
 
@@ -101,7 +102,7 @@ export class PluginPanels {
     } else if (m.type === 'document:subscribe') {
       if (!this.canReadDocument(id)) return
       this.docSubs.add(id)
-      this.post(id, { type: 'document', document: this.host.document() })
+      this.post(id, { type: 'document', document: await this.host.document() })
     } else if (m.type === 'highlight') {
       if (this.canReadDocument(id) && Array.isArray(m.marks)) this.host.highlight(String(m.file), Number(m.version), m.marks)
     } else if (m.type === 'goto') {

@@ -9,7 +9,8 @@
 //   OpenTex.storage.set(key, v)  save a JSON-serializable value
 //   OpenTex.notify(title, body)  show a system notification
 // With "permissions": ["document"] in plugin.json:
-//   OpenTex.onDocument(fn)       { file, text, version } of the open .tex file (or null), after edits and tab switches
+//   OpenTex.onDocument(fn)       { file, text, version, files } after edits and tab switches (null if no .tex is open):
+//                                file/text are the open file; files is [{ file, text }] for the whole paper in reading order
 //   OpenTex.highlight(doc, marks) draw marks [{ from, to, kind, title }] on that document; kind is one of
 //                                simple, simple2, dense, dense2, passive, hedge, filler, focus. [] clears them.
 //   OpenTex.goTo(file, from, to) select a range in the editor and scroll to it

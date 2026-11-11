@@ -67,8 +67,8 @@
   </head>
   <body>
     <div class="row">
-      <label for="preset">Target</label>
-      <select id="preset" class="grow"></select>
+      <select id="scope" aria-label="What to analyze"><option value="paper">Whole paper</option><option value="file">This file</option></select>
+      <select id="preset" class="grow" aria-label="Target"></select>
     </div>
     <div id="out"><div class="empty">Open a .tex file to analyze it.</div></div>
     <script src="opentex-sdk.js"></script>

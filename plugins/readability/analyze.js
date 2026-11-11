@@ -266,7 +266,7 @@
     }
   }
 
-  function analyze(text) {
+  function analyze(text, name) {
     const { text: m, headings } = mask(text)
     const sents = sentencesOf(m)
     const flags = []
@@ -286,7 +286,7 @@
     const sections = []
     const hs = headings.filter((h) => h.level !== 'title')
     const bounds = hs.map((h) => h.from)
-    const first = { title: hs.length ? 'Opening' : 'Document', from: 0 }
+    const first = { title: hs.length ? 'Opening' : name || 'Document', from: 0 }
     const groups = [first, ...hs.map((h) => ({ title: h.title || h.level, from: h.from, level: h.level }))]
     for (let g = 0; g < groups.length; g++) {
       const from = groups[g].from
@@ -296,7 +296,23 @@
       sections.push({ ...groups[g], to: Math.min(to, text.length), stats: statsOf(ss) })
     }
     void bounds
-    return { doc, sentences: sents.map(({ from, to, own, win, flags }) => ({ from, to, own, win, flags })), sections }
+    return { doc, sentences: sents.map((s) => ({ from: s.from, to: s.to, own: s.own, win: s.win, flags: s.flags, raw: { words: s.words } })), sections }
+  }
+
+  /** Several files of one paper, in reading order: stats over all of them, sentences and sections tagged with their file. */
+  function analyzePaper(files) {
+    const sentences = []
+    const sections = []
+    for (const { file, text } of files) {
+      const r = analyze(text, file.split('/').pop().replace(/\.tex$/i, ''))
+      for (const s of r.sentences) sentences.push({ ...s, file })
+      for (const s of r.sections) sections.push({ ...s, file })
+    }
+    const doc = statsOf(sentences.map((s) => s.raw))
+    doc.flags = { passive: 0, hedge: 0, filler: 0 }
+    for (const s of sentences) for (const f of s.flags) doc.flags[f.kind]++
+    doc.files = files.length
+    return { doc, sentences, sections }
   }
 
   // ---------- 6. Targets ----------
@@ -316,6 +332,6 @@
     return 0
   }
 
-  root.Readability = { analyze, mask, syllables, mattr, PRESETS, deviation }
+  root.Readability = { analyze, analyzePaper, mask, syllables, mattr, PRESETS, deviation }
   if (typeof module !== 'undefined') module.exports = root.Readability
 })(typeof window !== 'undefined' ? window : globalThis)

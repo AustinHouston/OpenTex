@@ -1081,6 +1081,41 @@ function scheduleDocument(delay = 800): void {
   clearTimeout(docTimer)
   docTimer = window.setTimeout(() => plugins?.broadcastDocument(), delay)
 }
+/**
+ * The open file plus every .tex file of the paper, in reading order: the main file, then each
+ * \\input / \\include / \\subfile at the point it first appears (depth first).
+ */
+async function paperDocument(): Promise<{ file: string; text: string; version: number; files: { file: string; text: string }[] } | null> {
+  if (!active || !/\.tex$/i.test(active)) return null
+  const version = docVersion
+  const text = view.state.doc.toString()
+  const out: { file: string; text: string }[] = []
+  if (project?.mainFile) {
+    const tex = new Set(allFiles(project.tree, (p) => p.endsWith('.tex')))
+    const seen = new Set<string>()
+    const resolve = (name: string, from: string): string | null => {
+      const n = name.trim().replace(/^\.\//, '')
+      const withExt = /\.tex$/i.test(n) ? n : `${n}.tex`
+      const dir = from.includes('/') ? from.slice(0, from.lastIndexOf('/') + 1) : ''
+      for (const c of [withExt, dir + withExt]) if (tex.has(c)) return c
+      return null
+    }
+    const walk = async (f: string): Promise<void> => {
+      if (seen.has(f) || seen.size > 200) return
+      seen.add(f)
+      const t = textOf(f) ?? (await api.readFile(f).catch(() => ''))
+      out.push({ file: f, text: t })
+      const body = t.replace(/(^|[^\\])%.*$/gm, '$1')
+      for (const m of body.matchAll(/\\(?:input|include|subfile)\s*\{([^}]+)\}/g)) {
+        const child = resolve(m[1], f)
+        if (child) await walk(child)
+      }
+    }
+    await walk(project.mainFile)
+  }
+  if (!out.some((f) => f.file === active)) out.unshift({ file: active, text })
+  return { file: active, text, version, files: out }
+}
 let allPlugins: PluginInfo[] = []
 // ---------- Panels ----------
 let layoutSaveTimer = 0
@@ -1093,7 +1128,7 @@ const plugins = new PluginPanels(layout, {
   storageGet: (id) => api.pluginStorageGet(id),
   storageSet: (id, k, v) => api.pluginStorageSet(id, k, v),
   theme: () => currentTheme(),
-  document: () => (active && /\.tex$/i.test(active) ? { file: active, text: view.state.doc.toString(), version: docVersion } : null),
+  document: () => paperDocument(),
   highlight: (file, version, marks) => {
     if (file !== active || version !== docVersion) return
     view.dispatch({ effects: setPluginMarks.of(marks as PluginMark[]) })

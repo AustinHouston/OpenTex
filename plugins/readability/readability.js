@@ -16,7 +16,7 @@
   // Metrics combined into the overall "register" score and the "Combined" heat map.
   const COMBINED = ['grade', 'sentenceLength', 'density', 'nominal']
 
-  const state = { preset: 'specialist', heat: 'combined', flags: { passive: true, hedge: true, filler: true } }
+  const state = { scope: 'paper', preset: 'specialist', heat: 'combined', flags: { passive: true, hedge: true, filler: true } }
   let doc = null // { file, text, version }
   let result = null
   const baselines = new Map() // file -> doc stats when first analyzed this session
@@ -38,18 +38,28 @@
   const sel = $('preset')
   sel.innerHTML = Object.entries(R.PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.name)}</option>`).join('')
   sel.onchange = () => { state.preset = sel.value; save(); render() }
+  const scopeSel = $('scope')
+  scopeSel.onchange = () => { state.scope = scopeSel.value; save(); analyzeNow(); render() }
   const save = () => OpenTex.storage.set('state', state)
   OpenTex.storage.get('state').then((s) => {
     if (s) Object.assign(state, s, { flags: { ...state.flags, ...(s.flags || {}) } })
     sel.value = state.preset
+    scopeSel.value = state.scope
+    analyzeNow()
     render()
   })
 
   // ---------- Analysis ----------
+  const filesOf = (d) => (state.scope === 'file' || !d.files?.length ? [{ file: d.file, text: d.text }] : d.files)
+  const baseKey = () => (state.scope === 'file' ? `file:${doc.file}` : 'paper')
+  const textFor = (file) => (file === doc.file ? doc.text : (doc.files || []).find((f) => f.file === file)?.text ?? '')
+  function analyzeNow() {
+    result = doc ? R.analyzePaper(filesOf(doc)) : null
+    if (doc && result && !baselines.has(baseKey())) baselines.set(baseKey(), result.doc)
+  }
   OpenTex.onDocument((d) => {
     doc = d
-    result = d ? R.analyze(d.text) : null
-    if (d && result && !baselines.has(d.file)) baselines.set(d.file, result.doc)
+    analyzeNow()
     render()
   })
 
@@ -57,6 +67,7 @@
     if (!doc || !result) return
     const marks = []
     for (const s of result.sentences) {
+      if (s.file !== doc.file) continue
       const c = heatClass(heatOf(s))
       if (c) marks.push({ from: s.from, to: s.to, kind: c, title: tip(s) })
       for (const f of s.flags) if (state.flags[f.kind]) marks.push(f)
@@ -83,7 +94,7 @@
       return
     }
     const p = preset()
-    const base = baselines.get(doc.file)
+    const base = baselines.get(baseKey())
     const overall = combined(d)
     out.innerHTML = [
       verdict(d, overall, p),
@@ -93,7 +104,7 @@
       sectionsTable(),
       flagsBox(d),
       worst(),
-      `<div class="note">${d.words.toLocaleString()} words in ${d.sentences} sentences, ignoring commands, math, citations and comments. Bands are rough guides from published papers. ${base && base !== d ? '<button id="rebase">Reset change markers</button>' : ''}</div>`
+      `<div class="note">${d.words.toLocaleString()} words in ${d.sentences} sentences${d.files > 1 ? ` across ${d.files} files` : ''}, ignoring commands, math, citations and comments. Bands are rough guides from published papers. ${base && Object.keys(METRICS).some((k) => Math.abs(d[k] - base[k]) > (METRICS[k].range[1] - METRICS[k].range[0]) / 400) ? '<button id="rebase">Reset change markers</button>' : ''}</div>`
     ].join('')
     wire()
     highlight()
@@ -135,7 +146,8 @@
     const spans = result.sentences.map((s, i) => {
       const c = heatClass(heatOf(s))
       const col = !c ? 'transparent' : `color-mix(in srgb, var(--${c.startsWith('simple') ? 'simple' : 'dense'}) ${c.endsWith('2') ? 75 : 38}%, var(--bg))`
-      return `<span data-s="${i}" style="background:${col}" title="${esc(tip(s))}"></span>`
+      const edge = i > 0 && result.sentences[i - 1].file !== s.file ? 'border-left:1px solid var(--muted);' : ''
+      return `<span data-s="${i}" style="${edge}background:${col}" title="${esc(s.file)}: ${esc(tip(s))}"></span>`
     })
     return `<h3>Document map</h3>
       <div class="row" style="margin-bottom:5px"><span class="grow" style="color:var(--muted)">Highlighting by ${names[state.heat] || 'nothing'}</span>
@@ -145,14 +157,15 @@
   }
 
   function sectionsTable() {
-    if (result.sections.length < 2) return ''
+    const secs = result.sections.map((s, i) => [s, i]).filter(([s]) => s.stats.words >= 15)
+    if (secs.length < 2) return ''
     const cell = (k, s) => {
       const v = R.deviation(s[k], preset()[k])
       const c = Math.abs(v) < 0.25 ? '' : v < 0 ? 'cell-simple' : 'cell-dense'
       return `<td class="${c}">${k === 'density' ? Math.round(s[k] * 100) + '%' : s[k].toFixed(k === 'sentenceLength' ? 0 : 1)}</td>`
     }
     return `<h3>Sections</h3><table><tr><th>Section</th><th>Words</th><th>Grade</th><th>Len</th><th>Dens</th><th>Nom</th></tr>
-      ${result.sections.map((s, i) => `<tr class="sec" data-sec="${i}"><td title="${esc(s.title)}">${esc(s.title)}</td><td>${s.stats.words}</td>${cell('grade', s.stats)}${cell('sentenceLength', s.stats)}${cell('density', s.stats)}${cell('nominal', s.stats)}</tr>`).join('')}</table>`
+      ${secs.map(([s, i]) => `<tr class="sec" data-sec="${i}"><td title="${esc(s.title)} (${esc(s.file)})">${esc(s.title)}</td><td>${s.stats.words}</td>${cell('grade', s.stats)}${cell('sentenceLength', s.stats)}${cell('density', s.stats)}${cell('nominal', s.stats)}</tr>`).join('')}</table>`
   }
 
   function flagsBox(d) {
@@ -176,8 +189,8 @@
     if (!scored.length) return ''
     return `<h3>Furthest from target</h3><ol>${scored
       .map(({ s, dir }) => {
-        const raw = doc.text.slice(s.from, s.to).replace(/\\[a-zA-Z]+\*?(\[[^\]]*\])?(\{[^}]*\})?|[{}$%~]/g, ' ').replace(/\s+([.,;:?!])/g, '$1').replace(/\s+/g, ' ').trim()
-        return `<li data-from="${s.from}" data-to="${s.to}"><div class="txt">${esc(raw)}</div><div class="why">${dir < 0 ? 'Simpler' : 'Denser'}: ${esc(tip(s))}</div></li>`
+        const raw = textFor(s.file).slice(s.from, s.to).replace(/\\[a-zA-Z]+\*?(\[[^\]]*\])?(\{[^}]*\})?|[{}$%~]/g, ' ').replace(/\s+([.,;:?!])/g, '$1').replace(/\s+/g, ' ').trim()
+        return `<li data-file="${esc(s.file)}" data-from="${s.from}" data-to="${s.to}"><div class="txt">${esc(raw)}</div><div class="why">${dir < 0 ? 'Simpler' : 'Denser'}: ${esc(tip(s))}</div></li>`
       })
       .join('')}</ol>`
   }
@@ -194,14 +207,14 @@
       g.onkeydown = (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), pick())
     }
     for (const c of document.querySelectorAll('[data-flag]')) c.onchange = () => { state.flags[c.dataset.flag] = c.checked; save(); highlight() }
-    const go = (from, to) => OpenTex.goTo(doc.file, from, to)
+    const go = (file, from, to) => OpenTex.goTo(file, from, to)
     $('map')?.addEventListener('click', (e) => {
       const s = result.sentences[Number(e.target.dataset?.s)]
-      if (s) go(s.from, s.to)
+      if (s) go(s.file, s.from, s.to)
     })
-    for (const li of document.querySelectorAll('li[data-from]')) li.onclick = () => go(Number(li.dataset.from), Number(li.dataset.to))
-    for (const tr of document.querySelectorAll('tr[data-sec]')) tr.onclick = () => { const s = result.sections[Number(tr.dataset.sec)]; go(s.from, s.from) }
+    for (const li of document.querySelectorAll('li[data-from]')) li.onclick = () => go(li.dataset.file, Number(li.dataset.from), Number(li.dataset.to))
+    for (const tr of document.querySelectorAll('tr[data-sec]')) tr.onclick = () => { const s = result.sections[Number(tr.dataset.sec)]; go(s.file, s.from, s.from) }
     const rb = $('rebase')
-    if (rb) rb.onclick = () => { baselines.set(doc.file, result.doc); render() }
+    if (rb) rb.onclick = () => { baselines.set(baseKey(), result.doc); render() }
   }
 })()

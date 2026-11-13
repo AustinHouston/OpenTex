@@ -169,7 +169,9 @@ export function parseLog(log: string, root: string, cwd: string): { problems: Pr
       const lm = lines.slice(i + 1, i + 6).join('\n').match(/^l\.(\d+)/m)
       add({ severity: 'error', file: null, line: lm ? Number(lm[1]) : null, message: l.slice(2) })
     }
-    const missing = l.match(/File `([^']+)' not found/)
+    // Only TeX's own files (packages, classes, styles) can be installed; a missing picture or
+    // \\input file belongs to the paper and stays an ordinary error.
+    const missing = l.match(/File `([^']+\.(?:sty|cls|bst|def|fd|cfg|clo))' not found/)
     if (missing) missingFiles.add(missing[1])
     const w = l.match(/^(?:LaTeX|Package (\S+)) Warning: (.*)$/)
     if (w) {

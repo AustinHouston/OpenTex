@@ -15,7 +15,7 @@ import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellEx
 import { PluginPanels } from './panels'
 import { buildInsertBar, insertAtCursor } from './insert'
 import { Ribbon } from './ribbon'
-import { applyDesign, currentDesign, CustomDesign, PRESETS } from './design'
+import { applyDesign, currentDesign, CustomDesign, PreambleFile, preambleInputs, PRESETS } from './design'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
@@ -135,7 +135,7 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   await loadComments()
   await migrateLegacyComments()
   mainTextCache = info.mainFile ? (textOf(info.mainFile) ?? (await api.readFile(info.mainFile).catch(() => ''))) : ''
-  ribbon?.renderDesign()
+  await refreshPreambles()
 }
 
 function refreshProjectUi(): void {
@@ -164,6 +164,8 @@ async function setMainFile(path: string): Promise<void> {
   project.config = await api.setProjectConfig({ mainFile: path })
   project.mainFile = path
   refreshProjectUi()
+  mainTextCache = textOf(path) ?? (await api.readFile(path).catch(() => ''))
+  await refreshPreambles()
 }
 
 async function reloadTree(): Promise<void> {
@@ -220,6 +222,7 @@ function switchTo(path: string): void {
   scheduleDocument(50)
   renderTabs()
   refreshProjectUi()
+  followTargetPdf()
   view.focus()
 }
 
@@ -279,10 +282,8 @@ async function save(path = active, maybeCompile = true): Promise<void> {
   f.saved = text
   f.dirty = false
   syncAnchors(path, state)
-  if (path === project?.mainFile) {
-    mainTextCache = text
-    ribbon?.renderDesign()
-  }
+  if (path === project?.mainFile) mainTextCache = text
+  if (path === project?.mainFile || preambles.some((f) => f.path === path)) void refreshPreambles()
   renderTabs()
   refreshIndex()
   refreshGit()
@@ -336,6 +337,7 @@ async function onDiskChange(paths: string[]): Promise<void> {
     scheduleComments()
   }
   if (paths.some((p) => /\.(tex|bib)$/.test(p))) refreshIndex()
+  if (paths.some((p) => p === project?.mainFile || preambles.some((f) => f.path === p))) void refreshPreambles()
   if (structural) refreshGit()
   if (lastPdf && paths.includes(lastPdf) && !compiling && Date.now() - lastPdfLoad > 2000) showPdf(lastPdf)
 }
@@ -347,9 +349,48 @@ function setCompileStatus(text: string, cls = ''): void {
   el.className = cls
 }
 
+/** Join a path relative to a project file's folder ("../../thesis.tex") into a project path. */
+function joinRel(fromFile: string, rel: string): string {
+  const parts = fromFile.split('/').slice(0, -1)
+  for (const seg of rel.trim().replace(/\\/g, '/').split('/')) {
+    if (seg === '..') parts.pop()
+    else if (seg && seg !== '.') parts.push(seg)
+  }
+  return parts.join('/')
+}
+
+/**
+ * What Compile builds. Usually the main file, but the file you're editing wins when it names its
+ * root with "% !TEX root = …", or when it is a complete document of its own (it has a
+ * \documentclass), like a supplement (si.tex) that sits next to the paper.
+ */
+function compileTarget(): string | null {
+  if (!project) return null
+  if (active && /\.tex$/i.test(active) && active !== project.mainFile) {
+    const head = (textOf(active) ?? '').slice(0, 4000)
+    const root = head.match(/^%\s*!TEX\s+root\s*=\s*(.+?)\s*$/im)
+    if (root) {
+      const target = joinRel(active, root[1])
+      if (allFiles(project.tree, (x) => x === target).length) return target
+    }
+    if (/^[^%\n]*\\documentclass/m.test(head)) return active
+  }
+  return project.mainFile ?? null
+}
+let lastTarget: string | null = null
+
+/** After switching files: show the PDF of what Compile would build now, if it has one. */
+function followTargetPdf(): void {
+  const target = compileTarget()
+  if (!project || !target) return
+  const pdfPath = target.replace(/\.tex$/i, '.pdf')
+  if (pdfPath !== lastPdf && allFiles(project.tree, (x) => x === pdfPath).length) void showPdf(pdfPath)
+}
+
 async function compile(): Promise<void> {
   if (!project) return
-  if (!project.mainFile) {
+  const target = compileTarget()
+  if (!target) {
     await ask('No main .tex file found. Right-click a .tex file in the sidebar and choose "Set as main file".', ['OK'])
     return
   }
@@ -363,12 +404,14 @@ async function compile(): Promise<void> {
   }
   compiling = true
   $('btn-compile').classList.add('busy')
-  setCompileStatus('Compiling…')
+  const other = target !== project.mainFile ? `${target.split('/').pop()} ` : '' // say so when it isn't the main file
+  setCompileStatus(other ? `Compiling ${other.trim()}…` : 'Compiling…')
+  lastTarget = target
   await saveAll()
   const engine = ($('engine') as HTMLSelectElement).value as Engine
   let r: CompileResult
   try {
-    r = await api.compile(project.mainFile, engine)
+    r = await api.compile(target, engine)
   } catch (e) {
     setCompileStatus(`Compile failed: ${(e as Error).message.replace(/^.*Error: /, '')}`, 'err')
     finishCompile()
@@ -379,8 +422,8 @@ async function compile(): Promise<void> {
   const warnings = r.problems.length - errors
   const secs = (r.durationMs / 1000).toFixed(1)
   if (r.cancelled) setCompileStatus('Compile stopped')
-  else if (errors) setCompileStatus(`✗ ${errors} error${errors > 1 ? 's' : ''}, ${warnings} warning${warnings === 1 ? '' : 's'}`, 'err')
-  else setCompileStatus(`✓ Compiled in ${secs}s${warnings ? ` · ${warnings} warning${warnings > 1 ? 's' : ''}` : ''}`, warnings ? 'warn' : 'ok')
+  else if (errors) setCompileStatus(`✗ ${other}${errors} error${errors > 1 ? 's' : ''}, ${warnings} warning${warnings === 1 ? '' : 's'}`, 'err')
+  else setCompileStatus(`✓ ${other ? `${other.trim()} compiled` : 'Compiled'} in ${secs}s${warnings ? ` · ${warnings} warning${warnings > 1 ? 's' : ''}` : ''}`, warnings ? 'warn' : 'ok')
   if (r.missingFiles.length) setCompileStatus(`Missing package file: ${r.missingFiles.join(', ')}`, 'err')
   showProblems(r.problems, errors > 0)
   if (r.pdf) await showPdf(r.pdf)
@@ -416,12 +459,12 @@ function showProblems(list: Problem[], open: boolean): void {
     ...list.map((p) => {
       const li = document.createElement('li')
       li.className = p.severity
-      const loc = p.line ? `${p.file ?? project?.mainFile ?? ''}:${p.line}` : p.file ?? ''
+      const loc = p.line ? `${p.file ?? lastTarget ?? project?.mainFile ?? ''}:${p.line}` : p.file ?? ''
       li.innerHTML = `<span class="sev">${p.severity === 'error' ? '✗' : '!'}</span><span class="loc"></span><span class="msg"></span>`
       li.querySelector('.loc')!.textContent = loc
       li.querySelector('.msg')!.textContent = p.message
       li.addEventListener('click', async () => {
-        const file = p.file ?? project?.mainFile
+        const file = p.file ?? lastTarget ?? project?.mainFile
         if (!file || !p.line) return
         await openFile(file)
         goToLine(view, p.line)
@@ -1167,7 +1210,7 @@ async function applyDesignPreset(id: string): Promise<void> {
   const main = project.mainFile
   const text = textOf(main) ?? (await api.readFile(main))
   const saved = project.config.design?.custom as CustomDesign | undefined
-  const r = applyDesign(text, id, saved)
+  const r = applyDesign(text, id, saved, livePreambles())
   if (r.error) {
     await ask(r.error, ['OK'])
     return
@@ -1182,7 +1225,19 @@ async function applyDesignPreset(id: string): Promise<void> {
     files.get(main)!.dirty = true
     await save(main, false)
   } else await api.writeFile(main, r.text)
+  // Settings switched off (or back on) in preamble files the main file pulls in.
+  for (const f of r.extras) {
+    if (files.has(f.path)) {
+      const st = stateOf(f.path)!
+      const tr = st.update({ changes: { from: 0, to: st.doc.length, insert: f.text }, userEvent: 'input' })
+      if (f.path === active) view.dispatch(tr)
+      else files.get(f.path)!.state = tr.state
+      files.get(f.path)!.dirty = true
+      await save(f.path, false)
+    } else await api.writeFile(f.path, f.text)
+  }
   mainTextCache = r.text
+  await refreshPreambles()
   ribbon?.renderDesign()
   const name = id === 'custom' ? 'your Custom setup' : PRESETS.find((p) => p.id === id)!.name
   setCompileStatus(`Design: ${name}${id !== 'custom' && r.custom ? ' (your previous setup is saved as Custom)' : ''}`, 'ok')
@@ -1196,10 +1251,30 @@ function openInsertTool(id: string): void {
 }
 let mainTextCache = ''
 const mainText = (): string => (project?.mainFile ? (textOf(project.mainFile) ?? mainTextCache) : '')
+
+// Files the main file's preamble pulls in with \input (e.g. preamble.tex), with their text. Design and
+// "does the paper load package X" look at these too.
+let preambles: PreambleFile[] = []
+const livePreambles = (): PreambleFile[] => preambles.map((f) => ({ ...f, text: textOf(f.path) ?? f.text }))
+async function refreshPreambles(): Promise<void> {
+  const main = project?.mainFile
+  const out: PreambleFile[] = []
+  if (main && project) {
+    const tex = new Set(allFiles(project.tree, (x) => /\.(tex|sty)$/i.test(x)))
+    for (const ref of preambleInputs(mainText())) {
+      const name = ref.replace(/^"|"$/g, '')
+      const path: string | undefined = [name, `${name}.tex`].map((n: string): string => joinRel(main, n)).find((c) => tex.has(c))
+      if (!path || path === main || out.some((f) => f.path === path)) continue
+      out.push({ path, ref, text: textOf(path) ?? (await api.readFile(path).catch(() => '')) })
+    }
+  }
+  preambles = out
+  ribbon?.renderDesign()
+}
 function hasPackage(pkg: string): boolean {
   const alts: Record<string, string[]> = { amsmath: ['amsmath', 'mathtools'], amssymb: ['amssymb'], graphicx: ['graphicx'], booktabs: ['booktabs'] }
   const names = alts[pkg] ?? [pkg]
-  const text = mainText().replace(/(^|[^\\])%.*$/gm, '$1')
+  const text = [mainText(), ...livePreambles().map((f) => f.text)].join('\n').replace(/(^|[^\\])%.*$/gm, '$1')
   return [...text.matchAll(/\\usepackage(?:\[[^\]]*\])?\{([^}]*)\}/g)].some((m) => m[1].split(',').some((n) => names.includes(n.trim())))
 }
 /** Make sure the main file loads a package, asking first. */
@@ -1364,7 +1439,7 @@ async function importWordDoc(docx?: string): Promise<void> {
   let keepComments = true
   const go = await modal(
     `<div class="modal-body import"><p><b>Import <span data-name></span></b></p>
-     <p>OpenTex makes a new project folder with <code>main.tex</code>, a <code>media</code> folder for the figures and, if the document has Zotero, Mendeley or EndNote citations, a <code>refs.bib</code>. Your Word file isn’t changed.</p>
+     <p>OpenTex makes a new project folder laid out like the example paper: <code>main.tex</code>, one file per section in <code>sections</code>, the pictures in <code>figures</code>, a copy of your Word file in <code>original</code> and, if the document has Zotero, Mendeley or EndNote citations, a <code>refs.bib</code>. Your Word file isn’t changed.</p>
      <p>New folder goes in: <code data-parent></code> <button class="link" data-change>Change…</button></p>
      <p><label><input type="checkbox" data-comments checked /> Keep Word comments as OpenTex comments</label></p>
      <p class="hint">Tracked changes are accepted. Equations become LaTeX math.</p></div>
@@ -1422,7 +1497,7 @@ async function importWordDoc(docx?: string): Promise<void> {
   const parts = [`${r.images} figure${r.images === 1 ? '' : 's'}`, `${r.comments} comment${r.comments === 1 ? '' : 's'}`, `${r.citations} reference${r.citations === 1 ? '' : 's'}`]
   let msg = `Imported ${name}: ${parts.join(', ')}. OpenTex will compile it now. Look over the result, especially tables and figure placement.`
   if (!r.citations) msg += '\n\nNo linked citations were found. If the document cites from EndNote, use File → Import References to bring in the library.'
-  if (r.unsupportedImages.length) msg += `\n\n${r.unsupportedImages.length} picture(s) are in a Windows-only format LaTeX can’t use (${r.unsupportedImages.join(', ')}). In Word, right-click each one → Save as Picture → PNG, and put it in the media folder.`
+  if (r.unsupportedImages.length) msg += `\n\n${r.unsupportedImages.length} picture(s) are in a Windows-only format LaTeX can’t use (${r.unsupportedImages.join(', ')}). In Word, right-click each one → Save as Picture → PNG, and save it in the figures folder with the same name (for example fig3.png for fig3.emf).`
   await ask(msg, ['OK'])
   compile()
 }
@@ -1647,7 +1722,7 @@ function wire(): void {
     plugins: () => ({ list: allPlugins, disabled: settings.disabledPlugins ?? [] }),
     setPlugin: (id, on) => api.setPluginEnabled(id, on),
     openPluginsFolder: () => api.openPluginsFolder(),
-    design: () => ({ current: project?.mainFile ? currentDesign(mainText()) : null, hasCustom: Boolean(project?.config.design?.custom) }),
+    design: () => ({ current: project?.mainFile ? currentDesign(mainText(), livePreambles()) : null, hasCustom: Boolean(project?.config.design?.custom) }),
     applyDesign: (id) => applyDesignPreset(id),
     editPreamble: async () => {
       if (!project?.mainFile) return

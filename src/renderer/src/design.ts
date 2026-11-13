@@ -27,6 +27,13 @@ export interface CustomDesign {
 
 const OFF = '%OpenTex off: '
 
+/** A file the main file's preamble pulls in with \input (e.g. preamble.tex). Its design lines count too. */
+export interface PreambleFile {
+  path: string // project path, for writing it back
+  ref: string // the name as written in \input{…}, to find that line in the main file
+  text: string
+}
+
 export const PRESETS: Preset[] = [
   {
     id: 'article',
@@ -106,55 +113,75 @@ interface Parsed {
   bibstyle: string | null
 }
 
+const activeDesignLines = (text: string): string[] => text.split('\n').filter((l) => !/^\s*%/.test(l) && isDesignLine(l))
+// A \bibliographystyle line that isn't commented out (group 1 keeps what's before it on the line).
+const BIBSTYLE = /^([^%\n]*?)\\bibliographystyle\{([^}]*)\}/m
+const bibstyleOf = (text: string, extras: PreambleFile[]): string | null =>
+  BIBSTYLE.exec(text)?.[2] ?? extras.map((f) => BIBSTYLE.exec(f.text)?.[2]).find((x) => x !== undefined) ?? null
+const HYPERREF = /^[ \t]*\\usepackage(?:\[[^\]]*\])?\{[^}]*\bhyperref\b[^}]*\}/m
+
+/** The files the main file's preamble pulls in: \\input{name} / \\include{name} before \\begin{document}. */
+export function preambleInputs(text: string): string[] {
+  const begin = text.search(/^[ \t]*\\begin\{document\}/m)
+  const pre = (begin >= 0 ? text.slice(0, begin) : text).replace(/(^|[^\\])%.*$/gm, '$1')
+  return [...pre.matchAll(/\\(?:input|include)\s*\{([^}]+)\}/g)].map((m) => m[1].trim())
+}
+
 function parse(text: string): Parsed {
   const cls = /^[ \t]*\\documentclass(?:\[[^\]]*\])?\{[^}]*\}[^\n]*$/m.exec(text)
   const beginDoc = text.search(/^[ \t]*\\begin\{document\}/m)
   const pre = beginDoc >= 0 ? text.slice(0, beginDoc) : text
   const b = BLOCK_RE.exec(pre)
   const outside = b ? pre.slice(0, b.index) + pre.slice(b.index + b[0].length) : pre
-  const designLines = outside.split('\n').filter((l) => !/^\s*%/.test(l) && isDesignLine(l))
-  const bib = /\\bibliographystyle\{([^}]*)\}/.exec(text)
+  const designLines = activeDesignLines(outside)
   return {
     classLine: cls ? cls[0].trim() : null,
     classIdx: cls ? cls.index : -1,
     beginDoc,
     block: b ? { id: b[1], lines: b[2].split('\n').filter((l) => l.trim()), start: b.index, end: b.index + b[0].length } : null,
     designLines,
-    bibstyle: bib ? bib[1] : null
+    bibstyle: BIBSTYLE.exec(text)?.[2] ?? null
   }
 }
 
 /** Which design the file uses now: a preset id if it is that preset, unchanged; otherwise 'custom'. */
-export function currentDesign(text: string): string {
+export function currentDesign(text: string, extras: PreambleFile[] = []): string {
   const p = parse(text)
-  if (!p.block || p.designLines.length) return 'custom'
+  if (!p.block || p.designLines.length || extras.some((f) => activeDesignLines(f.text).length)) return 'custom'
   const preset = PRESETS.find((x) => x.id === p.block!.id)
   if (!preset) return 'custom'
-  const same = preset.classLine === p.classLine && preset.block.join('\n') === p.block.lines.map((l) => l.trim()).join('\n') && (p.bibstyle === null || p.bibstyle === preset.bibstyle)
+  const bib = bibstyleOf(text, extras)
+  const same = preset.classLine === p.classLine && preset.block.join('\n') === p.block.lines.map((l) => l.trim()).join('\n') && (bib === null || bib === preset.bibstyle)
   return same ? preset.id : 'custom'
 }
 
 /** Rewrite the design part of `text`. Returns the new text and the Custom design to remember. */
-export function applyDesign(text: string, target: string, saved: CustomDesign | undefined): { text: string; custom: CustomDesign | undefined; error?: string } {
+export function applyDesign(
+  text: string,
+  target: string,
+  saved: CustomDesign | undefined,
+  extras: PreambleFile[] = []
+): { text: string; extras: PreambleFile[]; custom: CustomDesign | undefined; error?: string } {
   const p = parse(text)
-  if (!p.classLine) return { text, custom: saved, error: 'This file has no \\documentclass line, so it isn’t the main file of a paper.' }
-  if (p.beginDoc < 0) return { text, custom: saved, error: 'This file has no \\begin{document}.' }
+  const fail = (error: string) => ({ text, extras: [], custom: saved, error })
+  if (!p.classLine) return fail('This file has no \\documentclass line, so it isn’t the main file of a paper.')
+  if (p.beginDoc < 0) return fail('This file has no \\begin{document}.')
   // Remember the current setup as Custom, unless it's an unmodified preset.
   const custom: CustomDesign | undefined =
-    currentDesign(text) === 'custom' ? { classLine: p.classLine, active: p.designLines.map((l) => l.trim()), block: p.block && !PRESETS.some((x) => x.id === p.block!.id && x.block.join('\n') === p.block!.lines.join('\n')) ? p.block.lines : p.block?.id === 'custom' ? p.block.lines : [], bibstyle: p.bibstyle } : saved
+    currentDesign(text, extras) === 'custom' ? { classLine: p.classLine, active: [...p.designLines, ...extras.flatMap((f) => activeDesignLines(f.text))].map((l) => l.trim()), block: p.block && !PRESETS.some((x) => x.id === p.block!.id && x.block.join('\n') === p.block!.lines.join('\n')) ? p.block.lines : p.block?.id === 'custom' ? p.block.lines : [], bibstyle: bibstyleOf(text, extras) } : saved
   let classLine: string
   let lines: string[]
   let bibstyle: string | null
   let managed = false
   if (target === 'custom') {
-    if (!custom) return { text, custom, error: 'There is no Custom design saved yet. It is saved automatically the first time you switch to a preset.' }
+    if (!custom) return { ...fail('There is no Custom design saved yet. It is saved automatically the first time you switch to a preset.'), custom }
     classLine = custom.classLine
     lines = custom.block
     bibstyle = custom.bibstyle
     managed = custom.block.length > 0
   } else {
     const preset = PRESETS.find((x) => x.id === target)
-    if (!preset) return { text, custom, error: `Unknown design ${target}` }
+    if (!preset) return { ...fail(`Unknown design ${target}`), custom }
     classLine = preset.classLine
     lines = preset.block
     bibstyle = preset.bibstyle
@@ -166,30 +193,47 @@ export function applyDesign(text: string, target: string, saved: CustomDesign | 
   const body = text.slice(p.beginDoc)
   if (p.block) pre = pre.slice(0, p.block.start) + pre.slice(p.block.end)
   const restore = new Set(target === 'custom' ? custom!.active : [])
-  pre = pre
-    .split('\n')
-    .map((l) => {
-      if (l.startsWith(OFF)) return restore.has(l.slice(OFF.length).trim()) ? l.slice(OFF.length) : l
-      return !/^\s*%/.test(l) && isDesignLine(l) ? OFF + l : l
-    })
-    .join('\n')
+  const toggle = (t: string): string =>
+    t
+      .split('\n')
+      .map((l) => {
+        if (l.startsWith(OFF)) return restore.has(l.slice(OFF.length).trim()) ? l.slice(OFF.length) : l
+        return !/^\s*%/.test(l) && isDesignLine(l) ? OFF + l : l
+      })
+      .join('\n')
+  pre = toggle(pre)
+  // The same in the preamble files it pulls in, so their settings don't clash with the preset's.
+  const toggled = extras.map((f) => ({ ...f, text: toggle(f.text) }))
   pre = pre.replace(/^[ \t]*\\documentclass(?:\[[^\]]*\])?\{[^}]*\}[^\n]*$/m, classLine)
   const insert = managed ? [BEGIN(target), ...lines, END].join('\n') + '\n' : ''
   if (insert) {
-    // Before hyperref (it should load last), else at the end of the preamble.
-    const hyper = /^[ \t]*\\usepackage(?:\[[^\]]*\])?\{[^}]*\bhyperref\b[^}]*\}/m.exec(pre)
-    const at = hyper ? hyper.index : pre.length
+    // Before hyperref (it should load last): its line here, or the \\input of the file that loads it.
+    // Otherwise at the end of the preamble.
+    let at = HYPERREF.exec(pre)?.index ?? -1
+    if (at < 0) {
+      const withHyper = extras.find((f) => HYPERREF.test(f.text.replace(/(^|[^\\])%.*$/gm, '$1')))
+      const esc = withHyper?.ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const line = esc ? new RegExp(`^[ \\t]*\\\\(?:input|include)\\s*\\{\\s*${esc}\\s*\\}`, 'm').exec(pre) : null
+      at = line ? line.index : pre.length
+    }
     const before = pre.slice(0, at)
     pre = before + (before.endsWith('\n') || !before ? '' : '\n') + insert + pre.slice(at)
   }
 
-  // 2. Bibliography style.
-  let newBody = body
+  // 2. Bibliography style: change it where it is set (this file, else a preamble file), so there is
+  //    only ever one; if it is set nowhere, add it just before \bibliography{…}.
+  let out = pre + body
+  const style = (t: string): string => t.replace(BIBSTYLE, `$1\\bibliographystyle{${bibstyle}}`)
+  const inExtra = toggled.find((f) => BIBSTYLE.test(f.text))
   if (bibstyle) {
-    if (/\\bibliographystyle\{[^}]*\}/.test(newBody)) newBody = newBody.replace(/\\bibliographystyle\{[^}]*\}/, `\\bibliographystyle{${bibstyle}}`)
-    else if (/^[ \t]*\\bibliography\{/m.test(newBody)) newBody = newBody.replace(/^([ \t]*)\\bibliography\{/m, `$1\\bibliographystyle{${bibstyle}}\n$1\\bibliography{`)
+    if (BIBSTYLE.test(out)) out = style(out)
+    else if (inExtra) inExtra.text = style(inExtra.text)
+    else if (/^[ \t]*\\bibliography\{/m.test(out)) out = out.replace(/^([ \t]*)\\bibliography\{/m, `$1\\bibliographystyle{${bibstyle}}\n$1\\bibliography{`)
+  } else if (target === 'custom') {
+    // Your setup had no style of its own: remove the one a preset added.
+    out = out.replace(/^[ \t]*\\bibliographystyle\{[^}]*\}\n(?=[ \t]*\\bibliography\{)/m, '')
   }
-  return { text: pre + newBody, custom }
+  return { text: out, extras: toggled.filter((f, i) => f.text !== extras[i].text), custom }
 }
 
 /** A small picture of the page layout for the Design gallery. */

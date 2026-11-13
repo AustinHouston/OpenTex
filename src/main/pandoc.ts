@@ -5,9 +5,10 @@ import { app, net } from 'electron'
 import { execFile } from 'child_process'
 import { createWriteStream, existsSync, promises as fs } from 'fs'
 import { homedir, tmpdir } from 'os'
-import { basename, delimiter, join } from 'path'
+import { basename, delimiter, dirname, join } from 'path'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
+import { restructure } from './word-layout'
 
 const isWin = process.platform === 'win32'
 const exe = isWin ? 'pandoc.exe' : 'pandoc'
@@ -207,17 +208,31 @@ export async function importWord(pandoc: string, docx: string, parent: string, k
   log += r.out
   await fs.rm(filter, { force: true })
   const tex = await fs.readFile(join(folder, 'main.tex'), 'utf8').catch(() => '')
-  const media = await fs.readdir(join(folder, 'media')).catch(() => [] as string[])
-  const images = media.length
-  const unsupportedImages = media.filter((f) => /\.(emf|wmf)$/i.test(f))
+  if (r.code !== 0 || !tex) return { ok: false, folder, mainFile: 'main.tex', log, citations, comments: 0, images: 0, unsupportedImages: [] }
+
+  // 3. Lay it out like the example paper: main.tex, sections/, figures/, original/.
+  const lay = restructure(tex, { source: basename(docx), citations: citations > 0 })
+  await fs.mkdir(join(folder, 'figures'), { recursive: true })
+  for (const [from, to] of lay.media) await fs.rename(join(folder, from), join(folder, to)).catch(() => {})
+  // Pictures the text doesn't use (rare) go to figures/ under their own names.
+  for (const f of await fs.readdir(join(folder, 'media')).catch(() => [] as string[])) await fs.rename(join(folder, 'media', f), join(folder, 'figures', f)).catch(() => {})
+  await fs.rm(join(folder, 'media'), { recursive: true, force: true })
+  for (const f of lay.files) {
+    await fs.mkdir(dirname(join(folder, f.path)), { recursive: true })
+    await fs.writeFile(join(folder, f.path), f.text)
+  }
+  await fs.mkdir(join(folder, 'original'), { recursive: true })
+  await fs.copyFile(docx, join(folder, 'original', basename(docx))).catch(() => {})
+  const figures = await fs.readdir(join(folder, 'figures')).catch(() => [] as string[])
+  if (!figures.length) await fs.rmdir(join(folder, 'figures')).catch(() => {})
   return {
-    ok: r.code === 0 && tex.length > 0,
+    ok: true,
     folder,
     mainFile: 'main.tex',
     log,
     citations,
-    comments: (tex.match(/^%@comment\[/gm) ?? []).length,
-    images,
-    unsupportedImages
+    comments: lay.files.reduce((n, f) => n + (f.text.match(/^\s*%@comment\[/gm) ?? []).length, 0),
+    images: figures.length,
+    unsupportedImages: figures.filter((f) => /\.(emf|wmf)$/i.test(f)).map((f) => `figures/${f}`)
   }
 }

@@ -7,7 +7,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - A welcome page with your recent folders, **New Project** (a blank paper or the example), Open Folder and Import Word
 - **Multiple windows**, each working in its own folder (File → New Window, Open Folder in New Window, Open Recent)
 - An **example paper** (File → Open the Example Paper) laid out like a real paper (abstract, introduction, methods, results, conclusions) that teaches LaTeX as you read it: one sentence per line, paragraphs, citations, figures, tables, equations and cross-references
-- Project folder with file tree (folder and file-type icons, plus tags for main, tex, pdf, refs and images); main `.tex` file is detected automatically (`% !TEX root = …`, or the file with `\documentclass`)
+- Project folder with file tree (folder and file-type icons, plus tags for main, tex, pdf, refs and images); main `.tex` file is detected automatically (`% !TEX root = …`, or the file with `\documentclass`). Compile builds the main file, or the file you're editing when it is a document of its own (it has its own `\documentclass`, like a supplement `si.tex` next to the paper) or names its root with `% !TEX root = …`; the PDF panel follows
 - LaTeX syntax highlighting, search, bracket matching, tabs
 - Autocomplete for `\cite{…}` (from your `.bib` files), `\ref{…}` (from your `\label`s), environments and commands
 - Spellcheck that ignores LaTeX commands and math (right-click for suggestions), live word count
@@ -19,7 +19,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - **A ribbon like Word's**, with four tabs:
   - **File:** New Project, Open Folder, Open Recent, Import Word, Import References, Save, Close Folder, New Window, Example Paper, Settings
   - **Insert:** **Table** (pick a size from a grid), **Equation** (numbered, aligned, inline, and templates for fractions, roots, sums, integrals, derivatives, matrices, cases), **Symbol** (150+ symbols: every Greek letter in both cases, operators, relations, arrows, sets, physics symbols and accents, with search), **Figure** (from your project's images), **Citation** and **Cross-reference** (with autocomplete), and **Footnote**. Symbols are wrapped in `$…$` automatically when you're not already in math, and OpenTex offers to add packages such as `amssymb` when something needs one.
-  - **Design:** switch the whole paper's look with one click: Article, Nature-style, Science-style, Physical Review-style, IEEE conference (official IEEEtran class) and Review draft (double spaced, line numbers). Only the class, margins, font, line spacing and citation/reference style in the main file change; your text isn't touched. Your own setup is saved as **Custom** the first time you switch, so you can always go back to it exactly. (The "-style" presets imitate each journal's look with standard packages; for a final submission, use the journal's own template.)
+  - **Design:** switch the whole paper's look with one click: Article, Nature-style, Science-style, Physical Review-style, IEEE conference (official IEEEtran class) and Review draft (double spaced, line numbers). Only the class, margins, font, line spacing and citation/reference style change, in the main file and in a preamble file it pulls in with `\input{preamble}`; your text isn't touched. Your own setup is saved as **Custom** the first time you switch, so you can always go back to it exactly. (The "-style" presets imitate each journal's look with standard packages; for a final submission, use the journal's own template.)
   - **Plugins:** turn each plugin on or off, open the plugins folder
   Click the open tab to collapse the ribbon; `Ctrl/Cmd+Shift+I` hides or shows it.
 - Interface zoom with `Ctrl/Cmd +` and `Ctrl/Cmd −`
@@ -63,17 +63,29 @@ Some managed computers hide the *Open Anyway* / *Run anyway* buttons because pol
 
 ### Word documents
 
-Choose **File → Import Word Document…**, or drag a `.docx` file onto the OpenTex window. OpenTex makes a new project folder next to it (you can pick another place) containing:
+Choose **File → Import Word Document…**, or drag a `.docx` file onto the OpenTex window. OpenTex makes a new project folder next to it (you can pick another place), laid out like the example paper:
 
-- `main.tex`, with headings, formatting, lists, tables and footnotes, and Word equations converted to LaTeX math
-- `media/`, holding the document's pictures
-- `refs.bib`, if the document has citations from Zotero, Mendeley or EndNote that Pandoc can read
+```
+Timing paper/
+  main.tex              a short preamble (the Article design), title and authors, one \input per section
+  sections/
+    abstract.tex        a real abstract, if the document has an "Abstract" heading
+    introduction.tex    one file per top-level Word heading, in order
+    methods.tex …
+  figures/
+    fig1.png …          numbered in the order they appear; each figure is labelled fig:1, fig:2 … for \ref
+  refs.bib              if the document has citations from Zotero, Mendeley or EndNote that Pandoc can read
+  original/
+    Timing paper.docx   a copy of the Word file, for reference
+```
+
+Headings, formatting, lists, tables and footnotes come across, and Word equations become LaTeX math. Sections are numbered, and the text is written one sentence per line (it compiles the same, and is easier to edit and compare). Only packages that come with small TeX installations such as TinyTeX are used.
 
 Tracked changes are accepted, and Word comments become [OpenTex comments](#comments). Your Word file isn't changed.
 
 The conversion uses [Pandoc](https://pandoc.org), a free document converter. The first time, OpenTex offers to download it (about 35 MB) into its own folder, with no administrator rights needed. If your network blocks that, install Pandoc from pandoc.org (on Windows, the `.msi` installs just for you), and OpenTex will find it.
 
-Older `.doc` files must be saved as `.docx` in Word first. Pictures stored in Windows-only formats (EMF/WMF) must be re-saved as PNG; OpenTex lists any it finds.
+Older `.doc` files must be saved as `.docx` in Word first. Pictures stored in Windows-only formats (EMF/WMF) must be re-saved as PNG under the same name (`fig3.emf` → `fig3.png`); OpenTex lists any it finds.
 
 ### EndNote, Zotero and Mendeley libraries
 

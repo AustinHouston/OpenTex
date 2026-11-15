@@ -1125,6 +1125,7 @@ async function refreshIndex(): Promise<void> {
 }
 
 let wordsTimer = 0
+let fileWords = 0 // the open file's word count, for plugins (the status text also shows the selection)
 function scheduleWords(): void {
   clearTimeout(wordsTimer)
   wordsTimer = window.setTimeout(updateWords, 600)
@@ -1133,10 +1134,11 @@ function updateWords(): void {
   const el = $('st-words')
   if (!active || !/\.tex$/.test(active)) {
     el.textContent = ''
+    fileWords = 0
     return
   }
   const sel = view.state.selection.main
-  const n = countWords(view.state.doc.toString())
+  const n = (fileWords = countWords(view.state.doc.toString()))
   const s = sel.empty ? 0 : countWords(view.state.sliceDoc(sel.from, sel.to))
   el.textContent = `${n.toLocaleString()} words${s ? ` (${s.toLocaleString()} selected)` : ''}`
   el.title = 'Approximate count for this file, ignoring LaTeX commands, math and comments'
@@ -1250,7 +1252,7 @@ const plugins = new PluginPanels(layout, {
     view.dispatch({ selection: { anchor: a, head: b }, effects: EditorView.scrollIntoView(a, { y: 'center' }) })
     view.focus()
   },
-  context: () => ({ project: project?.name ?? null, file: active, words: Number(($('st-words').textContent ?? '').replace(/[^0-9]/g, '').slice(0, 9)) || 0 })
+  context: () => ({ project: project?.name ?? null, file: active, words: fileWords })
 })
 
 // File management in the file list (fileops.ts) and Find in Project (search.ts).

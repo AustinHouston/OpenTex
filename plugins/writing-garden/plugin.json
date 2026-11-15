@@ -1,0 +1,8 @@
+{
+  "id": "writing-garden",
+  "name": "Writing Garden",
+  "description": "A pixel-art windowsill where each day's writing grows a plant. Past days rest on a shelf, and milestones bring rare plants. Set a daily goal or just write.",
+  "version": "1.0.0",
+  "panel": "index.html",
+  "icon": "🌱"
+}

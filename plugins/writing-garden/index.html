@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Writing Garden</title>
+    <style>
+      :root { --bg: #fff; --panel: #f4f4f2; --panelAlt: #e8e8e4; --border: #dcdcd6; --text: #24292f; --muted: #6e7781; --accent: #2f6feb; --accentText: #fff; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--panel); color: var(--text); font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      body { display: flex; flex-direction: column; overflow: hidden auto; }
+      .scene { position: relative; flex: 1 1 0; min-height: 150px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+      canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+      .info { flex: none; padding: 6px 12px 10px; display: flex; gap: 8px; align-items: flex-start; }
+      .text { flex: 1; min-width: 0; }
+      .words { font-size: 15px; }
+      .words b { font: 600 20px/1.1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+      .line { color: var(--muted); font-size: 12px; }
+      button { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+      button:hover { background: var(--panelAlt); }
+      button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .gear { flex: none; width: 28px; height: 28px; padding: 0; font-size: 15px; line-height: 1; }
+      /* Older/newer arrows at the ends of the shelf, placed by garden.js. */
+      .page { position: absolute; width: 18px; height: 20px; padding: 0; font-size: 14px; line-height: 1; opacity: 0.85; display: none; }
+      .page.show { display: block; }
+      /* The gentle note when a rare plant unlocks. */
+      .note { position: absolute; left: 50%; top: 8px; transform: translate(-50%, -6px); width: max-content; max-width: calc(100% - 20px); padding: 6px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); font-size: 12px; opacity: 0; pointer-events: none; transition: opacity 0.5s, transform 0.5s; cursor: pointer; }
+      .note.show { opacity: 0.97; transform: translate(-50%, 0); pointer-events: auto; }
+      /* Settings popover. */
+      .pop { position: absolute; right: 10px; bottom: 46px; font-size: 12.5px; width: min(280px, calc(100% - 20px)); max-height: calc(100% - 60px); overflow: auto; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22); display: none; z-index: 2; }
+      .pop.show { display: block; }
+      .pop h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+      .pop label { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+      .pop input[type='number'] { width: 64px; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; }
+      .pop input[type='number']:disabled { opacity: 0.5; }
+      .pop .hint { color: var(--muted); font-size: 11.5px; margin: 2px 0 8px; }
+      .pop ul { list-style: none; margin: 0; padding: 0; }
+      .pop li { display: flex; gap: 6px; font-size: 12px; margin: 3px 0; }
+      .pop li.locked { color: var(--muted); }
+      .pop hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
+      /* Wide, short panels (docked along the bottom): windowsill on the left, words on the right. */
+      @media (min-aspect-ratio: 2/1) {
+        body { flex-direction: row; overflow: hidden; }
+        .scene { min-height: 0; align-items: center; }
+        .info { width: 42%; max-width: 260px; flex-direction: column-reverse; align-self: center; }
+        .gear { align-self: flex-end; }
+        .pop { bottom: auto; top: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scene" id="scene">
+      <canvas id="garden" width="110" height="100" role="img" aria-label="Writing garden"></canvas>
+      <button class="page" id="older" title="Older days" aria-label="Show older days">‹</button>
+      <button class="page" id="newer" title="Newer days" aria-label="Show newer days">›</button>
+      <div class="note" id="note" role="status" title="Click to close"></div>
+    </div>
+    <div class="info">
+      <div class="text">
+        <div class="words" id="words"></div>
+        <div class="line" id="stage"></div>
+        <div class="line" id="streak"></div>
+      </div>
+      <button class="gear" id="gear" title="Garden settings" aria-label="Garden settings" aria-expanded="false">⚙︎</button>
+    </div>
+    <div class="pop" id="pop" role="dialog" aria-label="Garden settings">
+      <h3>Daily goal</h3>
+      <label><input type="checkbox" id="goal-on" /> Goal <input type="number" id="goal" min="50" max="20000" step="50" aria-label="Words a day" /> words a day</label>
+      <div class="hint">With no goal, your plant blooms at about 750 words.</div>
+      <h3>This paper</h3>
+      <label><input type="checkbox" id="finished" /> <span id="finished-label">This paper is finished</span></label>
+      <hr />
+      <h3>Rare plants</h3>
+      <ul id="rare"></ul>
+    </div>
+    <script src="opentex-sdk.js"></script>
+    <script src="garden.js"></script>
+  </body>
+</html>

@@ -33,6 +33,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - Interface zoom with `Ctrl/Cmd +` and `Ctrl/Cmd −`
 - **Movable panels:** Files, PDF, Comments and plugin panels can be dragged by their title bar to the left, either right-hand column, or across the bottom, stacked, resized, collapsed (click the arrow or double-click the title) or hidden. The PDF is optional. The layout toolbar button shows hidden panels and resets the layout.
 - **Plugins** that add panels on the right, such as the built-in **Forest Timer** (a Pomodoro timer with a pixel forest that grows while you work)
+- **Writing Garden** plugin: a pixel windowsill where each day's writing grows a plant, with past days resting on a shelf and rare plants for milestones
 - **Focus mode** (`Ctrl/Cmd+Shift+F`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
 - **Comments** like Word's, kept in a small file beside your `.tex` files so they travel with the folder (see below)
 - **One-click TinyTeX install** if you don't have TeX, and missing packages are installed when a paper needs them
@@ -121,7 +122,7 @@ Projects that used the older format (`%@comment` lines in the `.tex` files) are 
 
 ## Plugins
 
-Plugins add panels you can place anywhere. Turn them on or off from the **Plugins** menu (or Settings → Plugins). Built in: **Forest Timer** (a Pomodoro timer with a growing pixel forest), **Lava Lamp** (a retro pixel lava lamp in several colors) and **Starship** (a pixel spaceship flying through space that speeds up the more you type). To write one, make a folder in the plugins folder (Settings → *Open plugins folder*) with:
+Plugins add panels you can place anywhere. Turn them on or off from the **Plugins** menu (or Settings → Plugins). Built in: **Forest Timer** (a Pomodoro timer with a growing pixel forest), **Lava Lamp** (a retro pixel lava lamp in several colors) and **Starship** (a pixel spaceship flying through space that speeds up the more you type) and **Writing Garden** 🌱 (see below). To write one, make a folder in the plugins folder (Settings → *Open plugins folder*) with:
 
 - `plugin.json`: `{ "id": "my-plugin", "name": "My Plugin", "description": "…", "icon": "🔖", "panel": "index.html" }`
 - `index.html`: an ordinary web page. Add `<script src="opentex-sdk.js"></script>` to get:
@@ -132,6 +133,8 @@ Plugins add panels you can place anywhere. Turn them on or off from the **Plugin
   - `OpenTex.notify(title, body)`: a system notification
 
 Plugin pages run in a sandboxed frame. They can't read your files or reach the rest of OpenTex, only this API. See [`plugins/forest-timer`](plugins/forest-timer) for a complete example.
+
+**Writing Garden** turns each day's writing into a little pixel plant on a windowsill. It counts the words you add to a paper each day (net, so cutting text counts too, but a day never goes below zero; switching files or papers never counts). The plant grows from a seed to a sprout, a young plant, buds and flowers, blooming when you reach your daily goal, or at about 750 words if you leave the goal off (set it with the ⚙ button). Each day you write leaves a pot on the shelf above; hover to see the date and words, and use the arrows for older days. Milestones bring rare plants with a small note: a sunflower at 1,000 words in a paper, a moon cactus at 10,000, a blossom tree that changes with the seasons for 7 days in a row, and a golden laurel when you mark a paper finished. Days you don't write simply rest. Your counts stay on your computer, in the plugin's own storage. It only redraws when something changes, so it uses almost no CPU while open.
 
 ## Keyboard shortcuts
 

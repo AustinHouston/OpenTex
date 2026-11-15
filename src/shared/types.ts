@@ -23,6 +23,9 @@ export interface Settings {
   disabledPlugins: string[]
   showInsertBar: boolean
   autoSave: boolean // save edited files 2 seconds after typing stops (never compiles)
+  checkForUpdates: boolean // once a day, ask GitHub whether a newer OpenTex exists
+  lastUpdateCheck: number // ms since 1970
+  skippedVersion: string // "Skip this version" on the update notice
   layout?: unknown // panel arrangement, see renderer/src/layout.ts
 }
 
@@ -46,7 +49,10 @@ export const DEFAULT_SETTINGS: Settings = {
   liveCompile: false,
   disabledPlugins: [],
   showInsertBar: true,
-  autoSave: true
+  autoSave: true,
+  checkForUpdates: true,
+  lastUpdateCheck: 0,
+  skippedVersion: ''
 }
 
 /** Stored in <project>/.opentex/project.json so collaborators share it. */

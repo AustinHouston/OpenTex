@@ -12,6 +12,8 @@ import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } f
 import { noteWrite, registerHistoryIpc } from './history'
 import { editMenu, registerFileOpsIpc } from './fileops'
 import { registerPasteIpc } from './paste'
+import { registerWordExportIpc } from './word-export'
+import { checkForUpdatesInBackground, registerUpdateIpc } from './updates'
 
 registerPluginScheme()
 
@@ -150,6 +152,7 @@ async function buildMenu(): Promise<void> {
         { label: 'Open the Example Paper', click: () => send('open-example') },
         { type: 'separator' },
         { label: 'Import Word Document…', click: () => send('import-word') },
+        { label: 'Export to Word…', click: () => send('export-word') },
         { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
@@ -235,7 +238,8 @@ async function buildMenu(): Promise<void> {
       role: 'help',
       submenu: [
         { label: 'Open the Example Paper', click: () => send('open-example') },
-        { label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') }
+        { label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') },
+        { label: 'Check for Updates…', click: () => send('check-updates') }
       ]
     }
   ]
@@ -434,8 +438,11 @@ app.whenReady().then(async () => {
   registerHistoryIpc(need)
   registerFileOpsIpc(need)
   registerPasteIpc(need)
+  registerWordExportIpc(need)
+  registerUpdateIpc()
   await buildMenu()
   createWindow()
+  void checkForUpdatesInBackground()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })
 

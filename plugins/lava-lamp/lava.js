@@ -3,7 +3,7 @@
 // on a small grid of chunky cells (about 45 on the panel's short side), scaled up by whole pixels.
 ;(function () {
   const cv = document.getElementById('lava')
-  const g = cv.getContext('2d')
+  const g = cv.getContext('2d', { alpha: false }) // every pixel is drawn opaque
   const bar = document.getElementById('bar')
 
   // ---------- Colours ----------
@@ -350,32 +350,39 @@
   let resizeTimer = 0
   addEventListener('resize', () => {
     clearTimeout(resizeTimer)
-    resizeTimer = setTimeout(layout, 60)
+    if (innerWidth > 2 && innerHeight > 2) resizeTimer = setTimeout(layout, 60) // not while collapsed
   })
 
-  // About 16 frames a second, and nothing at all while the panel is hidden.
+  // About 8 frames a second on a plain timer (requestAnimationFrame would wake the page on every
+  // screen refresh), and nothing at all while the panel is collapsed (seen by an IntersectionObserver:
+  // collapsing hides the frame without resizing it) or the window is hidden.
   const SPEED = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.5 : 1
+  const FRAME = 125
+  let onScreen = true
+  const shown = () => onScreen && !document.hidden && innerWidth > 2 && innerHeight > 2
+  new IntersectionObserver((es) => {
+    onScreen = es[es.length - 1].isIntersecting
+    loop()
+  }).observe(document.body)
   let last = performance.now()
-  let looping = false
-  function frame(now) {
-    if (document.hidden) {
-      looping = false
-      return
-    }
-    requestAnimationFrame(frame)
-    if (now - last < 60) return
-    const dt = Math.min(0.12, (now - last) / 1000) * SPEED
+  let timer = 0
+  function frame() {
+    timer = 0
+    if (!shown()) return
+    const now = performance.now()
+    const dt = Math.min(0.15, (now - last) / 1000) * SPEED
     last = now
     clock += dt
     step(dt)
     render()
+    timer = setTimeout(frame, Math.max(10, FRAME - (performance.now() - now)))
   }
   function loop() {
-    if (looping || document.hidden) return
-    looping = true
+    if (timer || !shown()) return
     last = performance.now()
-    requestAnimationFrame(frame)
+    timer = setTimeout(frame, 0)
   }
   document.addEventListener('visibilitychange', loop)
+  addEventListener('resize', loop)
   loop()
 })()

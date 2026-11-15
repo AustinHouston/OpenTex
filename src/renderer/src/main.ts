@@ -28,6 +28,7 @@ import { exportToWord } from './word-export'
 import { setupUpdateNotice } from './update-notice'
 import { setupDoi } from './doi'
 import { Outline, setupOutline } from './outline'
+import { decorateProblems, ExplainHost, statusInWords } from './explain'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -449,6 +450,7 @@ async function compile(): Promise<void> {
   else setCompileStatus(`✓ ${other ? `${other.trim()} compiled` : 'Compiled'} in ${secs}s${warnings ? ` · ${warnings} warning${warnings > 1 ? 's' : ''}` : ''}`, warnings ? 'warn' : 'ok')
   if (r.missingFiles.length) setCompileStatus(`Missing package file: ${r.missingFiles.join(', ')}`, 'err')
   showProblems(r.problems, errors > 0)
+  if (errors && !r.cancelled && !r.missingFiles.length) void statusInWords(r.problems, explainHost, $('st-compile'))
   if (r.pdf) await showPdf(r.pdf)
   finishCompile()
   if (r.missingFiles.length) offerMissing(r.missingFiles)
@@ -474,6 +476,29 @@ async function showPdf(path: string): Promise<void> {
   }
 }
 
+// Plain-English explanations and one-click fixes for the problems list (see explain/).
+const explainHost: ExplainHost = {
+  view,
+  openFile,
+  readText: async (p) => textOf(p) ?? (await api.readFile(p).catch(() => null)),
+  files: () => (project ? allFiles(project.tree, () => true) : []),
+  mainFile: () => project?.mainFile ?? null,
+  target: () => lastTarget ?? project?.mainFile ?? null,
+  citations: () => completion.citations,
+  labels: () => completion.labels,
+  commands: () => completion.commands,
+  hasPackage,
+  compile: () => void compile(),
+  importRefs: () => void importRefs(),
+  setEngine: (e) => {
+    const s = $<HTMLSelectElement>('engine')
+    s.value = e
+    s.dispatchEvent(new Event('change'))
+  },
+  engine: () => $<HTMLSelectElement>('engine').value as Engine,
+  status: (t, cls) => setCompileStatus(t, cls)
+}
+
 function showProblems(list: Problem[], open: boolean): void {
   problems = list
   $('problems-title').textContent = list.length ? `Problems (${list.length})` : 'Problems'
@@ -495,6 +520,7 @@ function showProblems(list: Problem[], open: boolean): void {
       return li
     })
   )
+  void decorateProblems(ul, list, explainHost)
   if (open) $('problems').classList.remove('hidden')
   if (!list.length) $('problems').classList.add('hidden')
 }

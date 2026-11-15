@@ -3,6 +3,7 @@ import { existsSync, readdirSync, promises as fs } from 'fs'
 import { homedir } from 'os'
 import { basename, delimiter, dirname, join, relative, resolve, sep } from 'path'
 import { CompileResult, Engine, Problem, TexInfo } from '../shared/types'
+import { addLogExtras } from './log-extras'
 
 const isWin = process.platform === 'win32'
 const exe = (name: string): string => (isWin ? `${name}.exe` : name)
@@ -130,6 +131,7 @@ export async function compile(root: string, mainFile: string, engine: Engine, te
   const texLog = await fs.readFile(join(cwd, `${stem}.log`), 'latin1').catch(() => '')
   const pdfAbs = join(cwd, `${stem}.pdf`)
   const { problems, missingFiles } = parseLog(texLog || log, root, cwd)
+  await addLogExtras(problems, texLog || log, log, root, cwd, stem)
   const hasPdf = existsSync(pdfAbs)
   return {
     ok: hasPdf && !problems.some((p) => p.severity === 'error'),

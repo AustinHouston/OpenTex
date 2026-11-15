@@ -89,6 +89,7 @@ export interface Problem {
   file: string | null // relative to project root
   line: number | null
   message: string
+  context?: string // raw log lines around it, for explain.ts
 }
 
 export interface CompileResult {

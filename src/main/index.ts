@@ -14,6 +14,7 @@ import { editMenu, registerFileOpsIpc } from './fileops'
 import { registerPasteIpc } from './paste'
 import { registerWordExportIpc } from './word-export'
 import { checkForUpdatesInBackground, registerUpdateIpc } from './updates'
+import { registerDoiIpc } from './doi'
 
 registerPluginScheme()
 
@@ -154,6 +155,7 @@ async function buildMenu(): Promise<void> {
         { label: 'Import Word Document…', click: () => send('import-word') },
         { label: 'Export to Word…', click: () => send('export-word') },
         { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
+        { label: 'Add Reference by DOI…', click: () => send('add-doi') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { label: 'History…', click: () => send('history') },
@@ -212,6 +214,7 @@ async function buildMenu(): Promise<void> {
         { type: 'separator' },
         { label: 'Symbol…', click: () => send('insert-symbol') },
         { label: 'Citation', click: () => send('insert', 'citation') },
+        { label: 'Citation by DOI…', click: () => send('add-doi') },
         { label: 'Cross-reference', click: () => send('insert', 'reference') },
         { label: 'Footnote', click: () => send('insert', 'footnote') },
         { type: 'separator' },
@@ -440,6 +443,7 @@ app.whenReady().then(async () => {
   registerPasteIpc(need)
   registerWordExportIpc(need)
   registerUpdateIpc()
+  registerDoiIpc()
   await buildMenu()
   createWindow()
   void checkForUpdatesInBackground()

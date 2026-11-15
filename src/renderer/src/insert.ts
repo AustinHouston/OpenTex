@@ -14,6 +14,7 @@ export interface InsertHost {
   hasPackage: (pkg: string) => boolean
   notice: (msg: string) => void
   tableMore?: (el: HTMLElement) => void // extra buttons under the table grid (paste.ts)
+  addByDoi?: () => void // makes Citation a drop-down with "Add by DOI…" (see doi.ts)
 }
 
 /** Where the text cursor marker goes after inserting a snippet. */
@@ -349,11 +350,23 @@ export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertH
   buildSections(store, host)
   const sections = [...store.querySelectorAll<HTMLElement>('.ins-sec')]
   const byName: Record<string, HTMLElement> = { table: sections[0], equation: sections[1], figure: sections[2], symbol: sections[3] }
+  if (host.addByDoi) {
+    const cite = (byName.citation = document.createElement('section'))
+    cite.className = 'ins-sec'
+    cite.innerHTML = `<button class="cite-choice" data-cite="library"><b>Cite a reference in your library</b><small>Insert \\cite{…} and pick from your .bib files</small></button>
+      <button class="cite-choice" data-cite="doi"><b>Add by DOI…</b><small>Look up a paper by its DOI or arXiv ID, add it and cite it</small></button>`
+    cite.querySelector<HTMLButtonElement>('[data-cite=library]')!.onclick = () => {
+      const v = host.view()
+      if (v) insertSnippet(v, '~\\cite{¦}')
+      if (v) setTimeout(() => startCompletion(v), 0)
+    }
+    cite.querySelector<HTMLButtonElement>('[data-cite=doi]')!.onclick = () => host.addByDoi?.()
+  }
   const tool = (id: string, label: string, title: string, dropdown: boolean): string =>
     `<button class="rb-btn" data-tool="${id}" title="${title}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg><span>${label}</span>${dropdown ? '<i class="rb-caret">▾</i>' : ''}</button>`
   bar.innerHTML = `<div class="rb-group">${tool('table', 'Table', 'Insert a table', true)}${tool('equation', 'Equation', 'Insert an equation or math template', true)}${tool('symbol', 'Symbol', 'Insert a symbol: Greek letters, operators, arrows…', true)}${tool('figure', 'Figure', 'Insert a figure from the project’s images', true)}</div>
     <div class="rb-sep"></div>
-    <div class="rb-group">${tool('citation', 'Citation', 'Insert \\cite{…} and pick a reference', false)}${tool('reference', 'Cross-reference', 'Insert \\ref{…} to a figure, table, equation or section', false)}${tool('footnote', 'Footnote', 'Insert \\footnote{…}', false)}</div>`
+    <div class="rb-group">${tool('citation', 'Citation', 'Insert \\cite{…} and pick a reference', Boolean(byName.citation))}${tool('reference', 'Cross-reference', 'Insert \\ref{…} to a figure, table, equation or section', false)}${tool('footnote', 'Footnote', 'Insert \\footnote{…}', false)}</div>`
 
   let openTool: string | null = null
   const close = (): void => {

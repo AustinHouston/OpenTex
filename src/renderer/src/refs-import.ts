@@ -204,7 +204,7 @@ const ascii = (s: string): string => s.normalize('NFKD').replace(/[\u0300-\u036f
 const lastName = (a: string): string => (a.includes(',') ? a.split(',')[0] : a.trim().split(/\s+/).pop() ?? '')
 const normTitle = (s: string): string => ascii(s).slice(0, 60)
 
-function makeKey(r: Ref, used: Set<string>): string {
+export function makeKey(r: Ref, used: Set<string>): string {
   const who = ascii(lastName(r.authors[0] ?? '')) || ascii(r.fields.publisher ?? '') || 'ref'
   const word = (r.fields.title ?? '').split(/\s+/).map(ascii).find((w) => w.length > 2 && !STOP.has(w)) ?? ''
   const base = `${who}${r.fields.year ?? ''}${word}` || 'ref'

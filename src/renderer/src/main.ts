@@ -26,6 +26,8 @@ import { FileOps } from './fileops'
 import { ProjectSearch } from './search'
 import { exportToWord } from './word-export'
 import { setupUpdateNotice } from './update-notice'
+import { setupDoi } from './doi'
+import { Outline, setupOutline } from './outline'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -1143,6 +1145,7 @@ function scheduleDocument(delay = 800): void {
   docVersion++
   clearTimeout(docTimer)
   docTimer = window.setTimeout(() => plugins?.broadcastDocument(), delay)
+  outline?.schedule()
 }
 /**
  * The open file plus every .tex file of the paper, in reading order: the main file, then each
@@ -1222,12 +1225,15 @@ const appHost: AppHost = {
 const fileOps = new FileOps(appHost)
 const projectSearch = new ProjectSearch(appHost)
 
+let outline: Outline | null = null
 function setupPanels(saved: unknown): void {
   layout.state = normalizeLayout(saved as LayoutState | undefined)
   layout.add({ id: 'files', title: 'Files', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
   layout.add({ id: 'pdf', title: 'PDF', body: $('pdf'), extras: $('pdf-extras'), defaultZone: 'right' })
   layout.add({ id: 'comments', title: 'Comments', body: $('comments'), extras: $('comments-extras'), defaultZone: 'side', onVisible: () => scheduleComments() })
   projectSearch.mount(layout)
+  outline = setupOutline(layout, saved, { project: () => project, active: () => active, cursor: () => (active ? view.state.selection.main.head : null), textOf, goTo: async (f, line) => (await openFile(f), goToLine(view, line)) })
+  extensions.push(outline.extension) // follows the cursor in files opened from now on
   layout.render()
   updatePanelButtons()
 }
@@ -1458,6 +1464,17 @@ async function importRefs(file?: { name: string; text: string }): Promise<void> 
     }
   } else await ask(summary, ['OK'])
 }
+
+const doi = setupDoi({
+  view: () => (active?.endsWith('.tex') ? view : null),
+  active: () => active,
+  project: () => project,
+  textOf,
+  isDirty: (p) => Boolean(files.get(p)?.dirty),
+  save: (p) => save(p, false),
+  changed: async (p) => (await reloadTree(), await onDiskChange([p]), await refreshIndex()),
+  notice: (m) => setCompileStatus(m, 'ok')
+})
 
 // ---------- Importing: Word ----------
 async function importWordDoc(docx?: string): Promise<void> {
@@ -1699,6 +1716,7 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'import-refs': () => importRefs(),
   'export-word': () => exportToWord({ project: () => project, saveAll, ensurePandoc, withProgress, modal, ask, log: (l) => progressSink?.(l) }),
   'check-updates': () => updates.checkNow(),
+  'add-doi': () => doi.open(),
   'show-comments': () => layout.show('comments'),
   'find-in-project': () => projectSearch.open(),
   'sync-forward': () => syncForward(),
@@ -1778,7 +1796,8 @@ function wire(): void {
     images: () => (project ? allFiles(project.tree, (p) => /\.(png|jpe?g|eps|pdf)$/i.test(p) && p !== lastPdf && p !== project!.mainFile?.replace(/\.tex$/i, '.pdf')) : []),
     hasPackage,
     ensurePackage,
-    notice: (m) => setCompileStatus(m, 'warn')
+    notice: (m) => setCompileStatus(m, 'warn'),
+    addByDoi: () => doi.open()
   })
   $('btn-panels').onclick = (e) => {
     e.stopPropagation()

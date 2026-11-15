@@ -1,0 +1,40 @@
+/* Add references by DOI (doi.ts) */
+.doi-dialog { width: min(620px, 86vw); }
+.doi-dialog .hint { color: var(--muted); font-size: 12px; }
+.doi-dialog textarea {
+  width: 100%; resize: vertical; min-height: 72px; max-height: 40vh;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 8px; font: 12px/1.5 var(--editor-font);
+}
+.doi-dialog textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 0; border-color: var(--accent); }
+.doi-results { list-style: none; margin: 8px 0 0; padding: 0; max-height: 34vh; overflow: auto; }
+.doi-results:empty { display: none; }
+.doi-row { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 4px; background: var(--bg); font-size: 12px; }
+.doi-mark { flex: none; width: 16px; text-align: center; font-weight: 700; color: var(--muted); }
+.doi-row.ok .doi-mark { color: var(--accent); }
+.doi-row.dup .doi-mark { color: var(--warning); }
+.doi-row.err .doi-mark { color: var(--error); }
+.doi-row.wait { opacity: 0.75; }
+.doi-main { color: var(--text); line-height: 1.4; word-break: break-word; }
+.doi-sub { color: var(--muted); font-size: 11px; margin-top: 2px; word-break: break-word; }
+.doi-row.err .doi-sub { color: var(--error); }
+.doi-opts { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 10px; font-size: 12px; }
+.doi-opts label { display: inline-flex; align-items: center; gap: 6px; }
+.doi-opts select { max-width: 260px; }
+
+/* The notice offered after pasting a DOI into the editor */
+.doi-notice {
+  position: absolute; right: 16px; bottom: 16px; z-index: 6; max-width: min(460px, calc(100% - 32px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22); font-size: 12px;
+}
+.doi-notice .doi-n-text { flex: 1 1 220px; line-height: 1.4; }
+.doi-notice button { font-size: 12px; padding: 3px 10px; }
+.doi-notice button:not(.primary) { border-color: var(--border); }
+
+/* The Citation drop-down on the Insert ribbon */
+.ins-pop[data-tool='citation'] { width: 300px; padding: 6px; }
+.cite-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; padding: 6px 8px; border-radius: 6px; }
+.cite-choice b { font-weight: 600; font-size: 12.5px; }
+.cite-choice small { color: var(--muted); font-size: 11px; }

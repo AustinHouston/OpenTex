@@ -36,6 +36,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - **Focus mode** (`Ctrl/Cmd+Shift+F`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
 - **Comments** like Word's, kept in a small file beside your `.tex` files so they travel with the folder (see below)
 - **One-click TinyTeX install** if you don't have TeX, and missing packages are installed when a paper needs them
+- **Report a bug or suggest a feature** (Help menu, or Settings → Help and feedback): opens a new GitHub issue in your browser with your OpenTex version, system and TeX already filled in (never names, file paths or text from your papers)
 - **Update notice:** once a day OpenTex checks GitHub for a newer version and says so in the status bar, with a Download link (nothing installs by itself). Help → Check for Updates… checks now; turn it off in Settings
 
 ## Download

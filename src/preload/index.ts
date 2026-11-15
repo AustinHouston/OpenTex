@@ -53,6 +53,7 @@ const api = {
   skipUpdate: (version: string) => ipcRenderer.invoke('update:skip', version),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),
   onUpdateAvailable: (fn: (info: { version: string; url: string } | null) => void) => ipcRenderer.on('update:available', (_e, info) => fn(info)),
+  openFeedback: (kind: 'bug' | 'idea') => ipcRenderer.invoke('feedback:open', kind),
   lookUpDoi: (id: string, kind: 'doi' | 'arxiv') => ipcRenderer.invoke('doi:lookup', id, kind),
   /** Full path of a file dropped onto the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),

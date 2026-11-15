@@ -1,7 +1,7 @@
 import type { PluginInfo, Settings, TexInfo, Theme } from '../../shared/types'
 import { themePreview } from './themes'
 
-type Api = { openThemesFolder: () => void; openSettingsFile: () => void; openPluginsFolder: () => void; detectTex: () => Promise<TexInfo> }
+type Api = { openThemesFolder: () => void; openSettingsFile: () => void; openPluginsFolder: () => void; detectTex: () => Promise<TexInfo>; report?: (kind: 'bug' | 'idea') => void }
 
 /** Settings dialog. Every change is applied live through `onChange`. */
 export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Api, onChange: (patch: Partial<Settings>) => Promise<void>, plugins: PluginInfo[] = []): void {
@@ -39,6 +39,8 @@ export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Ap
       <h3>Plugins</h3>
       ${plugins.map((p) => `<label class="plugin-name"></label><span class="plugin-row"><input type="checkbox" data-plugin="${p.id}" ${s.disabledPlugins.includes(p.id) ? '' : 'checked'} /><span class="note-inline"></span></span>`).join('')}
       <span></span><span class="note">Plugins add panels on the right. Put your own in the plugins folder (see the README). <button class="link" data-act="plugins">Open plugins folder</button></span>
+      <h3>Help and feedback</h3>
+      <span></span><span class="note">Something not working, or missing? Tell us on GitHub. OpenTex fills in your version and system for you. <button class="link" data-act="bug">Report a bug</button> · <button class="link" data-act="idea">Suggest a feature</button></span>
       <h3>Advanced</h3>
       <label>Check for updates</label><input type="checkbox" name="checkForUpdates" />
       <span></span><span class="note">Once a day, OpenTex asks GitHub whether a newer version exists and lets you know. Nothing is downloaded or installed by itself.</span>
@@ -83,6 +85,8 @@ export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Ap
   d.querySelector('[data-act=plugins]')!.addEventListener('click', () => api.openPluginsFolder())
   d.querySelector('[data-act=themes]')!.addEventListener('click', () => api.openThemesFolder())
   d.querySelector('[data-act=file]')!.addEventListener('click', () => api.openSettingsFile())
+  d.querySelector('[data-act=bug]')!.addEventListener('click', () => api.report?.('bug'))
+  d.querySelector('[data-act=idea]')!.addEventListener('click', () => api.report?.('idea'))
   d.querySelector('[data-close]')!.addEventListener('click', () => d.close())
   d.showModal()
 }

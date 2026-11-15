@@ -15,6 +15,7 @@ import { registerPasteIpc } from './paste'
 import { registerWordExportIpc } from './word-export'
 import { checkForUpdatesInBackground, registerUpdateIpc } from './updates'
 import { registerDoiIpc } from './doi'
+import { registerFeedbackIpc } from './feedback'
 
 registerPluginScheme()
 
@@ -242,7 +243,10 @@ async function buildMenu(): Promise<void> {
       submenu: [
         { label: 'Open the Example Paper', click: () => send('open-example') },
         { label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') },
-        { label: 'Check for Updates…', click: () => send('check-updates') }
+        { label: 'Check for Updates…', click: () => send('check-updates') },
+        { type: 'separator' },
+        { label: 'Report a Bug…', click: () => send('report-bug') },
+        { label: 'Suggest a Feature…', click: () => send('suggest-feature') }
       ]
     }
   ]
@@ -444,6 +448,7 @@ app.whenReady().then(async () => {
   registerWordExportIpc(need)
   registerUpdateIpc()
   registerDoiIpc()
+  registerFeedbackIpc()
   await buildMenu()
   createWindow()
   void checkForUpdatesInBackground()

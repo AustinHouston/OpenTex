@@ -1662,6 +1662,16 @@ async function showWelcome(): Promise<void> {
   )
 }
 
+/** Help → Report a Bug / Suggest a Feature: a new GitHub issue in the browser, with the version and system filled in. */
+async function reportProblem(kind: 'bug' | 'idea'): Promise<void> {
+  const what = kind === 'bug' ? 'a bug report' : 'a feature suggestion'
+  const r = await ask(
+    `This opens ${what} on GitHub in your web browser, with your OpenTex version, system and TeX already filled in (no names, file paths or text from your papers). You’ll need a free GitHub account to send it. Please describe what you did and what happened, and leave out anything private.`,
+    ['Open GitHub', 'Cancel']
+  )
+  if (r === 0) await api.openFeedback(kind)
+}
+
 async function closeFolder(): Promise<void> {
   if (!project || !(await confirmDiscardAll())) return
   await api.closeProject()
@@ -1742,7 +1752,9 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'close-tab': () => active && closeTab(active),
   history: () => versions.open(active),
   'changes-since': () => versions.changes(),
-  settings: () => openSettings(settings, themes, tex, api, updateSettings, allPlugins),
+  settings: () => openSettings(settings, themes, tex, { ...api, report: reportProblem }, updateSettings, allPlugins),
+  'report-bug': () => reportProblem('bug'),
+  'suggest-feature': () => reportProblem('idea'),
   focus: () => project && setFocus(!focusOn),
   'toggle-sidebar': () => layout.toggle('files'),
   'toggle-pdf': () => layout.toggle('pdf'),
@@ -1878,7 +1890,7 @@ async function init(): Promise<void> {
       'Not now'
     ])
     if (r === 0) await installTinyTex()
-    if (r === 1) openSettings(settings, themes, tex, api, updateSettings, allPlugins)
+    if (r === 1) openSettings(settings, themes, tex, { ...api, report: reportProblem }, updateSettings, allPlugins)
   }
   // A window opened for a specific folder (File → Open Folder in New Window, Recent → New window).
   const open = new URLSearchParams(location.search).get('open')

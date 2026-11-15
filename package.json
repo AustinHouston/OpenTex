@@ -105,6 +105,7 @@
     "electron": "^45.3.0",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
+    "katex": "^0.16.47",
     "pdfjs-dist": "^6.5.438",
     "typescript": "^5.9.3",
     "vite": "^7.3.8"

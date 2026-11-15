@@ -1,0 +1,38 @@
+/* Hover previews in the editor (hover.ts): small cards in the theme's colors. */
+.cm-editor .cm-tooltip.cm-tooltip-hover {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 50;
+}
+.ot-hv {
+  max-width: 380px;
+  max-height: 340px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding: 8px 10px;
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ot-hv-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ot-hv-kind { font-weight: 600; }
+.ot-hv-muted { color: var(--muted); }
+.ot-hv-small { font-size: 11.5px; }
+.ot-hv-title { font-weight: 600; }
+.ot-hv-caption, .ot-hv-journal { color: var(--text); }
+.ot-hv-journal { font-style: italic; }
+.ot-hv-key { font-family: var(--editor-font, monospace); font-size: 11.5px; color: var(--muted); }
+.ot-hv-row { display: flex; flex-direction: column; padding: 3px 0; border-top: 1px solid var(--border); }
+.ot-hv-row:first-child { border-top: none; padding-top: 0; }
+.ot-hv-link { color: var(--accent); text-decoration: none; cursor: pointer; word-break: break-all; }
+.ot-hv-link:hover { text-decoration: underline; }
+.ot-hv-img { align-self: center; min-height: 20px; }
+.ot-hv-img canvas { display: block; border-radius: 3px; background: #fff; }
+.ot-hv-math { overflow-x: auto; color: var(--text); padding: 2px 0; }
+.ot-hv-math .katex { font-size: 1.15em; color: var(--text); }
+.ot-hv-math .katex-display { margin: 0.2em 0; }
+.ot-hv-error { color: var(--muted); }

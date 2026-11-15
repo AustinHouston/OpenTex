@@ -29,6 +29,7 @@ import { setupUpdateNotice } from './update-notice'
 import { setupDoi } from './doi'
 import { Outline, setupOutline } from './outline'
 import { decorateProblems, ExplainHost, statusInWords } from './explain'
+import { hoverPreviews } from './hover'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -79,6 +80,7 @@ const extensions = [...makeExtensions(
   false,
   () => completion
 ), commentField, commentClicks((id) => layout.isVisible('comments') && focusCard(id))]
+extensions.push(hoverPreviews({ project: () => project, active: () => active, textOf, lastPdf: () => lastPdf })) // hover previews (hover.ts)
 const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
 // Saving automatically, crash recovery and version history (history.ts).

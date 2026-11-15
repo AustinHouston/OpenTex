@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OpenTex: LaTeX has never been easier</title>
-    <meta name="description" content="OpenTex is a free, open-source LaTeX editor for scientists, for Mac and Windows. Simple, shareable comments, local files, Word import." />
+    <meta name="description" content="OpenTex is a free, open-source LaTeX editor for scientists, for Mac and Windows. Simple, shareable comments, local files, Word import and export." />
     <meta property="og:title" content="OpenTex: LaTeX has never been easier" />
     <meta property="og:description" content="A free, open-source LaTeX editor for scientists. Mac and Windows." />
     <meta property="og:image" content="https://austinhouston.github.io/OpenTex/img/app.jpg" />
@@ -91,9 +91,9 @@
             </div>
             <div class="why-item">
               <span class="why-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2.5h8l4 4V21a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 21V3a.5.5 0 0 1 .5-.5z"/><path d="M14 2.5V7h4"/><path d="M9 11.5l1.2 5 1.8-3.6 1.8 3.6 1.2-5"/></svg></span>
-              <h3>Word conversion</h3>
-              <p>Drag and drop your Word .docx and EndNote library.</p>
-              <p class="sub">Equations stay LaTeX math; Word comments come along.</p>
+              <h3>Word import/export</h3>
+              <p>Drag and drop your Word .docx and EndNote library. Export back to Word for co-authors.</p>
+              <p class="sub">Equations, figures and comments come along both ways.</p>
             </div>
           </div>
         </div>
@@ -124,6 +124,42 @@
 <pre class="code" aria-label="Example: a misspelled word underlined, with a right-click menu of suggestions"><span class="ln">6</span>We <span class="squig">solv</span> <span class="c">\begin</span><span class="b">{</span><span class="e">equation</span><span class="b">}</span>
 <span class="ln">7</span>  <span class="c">\nabla</span>^2 <span class="c">\phi</span> = -<span class="c">\frac</span><span class="b">{</span><span class="c">\rho</span><span class="b">}{</span><span class="c">\varepsilon</span>_0<span class="b">}</span>.
 <div class="popup" aria-hidden="true"><div class="on"><span>✓ solve</span><span></span></div><div><span>✓ sold</span><span></span></div><div><span>Add “solv” to dictionary</span><span></span></div><hr /><div><span>Add comment on this line</span><span></span></div><div><span>Show in PDF</span><span></span></div></div></pre>
+            </div>
+          </div>
+
+          <!-- Errors + DOI -->
+          <div class="pair">
+            <div class="card">
+              <span class="tag">Help</span>
+              <h3>Errors in plain English</h3>
+              <p>Every LaTeX error comes with a short explanation of what went wrong and where, and, when the fix is clear, a button that makes it for you.</p>
+<div class="code prob" aria-label="Example: an Undefined control sequence error, explained, with an Add package button"><div class="prob-head"><span class="x">✗</span> results.tex:12 <span class="raw">Undefined control sequence.</span></div>
+<p class="prob-say"><code>\SI</code> comes from the <b>siunitx</b> package, which your paper doesn’t load yet.</p>
+<div class="prob-fix"><span class="fixbtn">Add \usepackage{siunitx}</span><span class="k">or press Undo afterwards</span></div></div>
+            </div>
+            <div class="card">
+              <span class="tag">Cite</span>
+              <h3>Add a reference by DOI</h3>
+              <p>Paste a DOI or arXiv ID. OpenTex looks the paper up, adds it to your .bib file and cites it, in one step.</p>
+<div class="code" aria-label="Example: a DOI looked up and cited"><div class="doi-in">10.1038/nature14539</div><div class="doi-out"><b>LeCun, Bengio &amp; Hinton (2015)</b> Deep learning. <i>Nature</i> 521, 436–444<span class="k"> → lecun2015deep</span></div><span class="ln">14</span>Neural networks learn features~<span class="c">\cite</span><span class="b">{</span>lecun2015deep<span class="b">}</span>.</div>
+            </div>
+          </div>
+
+          <!-- History -->
+          <div class="row flip">
+            <div class="text">
+              <span class="tag">Safe</span>
+              <h3>Autosave and version history</h3>
+              <p>Your work saves itself a moment after you stop typing, and unsaved changes come back if your computer crashes.</p>
+              <p class="muted">Every saved version is kept, so you can see exactly what changed and go back to any of them. <b>Changes since…</b> shows what a co-author changed in the folder while you were away. Versions are kept in OpenTex’s own folder, so your project stays clean.</p>
+            </div>
+            <div class="shot hist" aria-label="Example: a list of earlier versions and the changes in one of them">
+              <ul class="hist-list"><li class="on"><b>Today, 3:42 pm</b><span>Saved by you · +2 lines</span></li><li><b>Today, 11:05 am</b><span>Changed outside OpenTex</span></li><li><b>Yesterday</b><span>Before a Design change</span></li></ul>
+<pre class="code hist-diff"><span class="ln">21</span>The signal decays within 4 ms.
+<span class="del"><span class="ln">22</span>We fit a single exponential.</span>
+<span class="add"><span class="ln">22</span>We fit a damped cosine,</span>
+<span class="add"><span class="ln">23</span>which matches all eight runs.</span>
+<span class="ln">24</span>Residuals are shown in Fig.~<span class="c">\ref</span><span class="b">{</span>fig:res<span class="b">}</span>.</pre>
             </div>
           </div>
 
@@ -210,7 +246,7 @@
           <div class="extras">
             <div class="card"><div class="ico" aria-hidden="true">✓</div><h4>No admin rights</h4><p>Installs just for you, on work computers too.</p></div>
             <div class="card"><div class="ico" aria-hidden="true">T<sub>E</sub>X</div><h4>One-click TinyTeX</h4><p>No LaTeX on your computer? OpenTex offers to install a small one.</p></div>
-            <div class="card"><div class="ico" aria-hidden="true">W</div><h4>Word import</h4><p>Equations stay as LaTeX math; Word comments become OpenTex comments.</p></div>
+            <div class="card"><div class="ico" aria-hidden="true">W</div><h4>Word import/export</h4><p>Bring a .docx in, or send your paper out as one, with figures, equations and comments.</p></div>
             <div class="card"><div class="ico" aria-hidden="true">[1]</div><h4>Reference import</h4><p>Bring in your EndNote, Zotero or Mendeley library.</p></div>
           </div>
         </div>

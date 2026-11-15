@@ -237,3 +237,25 @@ footer .brand img { width: 26px; height: 26px; }
 footer nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }
 footer nav a { color: var(--muted); }
 footer nav a:hover { color: var(--accent); }
+
+/* errors-in-plain-English, DOI and history mockups */
+.prob { font-family: var(--sans); font-size: 15.5px; line-height: 1.5; }
+.prob-head { font-family: var(--mono); font-size: 13.5px; color: var(--muted); }
+.prob-head .x { color: #c0392b; font-weight: 700; }
+.prob-head .raw { opacity: .8; }
+.prob-say { margin: 8px 0 12px; color: var(--text); }
+.prob-say code { font-family: var(--mono); font-size: .92em; color: var(--syn-cmd); }
+.prob-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13.5px; }
+.fixbtn { font-family: var(--mono); font-size: 13px; padding: 5px 11px; border-radius: 7px; background: var(--accent); color: var(--bg); white-space: nowrap; }
+.doi-in { font-family: var(--mono); border: 1px solid var(--border); background: var(--card); border-radius: 7px; padding: 6px 10px; margin-bottom: 8px; }
+.doi-out { font-family: var(--sans); font-size: 14.5px; line-height: 1.45; padding: 0 2px 10px; margin-bottom: 8px; border-bottom: 1px dashed var(--border); }
+.shot.hist { display: grid; grid-template-columns: minmax(0, 210px) minmax(0, 1fr); gap: 14px; align-items: start; padding: 18px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+.hist-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hist-list li { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 14.5px; line-height: 1.35; }
+.hist-list li span { display: block; color: var(--muted); font-size: 13px; }
+.hist-list li.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.hist-diff { font-size: 13.5px; }
+.hist-diff .add, .hist-diff .del { display: inline-block; width: calc(100% + 32px); box-sizing: border-box; margin: 0 -16px; padding: 0 16px; }
+.hist-diff .add { background: color-mix(in srgb, #2e8b57 18%, transparent); }
+.hist-diff .del { background: color-mix(in srgb, #c0392b 15%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, #c0392b 60%, transparent); }
+@media (max-width: 640px) { .shot.hist { grid-template-columns: 1fr; } }

@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { DEFAULT_SETTINGS, Settings, Theme } from '../shared/types'
+import { migrateLiveSettings } from '../shared/live-preview'
 
 const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 export const themesDir = (): string => join(app.getPath('userData'), 'themes')
@@ -12,7 +13,7 @@ export async function loadSettings(): Promise<Settings> {
   if (cache) return cache
   try {
     const raw = JSON.parse(await fs.readFile(settingsFile(), 'utf8'))
-    cache = { ...DEFAULT_SETTINGS, ...raw }
+    cache = migrateLiveSettings({ ...DEFAULT_SETTINGS, ...raw })
   } catch {
     cache = { ...DEFAULT_SETTINGS }
   }

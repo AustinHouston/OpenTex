@@ -17,6 +17,7 @@ import { registerReviewPdfIpc } from './review-pdf'
 import { checkForUpdatesInBackground, registerUpdateIpc } from './updates'
 import { registerDoiIpc } from './doi'
 import { registerFeedbackIpc } from './feedback'
+import { registerLivePreviewIpc } from './live-preview'
 
 registerPluginScheme()
 
@@ -452,6 +453,7 @@ app.whenReady().then(async () => {
   registerUpdateIpc()
   registerDoiIpc()
   registerFeedbackIpc()
+  registerLivePreviewIpc(need)
   await buildMenu()
   createWindow()
   void checkForUpdatesInBackground()

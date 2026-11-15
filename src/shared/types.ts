@@ -20,6 +20,7 @@ export interface Settings {
   uiZoom: number
   spellcheck: boolean
   liveCompile: boolean
+  livePreview: boolean // rebuild the PDF in the background while typing (see live-preview.ts)
   disabledPlugins: string[]
   showInsertBar: boolean
   autoSave: boolean // save edited files 2 seconds after typing stops (never compiles)
@@ -47,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   uiZoom: 1,
   spellcheck: true,
   liveCompile: false,
+  livePreview: true,
   disabledPlugins: [],
   showInsertBar: true,
   autoSave: true,

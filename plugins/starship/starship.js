@@ -1136,7 +1136,7 @@
     lastT = now
     update(dt)
     render()
-    const interval = throttle > 0.03 || flash > 0 || boostSpark > 0 ? 66 : 100
+    const interval = throttle > 0.03 || flash > 0 || boostSpark > 0 ? 66 : 150 // ~6.7 fps cruising, 15 fps under throttle
     timer = setTimeout(frame, Math.max(10, interval - (performance.now() - now)))
   }
   function startLoop() {

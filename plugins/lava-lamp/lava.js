@@ -357,7 +357,7 @@
   // screen refresh), and nothing at all while the panel is collapsed (seen by an IntersectionObserver:
   // collapsing hides the frame without resizing it) or the window is hidden.
   const SPEED = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.5 : 1
-  const FRAME = 125
+  const FRAME = 167 // ~6 fps: the wax moves slowly, and each frame costs the browser a fixed amount
   let onScreen = true
   const shown = () => onScreen && !document.hidden && innerWidth > 2 && innerHeight > 2
   new IntersectionObserver((es) => {
@@ -370,7 +370,7 @@
     timer = 0
     if (!shown()) return
     const now = performance.now()
-    const dt = Math.min(0.15, (now - last) / 1000) * SPEED
+    const dt = Math.min(0.25, (now - last) / 1000) * SPEED // a frame is ~0.17 s; cap long gaps only
     last = now
     clock += dt
     step(dt)

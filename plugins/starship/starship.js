@@ -1115,31 +1115,49 @@
     g.putImageData(img, 0, 0)
   }
 
-  // ~22 frames a second; nothing runs while the panel is hidden.
-  let running = false, raf = 0, lastT = 0, lastDraw = 0
-  function frame(now) {
-    raf = requestAnimationFrame(frame)
-    if (now - lastDraw < 44) return
-    lastDraw = now
-    const dt = Math.min(0.1, Math.max(0.001, (now - lastT) / 1000))
+  // A plain timer, not requestAnimationFrame (which wakes the page on every screen refresh): 10 frames
+  // a second while cruising, 15 once typing speeds the ship up. Nothing runs while the panel is
+  // collapsed (seen by an IntersectionObserver: collapsing hides the frame without resizing it) or
+  // the window is hidden.
+  let running = false, timer = 0, lastT = 0, onScreen = true
+  const shown = () => onScreen && !document.hidden && innerWidth > 2 && innerHeight > 2
+  new IntersectionObserver((es) => {
+    onScreen = es[es.length - 1].isIntersecting
+    if (onScreen) startLoop()
+  }).observe(cv)
+  function frame() {
+    timer = 0
+    if (!shown()) {
+      save()
+      return stopLoop()
+    }
+    const now = performance.now()
+    const dt = Math.min(0.15, Math.max(0.001, (now - lastT) / 1000))
     lastT = now
     update(dt)
     render()
+    const interval = throttle > 0.03 || flash > 0 || boostSpark > 0 ? 66 : 100
+    timer = setTimeout(frame, Math.max(10, interval - (performance.now() - now)))
   }
   function startLoop() {
-    if (running || document.hidden) return
+    if (running || !shown()) return
     running = true
-    lastT = lastDraw = performance.now()
-    raf = requestAnimationFrame(frame)
+    lastT = performance.now()
+    timer = setTimeout(frame, 0)
   }
   function stopLoop() {
     running = false
-    cancelAnimationFrame(raf)
+    clearTimeout(timer)
+    timer = 0
   }
+  addEventListener('resize', startLoop)
 
   // ---------- Saved distance ----------
+  let savedAt = -1
   function save() {
-    if (loaded) OpenTex.storage.set('distanceAU', savedAU + sessionAU)
+    if (!loaded || savedAt === sessionAU) return
+    savedAt = sessionAU
+    OpenTex.storage.set('distanceAU', savedAU + sessionAU)
   }
   OpenTex.storage.get('distanceAU').then((v) => {
     if (typeof v === 'number' && isFinite(v) && v > 0) savedAU = v
@@ -1147,7 +1165,7 @@
     hudDirty = true
   })
   setInterval(() => {
-    if (!document.hidden) save()
+    if (running) save()
   }, 5000)
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

@@ -67,10 +67,21 @@
     setPhase('focus', false)
   }
 
+  // The audio context is kept suspended between chimes: a running one keeps the system's audio
+  // service busy all the time.
   let audio = null
+  let hush = 0
   function chime() {
     try {
       audio = audio || new AudioContext()
+      clearTimeout(hush)
+      audio.resume().then(notes, () => {})
+    } catch {
+      /* sound is optional */
+    }
+  }
+  function notes() {
+    try {
       ;[523.25, 659.25, 783.99].forEach((f, i) => {
         const o = audio.createOscillator()
         const v = audio.createGain()
@@ -84,6 +95,7 @@
         o.start(t)
         o.stop(t + 0.65)
       })
+      hush = setTimeout(() => audio.suspend().catch(() => {}), 1500)
     } catch {
       /* sound is optional */
     }
@@ -120,9 +132,37 @@
     const y = hex(b)
     return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})`
   }
+  // The scene is drawn into a small pixel buffer (one Uint32 per pixel) and copied to the canvas in
+  // one go, and only when a pixel actually changed. Colours are '#rrggbb' or 'rgb(r,g,b)' strings.
+  const img = g.createImageData(W, H)
+  const buf = new Uint32Array(img.data.buffer)
+  const shown = new Uint32Array(W * H)
+  let shownOnce = false
+  const packed = new Map()
+  const pack = (c) => {
+    let v = packed.get(c)
+    if (v === undefined) {
+      const [r, gg, b] = c[0] === '#' ? hex(c) : c.match(/\d+/g).map(Number)
+      v = (0xff000000 | (b << 16) | (gg << 8) | r) >>> 0
+      packed.set(c, v)
+    }
+    return v
+  }
   const px = (x, y, c) => {
-    g.fillStyle = c
-    g.fillRect(Math.round(x), Math.round(y), 1, 1)
+    x = Math.round(x)
+    y = Math.round(y)
+    if (x >= 0 && y >= 0 && x < W && y < H) buf[y * W + x] = pack(c)
+  }
+  const rect = (x, y, w, h, c) => {
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(x + i, y + j, c)
+  }
+  function present() {
+    let same = shownOnce
+    for (let i = 0; same && i < buf.length; i++) if (buf[i] !== shown[i]) same = false
+    if (same) return
+    shown.set(buf)
+    shownOnce = true
+    g.putImageData(img, 0, 0)
   }
 
   function season() {
@@ -140,8 +180,7 @@
     }
     const k = t.scale * (0.35 + 0.65 * size)
     const trunkH = Math.max(2, Math.round(7 * k))
-    g.fillStyle = pal.trunk
-    g.fillRect(x, y - trunkH, k > 0.8 ? 2 : 1, trunkH)
+    rect(x, y - trunkH, k > 0.8 ? 2 : 1, trunkH, pal.trunk)
     if (t.pine) {
       const [mid, light, dark] = pal.pine
       const layers = Math.max(2, Math.round(4 * k))
@@ -173,8 +212,7 @@
           px(x + i + (k > 0.8 ? 1 : 0), cy + r - i - 1, '#ffffff')
         }
       }
-      g.fillStyle = pal.trunk
-      g.fillRect(x, cy, 1, r)
+      rect(x, cy, 1, r, pal.trunk)
       px(x, cy - 1, '#ffffff')
       return
     }
@@ -200,20 +238,31 @@
     }
   }
 
-  function draw() {
+  // Leaves and snow move in steps of about a tenth of a second (`steps` of them since the last draw).
+  function stepParticles(s, growth) {
+    spawnParticles(s, growth)
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const q = particles[i]
+      q.sway += 0.08
+      q.x += q.vx + Math.sin(q.sway) * 0.08
+      q.y += q.vy
+      if (q.y > H || (s === 'autumn' && q.y > GROUND + 10) || (s === 'summer' && q.c !== '#ffffff')) particles.splice(i, 1)
+    }
+  }
+
+  function draw(steps) {
     const s = season()
     const pal = PAL[s]
     const p = st.phase === 'focus' ? 1 - remaining() / minutes('focus') : 0
     const growth = st.phase === 'focus' ? (st.done + p) / cfg.cycles : st.done === 0 && st.phase === 'long' ? 1 : st.done / cfg.cycles
     const brk = st.phase === 'focus' ? 0 : 1 - remaining() / minutes(st.phase)
     // Sky: three bands with a dithered edge, brightening from early spring to summer during focus.
+    const sky = pal.sky.map((c) => (s === 'summer' && growth < 0.25 ? mix(c, '#d9ecd0', 0.35 - growth) : c))
     for (let y = 0; y < GROUND; y++) {
       const band = y < 14 ? 0 : y < 30 ? 1 : 2
       for (let x = 0; x < W; x++) {
         const b = (y === 14 || y === 30) && (x + y) % 2 ? band - 1 : band
-        let c = pal.sky[Math.max(0, b)]
-        if (s === 'summer' && growth < 0.25) c = mix(c, '#d9ecd0', 0.35 - growth)
-        px(x, y, c)
+        px(x, y, sky[Math.max(0, b)])
       }
     }
     // Sun (summer/autumn) or pale disc (winter).
@@ -231,55 +280,100 @@
     if (s === 'summer' && growth > 0.45) for (let i = 0; i < 9; i++) px((i * 23 + 7) % W, GROUND + 2 + ((i * 7) % 10), i % 2 ? '#ffffff' : '#ffd84a')
     trees.forEach((t) => drawTree(t, growth, pal, s, brk))
     // Falling leaves / snow.
-    spawnParticles(s, growth)
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const q = particles[i]
-      q.sway += 0.08
-      q.x += q.vx + Math.sin(q.sway) * 0.08
-      q.y += q.vy
-      if (q.y > H || (s === 'autumn' && q.y > GROUND + 10) || (s === 'summer' && q.c !== '#ffffff')) particles.splice(i, 1)
-      else px(q.x, q.y, q.c)
-    }
+    for (let k = 0; k < steps; k++) stepParticles(s, growth)
+    if (s === 'summer') particles.length = 0
+    for (const q of particles) px(q.x, q.y, q.c)
     if (s !== 'winter') for (let i = particles.length - 1; i >= 0; i--) if (particles[i].c === '#ffffff') particles.splice(i, 1)
+    present()
   }
 
   // ---------- UI ----------
+  // DOM text is only touched when it changes, so a running timer costs one small update a second.
+  const textCache = new Map()
+  const setText = (id, v) => {
+    if (textCache.get(id) === v) return
+    textCache.set(id, v)
+    $(id).textContent = v
+  }
+  let dotsHtml = ''
   function ui() {
     const ms = remaining()
     const m = Math.floor(ms / 60e3)
     const sec = Math.floor((ms % 60e3) / 1000)
-    $('time').textContent = `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-    $('phase').textContent = st.phase === 'focus' ? `Focus · ${Math.min(st.done + 1, cfg.cycles)} of ${cfg.cycles}` : st.phase === 'short' ? 'Short break · autumn' : 'Long break · winter'
-    $('start').textContent = st.running ? 'Pause' : remaining() < minutes(st.phase) ? 'Resume' : st.phase === 'focus' ? 'Start focus' : 'Start break'
-    $('dots').innerHTML = Array.from({ length: cfg.cycles }, (_, i) => `<span class="dot${i < st.done ? ' done' : i === st.done && st.phase === 'focus' ? ' now' : ''}"></span>`).join('')
+    const time = `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    setText('time', time)
+    setText('phase', st.phase === 'focus' ? `Focus · ${Math.min(st.done + 1, cfg.cycles)} of ${cfg.cycles}` : st.phase === 'short' ? 'Short break · autumn' : 'Long break · winter')
+    setText('start', st.running ? 'Pause' : remaining() < minutes(st.phase) ? 'Resume' : st.phase === 'focus' ? 'Start focus' : 'Start break')
+    const dots = Array.from({ length: cfg.cycles }, (_, i) => `<span class="dot${i < st.done ? ' done' : i === st.done && st.phase === 'focus' ? ' now' : ''}"></span>`).join('')
+    if (dots !== dotsHtml) $('dots').innerHTML = dotsHtml = dots
     const today = st.day === todayKey() ? st.today : 0
-    $('today').textContent = today ? `${today} focus session${today === 1 ? '' : 's'} today` : ''
-    document.title = st.running ? `${$('time').textContent} · Forest Timer` : 'Forest Timer'
+    setText('today', today ? `${today} focus session${today === 1 ? '' : 's'} today` : '')
+    const title = st.running ? `${time} · Forest Timer` : 'Forest Timer'
+    if (document.title !== title) document.title = title
   }
 
-  function tick() {
+  // ---------- Scheduling ----------
+  // No animation loop: the clock wakes up when the shown second changes (the time itself always comes
+  // from Date.now()), the scene is redrawn then and after every change, and falling leaves or snow
+  // during breaks move at 5 frames a second. While the panel is collapsed or the window is hidden
+  // nothing is drawn; the only wake-up left is the end of a running phase, so the chime and the
+  // notification still come on time.
+  const STEP = 100 // one particle step, as in the original ~10 fps animation
+  const BREAK_FRAME = 200
+  let lastStep = performance.now()
+  let timer = 0
+  // A collapsed panel hides the frame without resizing it, so ask an IntersectionObserver whether
+  // the page is on screen at all.
+  let onScreen = true
+  const visible = () => onScreen && !document.hidden && innerWidth > 2 && innerHeight > 2
+  function update() {
+    clearTimeout(timer)
+    timer = 0
     if (st.running && remaining() <= 0) finishPhase(true)
-    ui()
+    const now = performance.now()
+    const vis = visible()
+    let steps = Math.floor((now - lastStep) / STEP)
+    if (!vis || steps > 20) {
+      steps = Math.min(steps, 20)
+      lastStep = now
+    } else lastStep += steps * STEP
+    if (vis) {
+      ui()
+      draw(steps)
+    }
+    let wait = Infinity
+    if (st.running) wait = vis ? (remaining() % 1000) + 20 : remaining() + 20
+    if (vis && st.phase !== 'focus') wait = Math.min(wait, BREAK_FRAME)
+    if (wait < Infinity) timer = setTimeout(update, Math.max(10, wait))
   }
+  addEventListener('resize', update)
+  document.addEventListener('visibilitychange', update)
+  new IntersectionObserver((es) => {
+    const now = es[es.length - 1].isIntersecting
+    if (now === onScreen) return
+    onScreen = now
+    update()
+  }).observe(document.body)
 
   $('start').onclick = () => {
     if (audio === null) {
       try {
         audio = new AudioContext() // unlock sound with this click
+        audio.suspend().catch(() => {}) // and wake it only for a chime
       } catch {
         /* ignore */
       }
     }
     st.running ? pause() : start()
-    ui()
+    update()
   }
   $('skip').onclick = () => {
     finishPhase(false)
-    ui()
+    update()
   }
   $('reset').onclick = () => {
     resetCycle()
-    ui()
+    update()
   }
   const inputs = { focus: 's-focus', short: 's-short', long: 's-long', cycles: 's-cycles' }
   function showCfg() {
@@ -293,7 +387,7 @@
       if (!st.running && k === st.phase) st.remaining = minutes(st.phase)
       if (k === 'cycles') st.done = Math.min(st.done, v - 1)
       save()
-      ui()
+      update()
     }
   }
   $('s-auto').onchange = () => {
@@ -307,18 +401,8 @@
     // If a phase ended while OpenTex was closed, move on without notifications.
     if (st.running && st.endsAt <= Date.now()) finishPhase(false)
     showCfg()
-    ui()
+    update()
   })
   showCfg()
-  ui()
-  setInterval(tick, 250)
-  let last = 0
-  const frame = (t) => {
-    if (t - last > 90) {
-      draw()
-      last = t
-    }
-    requestAnimationFrame(frame)
-  }
-  requestAnimationFrame(frame)
+  update()
 })()

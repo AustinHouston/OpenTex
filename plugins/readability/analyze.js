@@ -299,15 +299,22 @@
     return { doc, sentences: sents.map((s) => ({ from: s.from, to: s.to, own: s.own, win: s.win, flags: s.flags, raw: { words: s.words } })), sections }
   }
 
+  // Files whose text hasn't changed since the last call reuse their analysis, so an edit only costs
+  // re-reading the file that changed. Only the files of the last call are kept.
+  let cache = new Map()
   /** Several files of one paper, in reading order: stats over all of them, sentences and sections tagged with their file. */
   function analyzePaper(files) {
     const sentences = []
     const sections = []
+    const next = new Map()
     for (const { file, text } of files) {
-      const r = analyze(text, file.split('/').pop().replace(/\.tex$/i, ''))
+      const hit = cache.get(file)
+      const r = hit && hit.text === text ? hit.r : analyze(text, file.split('/').pop().replace(/\.tex$/i, ''))
+      next.set(file, { text, r })
       for (const s of r.sentences) sentences.push({ ...s, file })
       for (const s of r.sections) sections.push({ ...s, file })
     }
+    cache = next
     const doc = statsOf(sentences.map((s) => s.raw))
     doc.flags = { passive: 0, hedge: 0, filler: 0 }
     for (const s of sentences) for (const f of s.flags) doc.flags[f.kind]++

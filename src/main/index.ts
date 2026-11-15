@@ -9,6 +9,7 @@ import { builtinPluginsDir, listPlugins, pluginStorageGet, pluginStorageSet, reg
 import { findPandoc, importWord, installPandoc, pandocVersion } from './pandoc'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
+import { registerDoiIpc } from './doi'
 
 registerPluginScheme()
 
@@ -148,6 +149,7 @@ async function buildMenu(): Promise<void> {
         { type: 'separator' },
         { label: 'Import Word Document…', click: () => send('import-word') },
         { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
+        { label: 'Add Reference by DOI…', click: () => send('add-doi') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => send('close-tab') },
@@ -204,6 +206,7 @@ async function buildMenu(): Promise<void> {
         { type: 'separator' },
         { label: 'Symbol…', click: () => send('insert-symbol') },
         { label: 'Citation', click: () => send('insert', 'citation') },
+        { label: 'Citation by DOI…', click: () => send('add-doi') },
         { label: 'Cross-reference', click: () => send('insert', 'reference') },
         { label: 'Footnote', click: () => send('insert', 'footnote') },
         { type: 'separator' },
@@ -425,6 +428,7 @@ app.whenReady().then(async () => {
   await listPlugins()
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()
+  registerDoiIpc()
   await buildMenu()
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())

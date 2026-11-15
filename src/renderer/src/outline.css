@@ -1,0 +1,34 @@
+/* The Outline panel (outline.ts) */
+.panel-body > .outline { overflow: auto; }
+.outline { padding: 2px 4px 10px; font-size: 12.5px; }
+.ol-note { color: var(--muted); font-size: 11px; padding: 4px 6px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; word-break: break-all; }
+.ol-empty { color: var(--muted); font-size: 12px; padding: 8px 6px; line-height: 1.5; }
+.ol-list { list-style: none; margin: 0; padding: 0; }
+.ol-item {
+  display: flex; align-items: center; gap: 4px; min-height: 24px; padding: 1px 6px 1px calc(var(--depth, 0) * 14px + 2px);
+  border-radius: 5px; cursor: pointer; color: var(--text); white-space: nowrap;
+}
+.ol-item:hover { background: var(--panelAlt); }
+.ol-item.current { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.ol-item.current .ol-title { color: var(--accent); }
+.ol-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ol-part > .ol-title, .ol-chapter > .ol-title, .ol-addchap > .ol-title { font-weight: 700; }
+.ol-section > .ol-title, .ol-addsec > .ol-title, .ol-abstract > .ol-title { font-weight: 600; }
+.ol-item.starred:not(.ol-abstract) > .ol-title { font-style: italic; }
+.ol-words { flex: none; color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.ol-twist { flex: none; width: 16px; height: 16px; padding: 0; border: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); border-radius: 3px; }
+.ol-twist svg { width: 12px; height: 12px; transition: transform 0.12s; }
+.ol-twist.closed svg { transform: rotate(-90deg); }
+.ol-twist.none { visibility: hidden; }
+.ol-twist:hover { color: var(--text); background: var(--panelAlt); }
+
+/* Figures, tables and missing files: smaller, under their section */
+.ol-float, .ol-missing { font-size: 11.5px; color: var(--muted); min-height: 21px; padding-left: calc(var(--depth, 0) * 14px + 20px); }
+.ol-icon { flex: none; display: inline-flex; color: var(--muted); }
+.ol-icon svg { width: 13px; height: 13px; }
+.ol-float .ol-title { color: var(--text); opacity: 0.85; }
+.ol-label { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; font-family: var(--editor-font); font-size: 10px; color: var(--muted); }
+.ol-missing .ol-title, .ol-missing .ol-icon { color: var(--error); }
+
+.ol-extras { display: inline-flex; }
+.ol-extras button.on { color: var(--accent); }

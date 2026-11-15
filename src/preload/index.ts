@@ -40,6 +40,7 @@ const api = {
   installPandoc: () => ipcRenderer.invoke('pandoc:install'),
   importWord: (docx: string, parent: string, keepComments: boolean) => ipcRenderer.invoke('word:import', docx, parent, keepComments),
   chooseRefs: () => ipcRenderer.invoke('refs:choose'),
+  lookUpDoi: (id: string, kind: 'doi' | 'arxiv') => ipcRenderer.invoke('doi:lookup', id, kind),
   /** Full path of a file dropped onto the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   closeProject: () => ipcRenderer.invoke('project:close'),

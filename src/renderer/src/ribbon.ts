@@ -92,6 +92,7 @@ export class Ribbon {
       <div class="rb-group">
         ${btn('data-run="import-word"', ICON.word, 'Import Word', 'Turn a .docx into a LaTeX project')}
         ${btn('data-run="import-refs"', ICON.refs, 'Import References', 'Add references from EndNote, Zotero or Mendeley')}
+        ${btn('data-run="add-doi"', ICON.refs, 'Add by DOI', 'Look up a paper by its DOI or arXiv ID and add it to your .bib file')}
       </div><div class="rb-sep"></div>
       <div class="rb-group">
         ${btn('data-run="save"', ICON.save, 'Save', 'Save the current file (Ctrl/Cmd+S)')}

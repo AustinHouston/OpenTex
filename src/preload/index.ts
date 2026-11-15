@@ -47,6 +47,12 @@ const api = {
   chooseRefs: () => ipcRenderer.invoke('refs:choose'),
   /** Full path of a file dropped onto the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),
+  // Paste and drop (pictures and tables); see src/main/paste.ts.
+  readClipboard: (): Promise<{ text: string; html: string }> => ipcRenderer.invoke('paste:clipboard'),
+  fileExists: (rel: string): Promise<boolean> => ipcRenderer.invoke('paste:exists', rel),
+  writeBinary: (rel: string, data: Uint8Array): Promise<void> => ipcRenderer.invoke('paste:writeBinary', rel, data),
+  copyIntoProject: (src: string, rel: string): Promise<void> => ipcRenderer.invoke('paste:copyIn', src, rel),
+  chooseTableFile: (): Promise<{ name: string; text: string } | null> => ipcRenderer.invoke('paste:chooseTable'),
   closeProject: () => ipcRenderer.invoke('project:close'),
   recentProjects: (): Promise<{ path: string; name: string; parent: string }[]> => ipcRenderer.invoke('project:recent'),
   forgetRecent: (path: string) => ipcRenderer.invoke('project:forgetRecent', path),

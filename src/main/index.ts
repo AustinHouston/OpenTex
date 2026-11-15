@@ -11,6 +11,7 @@ import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
 import { noteWrite, registerHistoryIpc } from './history'
 import { editMenu, registerFileOpsIpc } from './fileops'
+import { registerPasteIpc } from './paste'
 
 registerPluginScheme()
 
@@ -432,6 +433,7 @@ app.whenReady().then(async () => {
   registerIpc()
   registerHistoryIpc(need)
   registerFileOpsIpc(need)
+  registerPasteIpc(need)
   await buildMenu()
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())

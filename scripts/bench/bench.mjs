@@ -8,6 +8,7 @@
 //     --panels <list>    panels to show besides Files/PDF/Comments, e.g. plugin:writing-garden,outline
 //     --runs <n>         repeat the whole measurement and report the median of each number (default 1)
 //     --json <file>      also append the results to this file (one JSON object per line)
+//     --hover            also time hover previews (\ref, \cite, math), after everything else
 //
 // It makes a ~3,000-line test paper (scripts/bench/make-project.mjs), starts OpenTex with a fresh
 // profile, opens the paper and measures:
@@ -19,6 +20,9 @@
 //   scrolling      frame times while scrolling the long file (frames over 33 ms feel janky)
 //   memory         resident memory of all OpenTex processes, and the page's JavaScript heap
 //   compile        Compile button -> finished, for the test paper
+//   hover          (with --hover) mouse at rest -> preview on screen, minus the 300 ms hover delay;
+//                  "First" is the first hover of each kind (loads files, KaTeX, pictures), the
+//                  other is the median of later hovers (cached)
 import { spawn, execFileSync } from 'child_process'
 import fs from 'fs'
 import os from 'os'
@@ -37,6 +41,7 @@ const extraSettings = JSON.parse(arg('settings', '{}'))
 const panels = (arg('panels', '') || '').split(',').filter(Boolean)
 const runs = Number(arg('runs', '1'))
 const jsonOut = arg('json', null)
+const hoverBench = process.argv.includes('--hover')
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0)
 const pct = (a, p) => (a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))] : 0)
@@ -170,6 +175,51 @@ async function once() {
     r.compileStatus = await ev(`return document.querySelector('#st-compile').textContent`)
     r.memoryEndMB = Math.round(procStats(profile).rss / 2 ** 20)
     r.heapEndMB = +((await heap()) / 2 ** 20).toFixed(1)
+
+    // Hover previews (--hover): rest the mouse on a \ref, a \cite, inline math and an equation.
+    if (hoverBench) {
+      await ev(`[...document.querySelectorAll('.tree .row')].find(r=>r.title==='sections/results.tex').click(); return 1`)
+      await wait(800)
+      await ev(`window.__long = []; window.__at = (needle, off) => {
+        for (const line of document.querySelectorAll('.cm-line')) {
+          const i = line.textContent.indexOf(needle)
+          if (i < 0) continue
+          let k = i + off
+          const w = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
+          for (let n = w.nextNode(); n; n = w.nextNode()) {
+            if (k < n.length) { const g = document.createRange(); g.setStart(n, k); g.setEnd(n, k + 1); const b = g.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 } }
+            k -= n.length
+          }
+        }
+        return null
+      }; return 1`)
+      const hoverOnce = async (needle, off) => {
+        await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
+        await until(`return !document.querySelector('.cm-tooltip-hover')`, 3000)
+        let pt = null
+        for (let i = 0; i < 80 && !pt; i++) {
+          // Scroll until the text is on screen, away from the edges.
+          pt = await ev(`const p = window.__at(${JSON.stringify(needle)}, ${off}); const s = document.querySelector('.cm-scroller'); const b = s.getBoundingClientRect();
+            if (p && p.y > b.top + 60 && p.y < b.bottom - 60) return p
+            if (p) s.scrollTop += p.y - (b.top + b.height / 2); else s.scrollTop = ${i} === 0 ? 0 : s.scrollTop + b.height * 0.6; return null`)
+          if (!pt) await wait(50)
+        }
+        if (!pt) return null
+        await wait(400)
+        await ev(`window.__h0 = 0; window.__h1 = 0; document.addEventListener('mousemove', () => (window.__h0 = performance.now()), { once: true, capture: true });
+          const mo = new MutationObserver(() => { if (document.querySelector('.cm-tooltip-hover')) { mo.disconnect(); requestAnimationFrame(() => (window.__h1 = performance.now())) } });
+          mo.observe(document.body, { childList: true, subtree: true }); return 1`)
+        await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pt.x, y: pt.y })
+        if (!(await until(`return window.__h1 > 0`, 5000))) return null
+        return +(await ev(`return window.__h1 - window.__h0 - 300`)).toFixed(1)
+      }
+      const kinds = { Ref: ['\\ref{fig:', 6], Cite: ['\\cite{ref', 7], Math: ['$\\sigma_', 3], Equation: ['\\frac{1}{N}', 3] }
+      const later = Object.fromEntries(Object.keys(kinds).map((k) => [k, []]))
+      for (const [k, [needle, off]] of Object.entries(kinds)) r[`hover${k}FirstMs`] = await hoverOnce(needle, off)
+      for (let i = 0; i < 3; i++) for (const [k, [needle, off]] of Object.entries(kinds)) later[k].push(await hoverOnce(needle, off))
+      for (const k of Object.keys(kinds)) r[`hover${k}Ms`] = median(later[k].filter((x) => x != null))
+      r.hoverLongTasks = (await ev(`return window.__long.length`)) ?? 0
+    }
   } finally {
     ws?.close()
     try {

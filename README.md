@@ -14,20 +14,27 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - **SyncTeX:** double-click the PDF to jump to that line of source; `Ctrl/Cmd+J` shows the current line in the PDF
 - Optional compile-while-typing, git branch and change count in the status bar
 - Compile with latexmk (or pdfLaTeX/XeLaTeX/LuaLaTeX + BibTeX/Biber directly), compile-on-save, clickable error list
+- **Errors in plain English:** each LaTeX error or warning gets a short explanation (what went wrong and where) and, where the fix is clear, a one-click fix: add the missing package, change `_` to `\_`, use the closest citation key or label, fix a picture's path, combine clashing package options, and many more
+- **File management in the file list:** rename, move (drag onto a folder), duplicate, new folder, and delete (to the Trash). Comments, open tabs and the main file stay attached, and OpenTex offers to update `\input`, `\includegraphics` and `\bibliography` lines that point at the old name
+- **Find in Project** (`Ctrl/Cmd+Shift+H`): search and replace across all the paper's files, with match case, whole word and pattern options
+- **Outline panel:** the whole paper's sections, figures and tables in reading order across all its files, with word counts per section; click to jump there
+- **Paste a picture** (a screenshot, or an image copied from PowerPoint or a browser) or drop image files on the text to make a figure: OpenTex saves it in `figures/` and writes the figure, caption and label. **Paste cells from Excel**, Google Sheets or Word to get a LaTeX table (Undo gives you the plain text instead; `Ctrl/Cmd+Shift+V` always pastes plain text), or use Insert → Table → From a CSV file
+- **Add a reference by DOI** (Insert → Citation → Add by DOI, or File → Add Reference by DOI…): paste one or more DOIs or arXiv IDs, and OpenTex fetches the reference, adds it to your `.bib` and cites it. Pasting a DOI in the text offers the same
 - Built-in PDF viewer that keeps your place between compiles
 - **Saves automatically** 2 seconds after you stop typing (without compiling), and brings back unsaved changes if OpenTex closes unexpectedly. **File → History…** shows earlier versions of each file with what changed, and restores any of them (Undo works); **Changes Since…** lists what changed in the project since a time you pick, or since you last had it open, including changes a co-author made outside OpenTex. Versions are kept in OpenTex's own folder, not in your project.
 - 12 built-in themes with previews in Settings, plus your own
-- **A ribbon like Word's**, with four tabs:
+- **A ribbon like Word's**, with five tabs:
   - **File:** New Project, Open Folder, Open Recent, Import Word, Export Word, Import References, Save, Close Folder, New Window, Example Paper, Settings
   - **Insert:** **Table** (pick a size from a grid), **Equation** (numbered, aligned, inline, and templates for fractions, roots, sums, integrals, derivatives, matrices, cases), **Symbol** (150+ symbols: every Greek letter in both cases, operators, relations, arrows, sets, physics symbols and accents, with search), **Figure** (from your project's images), **Citation** and **Cross-reference** (with autocomplete), and **Footnote**. Symbols are wrapped in `$…$` automatically when you're not already in math, and OpenTex offers to add packages such as `amssymb` when something needs one.
   - **Design:** switch the whole paper's look with one click: Article, Nature-style, Science-style, Physical Review-style, IEEE conference (official IEEEtran class) and Review draft (double spaced, line numbers). Only the class, margins, font, line spacing and citation/reference style change, in the main file and in a preamble file it pulls in with `\input{preamble}`; your text isn't touched. Your own setup is saved as **Custom** the first time you switch, so you can always go back to it exactly. (The "-style" presets imitate each journal's look with standard packages; for a final submission, use the journal's own template.)
   - **Plugins:** turn each plugin on or off, open the plugins folder
+  - **Settings:** opens Settings
   Click the open tab to collapse the ribbon; `Ctrl/Cmd+Shift+I` hides or shows it.
 - Interface zoom with `Ctrl/Cmd +` and `Ctrl/Cmd −`
 - **Movable panels:** Files, PDF, Comments and plugin panels can be dragged by their title bar to the left, either right-hand column, or across the bottom, stacked, resized, collapsed (click the arrow or double-click the title) or hidden. The PDF is optional. The layout toolbar button shows hidden panels and resets the layout.
 - **Plugins** that add panels on the right, such as the built-in **Forest Timer** (a Pomodoro timer with a pixel forest that grows while you work)
 - **Focus mode** (`Ctrl/Cmd+Shift+F`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
-- **Comments** that live in the `.tex` file, so they travel with the paper (see below)
+- **Comments** like Word's, kept in a small file beside your `.tex` files so they travel with the folder (see below)
 - **One-click TinyTeX install** if you don't have TeX, and missing packages are installed when a paper needs them
 - **Update notice:** once a day OpenTex checks GitHub for a newer version and says so in the status bar, with a Download link (nothing installs by itself). Help → Check for Updates… checks now; turn it off in Settings
 
@@ -136,6 +143,8 @@ Plugin pages run in a sandboxed frame. They can't read your files or reach the r
 | Focus mode | ⇧⌘F | Ctrl+Shift+F |
 | Toggle sidebar / PDF | ⌘B / ⇧⌘P | Ctrl+B / Ctrl+Shift+P |
 | Add comment | ⇧⌘M | Ctrl+Shift+M |
+| Find in project | ⇧⌘H | Ctrl+Shift+H |
+| Paste as plain text | ⇧⌘V | Ctrl+Shift+V |
 | Show line in PDF | ⌘J | Ctrl+J |
 | Bigger / smaller / actual size | ⌘+ / ⌘− / ⌘0 (Ctrl works too) | Ctrl++ / Ctrl+− / Ctrl+0 |
 | Settings | ⌘, | Ctrl+, |

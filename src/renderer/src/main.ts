@@ -122,9 +122,20 @@ async function refreshTex(): Promise<void> {
 }
 
 // ---------- Project ----------
-async function setProject(info: ProjectInfo | null): Promise<void> {
-  if (!info) return
+/**
+ * Open another folder in this window. Unsaved changes are settled first, before the main process
+ * switches folders, so "Save all" writes them into the folder they belong to and "Cancel" really
+ * leaves everything as it was.
+ */
+async function switchProject(open: () => Promise<ProjectInfo | null>): Promise<void> {
   if (!(await confirmDiscardAll())) return
+  const info = await open()
+  if (info) await setProject(info, true)
+}
+
+async function setProject(info: ProjectInfo | null, confirmed = false): Promise<void> {
+  if (!info) return
+  if (!confirmed && !(await confirmDiscardAll())) return
   files.clear()
   tabOrder = []
   active = null
@@ -1553,7 +1564,7 @@ async function importWordDoc(docx?: string): Promise<void> {
   const r = res as Res | null
   if (!ok || !r) return
   autoMigrate = true // Word comments arrive as %@comment lines; move them into the comments file
-  await setProject(await api.openProject(r.folder))
+  await switchProject(() => api.openProject(r.folder))
   const parts = [`${r.images} figure${r.images === 1 ? '' : 's'}`, `${r.comments} comment${r.comments === 1 ? '' : 's'}`, `${r.citations} reference${r.citations === 1 ? '' : 's'}`]
   let msg = `Imported ${name}: ${parts.join(', ')}. OpenTex will compile it now. Look over the result, especially tables and figure placement.`
   if (!r.citations) msg += '\n\nNo linked citations were found. If the document cites from EndNote, use File → Import References to bring in the library.'
@@ -1640,7 +1651,7 @@ async function showWelcome(): Promise<void> {
       li.querySelector('.name')!.textContent = r.name
       li.querySelector('.path')!.textContent = r.parent
       li.title = r.path
-      li.querySelector<HTMLButtonElement>('.open')!.onclick = async () => setProject(await api.openProject(r.path))
+      li.querySelector<HTMLButtonElement>('.open')!.onclick = async () => switchProject(() => api.openProject(r.path))
       li.querySelector<HTMLButtonElement>('[data-act=window]')!.onclick = () => api.newWindow(r.path)
       li.querySelector<HTMLButtonElement>('[data-act=forget]')!.onclick = async () => {
         await api.forgetRecent(r.path)
@@ -1702,19 +1713,19 @@ async function newProject(preset: 'blank' | 'example-paper' = 'blank'): Promise<
     await ask((e as Error).message.replace(/^.*Error: /, ''), ['OK'])
     return
   }
-  await setProject(await api.openProject(folder))
+  await switchProject(() => api.openProject(folder))
   if (project) compile()
 }
 
 async function openExample(): Promise<void> {
   const folder = await api.exampleProject()
-  await setProject(await api.openProject(folder))
+  await switchProject(() => api.openProject(folder))
   if (project) compile()
 }
 
 // ---------- Wiring ----------
 async function chooseFolder(): Promise<void> {
-  await setProject(await api.chooseProject())
+  await switchProject(() => api.chooseProject())
 }
 
 const updates = setupUpdateNotice(api, ask)
@@ -1722,7 +1733,7 @@ const updates = setupUpdateNotice(api, ask)
 const actions: Record<string, (...args: any[]) => unknown> = {
   'new-project': () => newProject(),
   'open-example': () => openExample(),
-  'open-path': async (path: string) => setProject(await api.openProject(path)),
+  'open-path': async (path: string) => switchProject(() => api.openProject(path)),
   'close-folder': () => closeFolder(),
   'stop-compile': () => api.cancelCompile(),
   'open-folder': chooseFolder,
@@ -1802,7 +1813,7 @@ function wire(): void {
     run: (a) => (a === 'new-window' ? api.newWindow() : actions[a]?.()),
     recentMenu: async (x, y) => {
       const recent = await api.recentProjects()
-      contextMenu(x, y, recent.length ? recent.map((r) => [`${r.name}   ·   ${r.parent}`, async () => setProject(await api.openProject(r.path))] as [string, () => void]) : [['No recent folders', () => {}]])
+      contextMenu(x, y, recent.length ? recent.map((r) => [`${r.name}   ·   ${r.parent}`, async () => switchProject(() => api.openProject(r.path))] as [string, () => void]) : [['No recent folders', () => {}]])
     },
     plugins: () => ({ list: allPlugins, disabled: settings.disabledPlugins ?? [] }),
     setPlugin: (id, on) => api.setPluginEnabled(id, on),
@@ -1871,7 +1882,7 @@ async function init(): Promise<void> {
   }
   // A window opened for a specific folder (File → Open Folder in New Window, Recent → New window).
   const open = new URLSearchParams(location.search).get('open')
-  if (open) await setProject(await api.openProject(open))
+  if (open) await switchProject(() => api.openProject(open))
   if (!project) await showWelcome()
 }
 

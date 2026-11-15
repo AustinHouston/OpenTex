@@ -1,0 +1,36 @@
+/* Live preview (live-preview.ts): the "Paused: error" chip and the mark on the edited line. */
+.live-host { position: relative; }
+.panel-body > .live-chip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  flex: none;
+  z-index: 5;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--error) 45%, var(--border));
+  background: color-mix(in srgb, var(--error) 10%, var(--panel));
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: default;
+}
+.panel-body > .live-chip::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--error); vertical-align: 1px; }
+.panel-body > .live-chip.clickable { cursor: pointer; }
+.panel-body > .live-chip.clickable:hover { background: color-mix(in srgb, var(--error) 18%, var(--panel)); }
+.panel-body > .live-chip[hidden] { display: none; }
+.live-flash {
+  position: absolute;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  pointer-events: none;
+  animation: liveflash 1.3s ease-out forwards;
+  z-index: 3;
+}
+@keyframes liveflash { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }

@@ -29,6 +29,7 @@ import { setupUpdateNotice } from './update-notice'
 import { setupDoi } from './doi'
 import { Outline, setupOutline } from './outline'
 import { decorateProblems, ExplainHost, statusInWords } from './explain'
+import { setupLivePreview } from './live-preview'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -67,6 +68,7 @@ const extensions = [...makeExtensions(
       }
       scheduleComments()
       scheduleLiveCompile()
+      live.edited()
       scheduleWords()
       scheduleDocument()
       versions.edited()
@@ -83,6 +85,13 @@ const view = new EditorView({ parent: $('editor'), state: EditorState.create({ d
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
 // Saving automatically, crash recovery and version history (history.ts).
 const versions = setupHistory({ api, view, files, active: () => active, project: () => project, settings: () => settings, openFile, autoSave: (p) => save(p, false, true), renderTabs, reloadTree, status: setCompileStatus })
+// Live preview: background builds of the unsaved text while typing (live-preview.ts).
+const live = setupLivePreview({
+  api, view, pdf, pdfEl: $('pdf'), enabled: () => !!settings?.livePreview && !!project, active: () => active, target: compileTarget,
+  engine: () => ($('engine') as HTMLSelectElement).value as Engine, compiling: () => compiling, pdfVisible: () => layout.isVisible('pdf'),
+  edits: () => [...files.values()].filter((f) => f.dirty && /\.(tex|bib|sty|cls|bst)$/i.test(f.path)).map((f) => ({ path: f.path, text: textOf(f.path) ?? f.state.doc.toString() })),
+  jump: (file, line) => void openFile(file).then(() => (goToLine(view, line), view.focus()))
+})
 
 // ---------- Settings & themes ----------
 function applySettings(): void {
@@ -108,6 +117,7 @@ async function updateSettings(patch: Partial<Settings>): Promise<void> {
   applySettings()
   if ('disabledPlugins' in patch) plugins.setPlugins(allPlugins, settings.disabledPlugins)
   if ('texPath' in patch) await refreshTex()
+  if ('livePreview' in patch) live.settingsChanged()
 }
 
 async function refreshTex(): Promise<void> {
@@ -143,6 +153,7 @@ async function setProject(info: ProjectInfo | null, confirmed = false): Promise<
   projectSearch.reset()
   lastPdf = null
   pdf.clear()
+  live.projectPdfShown()
   showProblems([], false)
   $('project-name').textContent = info.name
   document.body.classList.remove('no-project')
@@ -438,6 +449,7 @@ async function compile(): Promise<void> {
     return
   }
   compiling = true
+  live.compileStarting()
   $('btn-compile').classList.add('busy')
   const other = target !== project.mainFile ? `${target.split('/').pop()} ` : '' // say so when it isn't the main file
   setCompileStatus(other ? `Compiling ${other.trim()}…` : 'Compiling…')
@@ -481,6 +493,7 @@ async function showPdf(path: string): Promise<void> {
     const data: Uint8Array = await api.readBinary(path)
     lastPdf = path
     lastPdfLoad = Date.now()
+    live.projectPdfShown()
     await pdf.load(data)
   } catch (e) {
     console.warn('Could not show PDF', e)
@@ -1043,9 +1056,9 @@ function placeBubble(): void {
 }
 async function commentFromPdf(): Promise<void> {
   const s = pdf.selection()
-  if (!s || !lastPdf) return
+  if (!s || !(lastPdf || live.showing())) return
   hideBubble()
-  const hit = await api.synctexInverse(lastPdf, s.page, s.x, s.y)
+  const hit = live.showing() ? await api.live.inverse(s.page, s.x, s.y) : await api.synctexInverse(lastPdf!, s.page, s.x, s.y)
   if (!hit) {
     await ask('Could not find where this text is in the source. Compile again (SyncTeX data is made during compiling), then try once more.', ['OK'])
     return
@@ -1089,9 +1102,9 @@ function showContextMenu(spell: { misspelled: string; suggestions: string[] }): 
 
 // ---------- SyncTeX ----------
 async function syncForward(): Promise<void> {
-  if (!active || !lastPdf || !active.endsWith('.tex')) return
+  if (!active || !(lastPdf || live.showing()) || !active.endsWith('.tex')) return
   const line = view.state.doc.lineAt(view.state.selection.main.head).number
-  const box = await api.synctexForward(active, line, lastPdf)
+  const box = live.showing() ? await api.live.forward(active, line) : await api.synctexForward(active, line, lastPdf!)
   if (box) {
     if (!layout.isVisible('pdf')) {
       layout.show('pdf')
@@ -1101,8 +1114,8 @@ async function syncForward(): Promise<void> {
   } else setCompileStatus('No PDF position for this line yet. Compile first.', 'warn')
 }
 async function syncInverse(page: number, x: number, y: number): Promise<void> {
-  if (!lastPdf) return
-  const hit = await api.synctexInverse(lastPdf, page, x, y)
+  if (!lastPdf && !live.showing()) return
+  const hit = live.showing() ? await api.live.inverse(page, x, y) : await api.synctexInverse(lastPdf!, page, x, y)
   if (!hit) return setCompileStatus('No source position found. Compile again to refresh SyncTeX.', 'warn')
   await openFile(hit.file)
   goToLine(view, hit.line)
@@ -1633,6 +1646,8 @@ async function showWelcome(): Promise<void> {
   view.setState(EditorState.create({ doc: '', extensions }))
   renderTabs()
   pdf.clear()
+  live.compileStarting() // stop any background build of the closed folder
+  live.projectPdfShown()
   showProblems([], false)
   if (focusOn) setFocus(false)
   $('project-name').textContent = 'OpenTex'

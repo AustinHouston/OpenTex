@@ -29,8 +29,8 @@ export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Ap
       <h3>Compiling</h3>
       <label>Default engine</label><select name="engine">${opt('pdflatex', 'pdfLaTeX', s.engine)}${opt('xelatex', 'XeLaTeX', s.engine)}${opt('lualatex', 'LuaLaTeX', s.engine)}</select>
       <label>Compile on save</label><input type="checkbox" name="compileOnSave" />
-      <label>Compile while typing</label><input type="checkbox" name="liveCompile" />
-      <span></span><span class="note">Saves and compiles 1.5 seconds after you stop typing.</span>
+      <label>Live preview</label><input type="checkbox" name="livePreview" />
+      <span></span><span class="note">The PDF updates by itself about a second after you pause typing, without saving your files. If something has a mistake, the PDF waits and shows where. Compile still makes the final PDF in your folder.</span>
       <label>Use latexmk</label><input type="checkbox" name="useLatexmk" />
       <label>TeX folder</label><input type="text" name="texPath" placeholder="Auto-detect" />
       <span></span><span class="note" data-tex>${tex.found ? `Found: ${tex.binDir}` : 'No TeX installation found. Use Build → Install TinyTeX… to get one.'}</span>

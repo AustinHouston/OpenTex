@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
+import { livePreviewApi } from './live-preview'
 
 // The only bridge between the page and the system. Everything goes through IPC handlers in src/main/index.ts.
 const api = {
@@ -72,6 +73,7 @@ const api = {
   exampleProject: (): Promise<string> => ipcRenderer.invoke('project:example'),
   closeOk: () => ipcRenderer.send('app:close-ok'),
   history: (op: string, ...args: unknown[]) => ipcRenderer.invoke(`history:${op}`, ...args),
+  live: livePreviewApi,
   on: (channel: 'menu' | 'project:changed' | 'app:before-close' | 'tex:progress' | 'context-menu' | 'settings:changed', fn: (...args: any[]) => void) => {
     ipcRenderer.on(channel, (_e, ...args) => fn(...args))
   }

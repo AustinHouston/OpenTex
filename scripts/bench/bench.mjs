@@ -8,6 +8,9 @@
 //     --panels <list>    panels to show besides Files/PDF/Comments, e.g. plugin:writing-garden,outline
 //     --runs <n>         repeat the whole measurement and report the median of each number (default 1)
 //     --json <file>      also append the results to this file (one JSON object per line)
+//     --live             also measure Live preview (turn it on with --settings '{"livePreview":true}'):
+//                        typing in bursts while PDFs rebuild and swap, last keystroke -> new PDF on
+//                        screen, the background TeX processes' CPU, and CPU 10-20 s after typing
 //
 // It makes a ~3,000-line test paper (scripts/bench/make-project.mjs), starts OpenTex with a fresh
 // profile, opens the paper and measures:
@@ -19,6 +22,8 @@
 //   scrolling      frame times while scrolling the long file (frames over 33 ms feel janky)
 //   memory         resident memory of all OpenTex processes, and the page's JavaScript heap
 //   compile        Compile button -> finished, for the test paper
+//   texCpu         (always) CPU of TeX and other helper processes the app starts while typing,
+//                  sampled every 100 ms (ps can't see a process after it exits)
 import { spawn, execFileSync } from 'child_process'
 import fs from 'fs'
 import os from 'os'
@@ -37,6 +42,7 @@ const extraSettings = JSON.parse(arg('settings', '{}'))
 const panels = (arg('panels', '') || '').split(',').filter(Boolean)
 const runs = Number(arg('runs', '1'))
 const jsonOut = arg('json', null)
+const liveMode = process.argv.includes('--live')
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0)
 const pct = (a, p) => (a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))] : 0)
@@ -57,6 +63,37 @@ function procStats(profile) {
     n++
   }
   return { cpu, rss, n }
+}
+
+/** CPU seconds of the app's helper processes (TeX, SyncTeX…): same process group, not the app itself. */
+function helperCpu(group, profile) {
+  const out = execFileSync('ps', ['-A', '-o', 'pid=,pgid=,time=,command='], { encoding: 'utf8', maxBuffer: 1 << 24 })
+  const seen = new Map()
+  for (const line of out.split('\n')) {
+    const m = line.trim().match(/^(\d+)\s+(\d+)\s+([\d:.]+)\s+(.*)$/)
+    if (!m || Number(m[2]) !== group || m[4].includes(profile) || /node_modules\/\.bin\/electron/.test(m[4])) continue
+    seen.set(m[1], m[3].split(':').map(Number).reduce((s, v) => s * 60 + v, 0))
+  }
+  return seen
+}
+/** Polls helper processes every 100 ms and adds up the CPU each one used before it exited. */
+function helperSampler(group, profile) {
+  const best = new Map()
+  const tick = () => {
+    try {
+      for (const [pid, cpu] of helperCpu(group, profile)) best.set(pid, Math.max(cpu, best.get(pid) ?? 0))
+    } catch {
+      /* ps busy */
+    }
+  }
+  tick()
+  const timer = setInterval(tick, 100)
+  const base = new Map(best)
+  return {
+    total: () => [...best].reduce((s, [pid, cpu]) => s + cpu - (base.get(pid) ?? 0), 0),
+    count: () => [...best.keys()].filter((p) => !base.has(p)).length,
+    stop: () => (tick(), clearInterval(timer))
+  }
 }
 
 async function once() {
@@ -129,7 +166,7 @@ async function once() {
     await wait(800)
     await ev(`const s=document.querySelector('.cm-scroller'); s.scrollTop = s.scrollHeight/2; return 1`)
     await wait(400)
-    const pt = await ev(`const ls=[...document.querySelectorAll('.cm-line')].filter(l=>l.textContent.length>40); const l=ls[Math.floor(ls.length/2)]; const b=l.getBoundingClientRect(); return {x:b.left+b.width-4, y:b.top+8}`)
+    const pt = await ev(`const ls=[...document.querySelectorAll('.cm-line')].filter(l=>l.textContent.length>40); const l=ls[Math.floor(ls.length/2)]; const b=l.getBoundingClientRect(); const v=document.querySelector('.cm-content').getBoundingClientRect(); const sr=document.querySelector('.cm-scroller').getBoundingClientRect(); return {x:Math.min(b.left+b.width-4, sr.right-24, v.right-4), y:b.top+8}`)
     await call('Input.dispatchMouseEvent', { type: 'mousePressed', x: pt.x, y: pt.y, button: 'left', clickCount: 1 })
     await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: pt.x, y: pt.y, button: 'left', clickCount: 1 })
     await ev(`window.__lat=[]; window.__long=[];
@@ -137,6 +174,7 @@ async function once() {
       new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__long.push(e.duration))).observe({ type: 'longtask' }); return 1`)
     const text = ' the measured signal shows a clear decay within four nanoseconds and we fit it with a damped model that matches every run in this study'
     const c0 = procStats(profile)
+    const helpers = helperSampler(proc.pid, profile)
     const typeStart = Date.now()
     for (const ch of text.slice(0, 150)) {
       const key = ch === ' ' ? { key: ' ', code: 'Space', windowsVirtualKeyCode: 32 } : { key: ch, code: `Key${ch.toUpperCase()}`, windowsVirtualKeyCode: ch.toUpperCase().charCodeAt(0) }
@@ -154,6 +192,71 @@ async function once() {
     r.longTasks = longs.length
     r.longTaskTotalMs = Math.round(longs.reduce((s, x) => s + x, 0))
     r.typingCpuPct = +(((c1.cpu - c0.cpu) / ((Date.now() - typeStart) / 1000)) * 100).toFixed(1)
+    helpers.stop()
+    // The keystrokes must land in the text (a click beside the editor once left them going nowhere).
+    r.typedIntoEditor = await ev(`return document.querySelector('.cm-content').textContent.includes('decay within four nanoseconds')`)
+    r.typingTexCpuPct = +((helpers.total() / ((Date.now() - typeStart) / 1000)) * 100).toFixed(1)
+    r.typingTexProcesses = helpers.count()
+
+    if (liveMode) {
+      // Typing in bursts with pauses of different lengths, so new PDFs arrive and get drawn while typing goes on.
+      await ev(`window.__lat=[]; window.__long=[]; document.addEventListener('keydown', () => (window.__lastKeyAt = Date.now()), true); return 1`)
+      const shown = async () => Number((await ev(`return document.querySelector('#pdf').dataset.liveShownAt || 0`)) || 0)
+      let lastKeyAt = 0
+      const typeWord = async (w) => {
+        for (const ch of w) {
+          lastKeyAt = Date.now()
+          const key = ch === ' ' ? { key: ' ', code: 'Space', windowsVirtualKeyCode: 32 } : { key: ch, code: `Key${ch.toUpperCase()}`, windowsVirtualKeyCode: ch.toUpperCase().charCodeAt(0) }
+          await call('Input.dispatchKeyEvent', { type: 'keyDown', text: ch, unmodifiedText: ch, ...key })
+          await call('Input.dispatchKeyEvent', { type: 'keyUp', ...key })
+          await wait(80)
+        }
+      }
+      const h0 = procStats(profile)
+      const hs = helperSampler(proc.pid, profile)
+      const liveStart = Date.now()
+      const builds0 = Number((await ev(`return document.querySelector('#pdf').dataset.liveBuilds || 0`)) || 0)
+      for (const pause of [1000, 1900, 1300, 2600, 1600, 2200]) {
+        await typeWord(' and more words')
+        await wait(pause)
+      }
+      const burstLat = await ev(`return window.__lat`)
+      const burstLong = await ev(`return window.__long`)
+      r.liveTypingP95Ms = +pct(burstLat, 0.95).toFixed(1)
+      r.liveTypingWorstMs = +Math.max(...burstLat).toFixed(1)
+      r.liveLongTasks = burstLong.length
+      r.liveLongTaskWorstMs = Math.round(Math.max(0, ...burstLong))
+      // Last keystroke -> new PDF on screen, in clean rounds.
+      const upd = []
+      const builds = []
+      for (let i = 0; i < 3; i++) {
+        const before = await shown()
+        await typeWord(' word')
+        const lastKey = await ev(`return window.__lastKeyAt`)
+        await until(`return Number(document.querySelector('#pdf').dataset.liveShownAt || 0) > ${before} && Number(document.querySelector('#pdf').dataset.liveShownAt) > ${lastKey}`, 10000)
+        const at = await shown()
+        if (at > lastKey) upd.push(at - lastKey)
+        builds.push(Number(await ev(`return document.querySelector('#pdf').dataset.liveMs || 0`)))
+        await wait(1500)
+      }
+      r.liveUpdateMs = Math.round(median(upd))
+      r.liveBuildMs = Math.round(median(builds))
+      r.livePasses = Number(await ev(`return document.querySelector('#pdf').dataset.livePasses || 0`))
+      r.liveBuilds = Number((await ev(`return document.querySelector('#pdf').dataset.liveBuilds || 0`)) || 0) - builds0
+      r.liveErrors = Number((await ev(`return document.querySelector('#pdf').dataset.liveErrors || 0`)) || 0)
+      const h1 = procStats(profile)
+      r.liveCpuPct = +(((h1.cpu - h0.cpu + hs.total()) / ((Date.now() - liveStart) / 1000)) * 100).toFixed(1)
+      hs.stop()
+      // Quiet again: CPU (app + TeX) from 10 to 20 s after the last keystroke (the editor keeps focus, so its
+      // blinking caret, about 2% here, is included with Live preview on and off alike).
+      await wait(Math.max(0, lastKeyAt + 10000 - Date.now()))
+      const q0 = procStats(profile)
+      const qs = helperSampler(proc.pid, profile)
+      await wait(10000)
+      qs.stop()
+      const q1 = procStats(profile)
+      r.cpuAfterTypingPct = +(((q1.cpu - q0.cpu + qs.total()) / 10) * 100).toFixed(1)
+    }
 
     // Scrolling.
     const frames = await ev(`const s=document.querySelector('.cm-scroller'); s.scrollTop=0; const f=[]; let last=performance.now();

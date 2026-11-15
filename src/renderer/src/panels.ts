@@ -40,7 +40,7 @@ export class PluginPanels {
       if (this.layout.has(pid)) continue
       const body = document.createElement('div')
       body.className = 'plugin-body'
-      this.layout.add({ id: pid, title: `${p.icon ? p.icon + ' ' : ''}${p.name}`, body, defaultZone: 'side', onVisible: () => this.ensureFrame(p, body) })
+      this.layout.add({ id: pid, title: `${p.icon ? p.icon + ' ' : ''}${p.name}`, body, defaultZone: 'side', startHidden: true, onVisible: () => this.ensureFrame(p, body) }) // plugins run only once opened (Plugins tab or the panels button)
     }
     this.layout.render()
     this.syncVisibility()

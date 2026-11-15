@@ -34,6 +34,7 @@ export interface PanelDef {
   extras?: HTMLElement // buttons shown in the title bar
   defaultZone?: Zone
   onVisible?: () => void // called when the panel becomes visible (e.g. to create a plugin frame)
+  startHidden?: boolean // the first time it's added, keep it hidden until the user opens it
 }
 
 const COLLAPSED_STRIP = 34
@@ -89,7 +90,10 @@ export class Layout {
     })
     head.addEventListener('dragend', () => this.endDrag())
     this.panels.set(def.id, { def, el })
-    if (!ZONES.some((z) => this.state.zones[z].includes(def.id))) this.state.zones[def.defaultZone ?? 'side'].push(def.id)
+    if (!ZONES.some((z) => this.state.zones[z].includes(def.id))) {
+      this.state.zones[def.defaultZone ?? 'side'].push(def.id)
+      if (def.startHidden && !this.state.hidden.includes(def.id)) this.state.hidden.push(def.id)
+    }
   }
 
   remove(id: string): void {

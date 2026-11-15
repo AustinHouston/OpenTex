@@ -13,6 +13,7 @@ export interface InsertHost {
   ensurePackage: (pkg: string) => Promise<boolean> // true if loaded (or just added)
   hasPackage: (pkg: string) => boolean
   notice: (msg: string) => void
+  tableMore?: (el: HTMLElement) => void // extra buttons under the table grid (paste.ts)
 }
 
 /** Where the text cursor marker goes after inserting a snippet. */
@@ -180,6 +181,7 @@ function buildSections(el: HTMLElement, host: InsertHost): void {
     <section class="ins-sec"><h4>Table</h4>
       <div class="ins-grid" data-grid></div>
       <div class="ins-hint" data-grid-label>Pick a size</div>
+      <div class="ins-row" data-table-more></div>
     </section>
     <section class="ins-sec"><h4>Equation</h4>
       <div class="ins-row">
@@ -232,6 +234,8 @@ function buildSections(el: HTMLElement, host: InsertHost): void {
     const t = (e.target as HTMLElement).closest<HTMLElement>('.ins-cell')
     if (t) insertTable(Number(t.dataset.r), Number(t.dataset.c))
   })
+
+  host.tableMore?.(el.querySelector<HTMLElement>('[data-table-more]')!)
 
   async function insertTable(rows: number, cols: number): Promise<void> {
     const v = need()

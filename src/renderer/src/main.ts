@@ -14,6 +14,7 @@ import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Pl
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
 import { PluginPanels } from './panels'
 import { buildInsertBar, insertAtCursor } from './insert'
+import { installPaste } from './paste'
 import { Ribbon } from './ribbon'
 import { applyDesign, currentDesign, CustomDesign, PreambleFile, preambleInputs, PRESETS } from './design'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
@@ -1730,7 +1731,9 @@ function wire(): void {
       goToLine(view, 1)
     }
   })
+  const paste = installPaste({ view, texActive: () => Boolean(project && active?.endsWith('.tex')), project: () => project, mainText, hasPackage, ensurePackage, notice: (m) => setCompileStatus(m, 'warn') })
   buildInsertBar($('rb-insert'), $('ins-pop'), {
+    tableMore: paste.tableButtons,
     view: () => (active?.endsWith('.tex') ? view : null),
     images: () => (project ? allFiles(project.tree, (p) => /\.(png|jpe?g|eps|pdf)$/i.test(p) && p !== lastPdf && p !== project!.mainFile?.replace(/\.tex$/i, '.pdf')) : []),
     hasPackage,

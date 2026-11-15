@@ -9,6 +9,7 @@ import { builtinPluginsDir, listPlugins, pluginStorageGet, pluginStorageSet, reg
 import { findPandoc, importWord, installPandoc, pandocVersion } from './pandoc'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
+import { registerPasteIpc } from './paste'
 
 registerPluginScheme()
 
@@ -425,6 +426,7 @@ app.whenReady().then(async () => {
   await listPlugins()
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()
+  registerPasteIpc(need)
   await buildMenu()
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())

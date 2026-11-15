@@ -9,6 +9,8 @@ import { builtinPluginsDir, listPlugins, pluginStorageGet, pluginStorageSet, reg
 import { findPandoc, importWord, installPandoc, pandocVersion } from './pandoc'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
+import { registerWordExportIpc } from './word-export'
+import { checkForUpdatesInBackground, registerUpdateIpc } from './updates'
 
 registerPluginScheme()
 
@@ -147,6 +149,7 @@ async function buildMenu(): Promise<void> {
         { label: 'Open the Example Paper', click: () => send('open-example') },
         { type: 'separator' },
         { label: 'Import Word Document…', click: () => send('import-word') },
+        { label: 'Export to Word…', click: () => send('export-word') },
         { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
@@ -230,7 +233,8 @@ async function buildMenu(): Promise<void> {
       role: 'help',
       submenu: [
         { label: 'Open the Example Paper', click: () => send('open-example') },
-        { label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') }
+        { label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') },
+        { label: 'Check for Updates…', click: () => send('check-updates') }
       ]
     }
   ]
@@ -425,8 +429,11 @@ app.whenReady().then(async () => {
   await listPlugins()
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()
+  registerWordExportIpc(need)
+  registerUpdateIpc()
   await buildMenu()
   createWindow()
+  void checkForUpdatesInBackground()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })
 

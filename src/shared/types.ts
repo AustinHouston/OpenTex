@@ -22,6 +22,9 @@ export interface Settings {
   liveCompile: boolean
   disabledPlugins: string[]
   showInsertBar: boolean
+  checkForUpdates: boolean // once a day, ask GitHub whether a newer OpenTex exists
+  lastUpdateCheck: number // ms since 1970
+  skippedVersion: string // "Skip this version" on the update notice
   layout?: unknown // panel arrangement, see renderer/src/layout.ts
 }
 
@@ -44,7 +47,10 @@ export const DEFAULT_SETTINGS: Settings = {
   spellcheck: true,
   liveCompile: false,
   disabledPlugins: [],
-  showInsertBar: true
+  showInsertBar: true,
+  checkForUpdates: true,
+  lastUpdateCheck: 0,
+  skippedVersion: ''
 }
 
 /** Stored in <project>/.opentex/project.json so collaborators share it. */

@@ -17,7 +17,7 @@ type Log = (line: string) => void
 const ownDir = (): string => join(app.getPath('userData'), 'pandoc')
 const FALLBACK_VERSION = '3.13'
 
-function run(cmd: string, args: string[], cwd?: string): Promise<{ code: number; out: string }> {
+export function run(cmd: string, args: string[], cwd?: string): Promise<{ code: number; out: string }> {
   return new Promise((done) => {
     execFile(cmd, args, { cwd, windowsHide: true, timeout: 180_000, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) =>
       done({ code: err ? ((err as { code?: number }).code ?? 1) : 0, out: `${stdout}${stderr}` })

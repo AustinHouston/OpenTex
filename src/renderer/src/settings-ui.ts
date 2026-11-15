@@ -37,6 +37,8 @@ export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Ap
       ${plugins.map((p) => `<label class="plugin-name"></label><span class="plugin-row"><input type="checkbox" data-plugin="${p.id}" ${s.disabledPlugins.includes(p.id) ? '' : 'checked'} /><span class="note-inline"></span></span>`).join('')}
       <span></span><span class="note">Plugins add panels on the right. Put your own in the plugins folder (see the README). <button class="link" data-act="plugins">Open plugins folder</button></span>
       <h3>Advanced</h3>
+      <label>Check for updates</label><input type="checkbox" name="checkForUpdates" />
+      <span></span><span class="note">Once a day, OpenTex asks GitHub whether a newer version exists and lets you know. Nothing is downloaded or installed by itself.</span>
       <span></span><span><button class="link" data-act="file">Open settings.json</button></span>
     </div>`
   d.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[name]').forEach((el) => {

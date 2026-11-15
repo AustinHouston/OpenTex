@@ -1,0 +1,7 @@
+/* The "new version available" notice in the status bar (update-notice.ts). */
+#st-update { display: inline-flex; align-items: center; gap: 2px; color: var(--text); white-space: nowrap; }
+#st-update.hidden { display: none; }
+#st-update .upd-text { color: var(--accent); font-weight: 600; margin-right: 4px; }
+#st-update button.link { font-size: 12px; padding: 0 5px; }
+#st-update .upd-x { color: var(--muted); font-size: 14px; line-height: 1; }
+#st-update .upd-x:hover { color: var(--text); }

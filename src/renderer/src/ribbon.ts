@@ -21,6 +21,7 @@ const ICON = {
   open: I('<path d="M2.5 15V5.5a1 1 0 0 1 1-1h4l1.5 1.8h6.5a1 1 0 0 1 1 1V8.5"/><path d="M2.5 15l2.2-6.5h13l-2.2 6.5z"/>'),
   recent: I('<circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 2"/>'),
   word: I('<path d="M5 2.5h6.5L15.5 6.5V17a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5z"/><path d="M7 9.5l1 4 2-3 2 3 1-4"/>'),
+  wordOut: I('<path d="M11.5 2.5H5a.5.5 0 0 0-.5.5v14a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V10"/><path d="M7 10.5l1 4 2-3 2 3 1-4M12.5 2.5h5v5M17.5 2.5l-5.5 5.5"/>'),
   refs: I('<path d="M4 3.5h9.5a1.5 1.5 0 0 1 1.5 1.5v11.5H5.5A1.5 1.5 0 0 1 4 15z"/><path d="M4 15a1.5 1.5 0 0 1 1.5-1.5H15M7.5 6.5h4.5M7.5 9h3"/>'),
   save: I('<path d="M4 3.5h10l2.5 2.5v10.5H4z"/><path d="M7 3.5v4h6v-4M7 16.5v-5h6v5"/>'),
   close: I('<path d="M2.5 15V5.5a1 1 0 0 1 1-1h4l1.5 1.8h6.5a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"/><path d="M8 9l4 4M12 9l-4 4"/>'),
@@ -91,6 +92,7 @@ export class Ribbon {
       </div><div class="rb-sep"></div>
       <div class="rb-group">
         ${btn('data-run="import-word"', ICON.word, 'Import Word', 'Turn a .docx into a LaTeX project')}
+        ${btn('data-run="export-word"', ICON.wordOut, 'Export Word', 'Save the paper as a Word file for co-authors or a journal')}
         ${btn('data-run="import-refs"', ICON.refs, 'Import References', 'Add references from EndNote, Zotero or Mendeley')}
       </div><div class="rb-sep"></div>
       <div class="rb-group">

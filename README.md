@@ -17,7 +17,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - Built-in PDF viewer that keeps your place between compiles
 - 12 built-in themes with previews in Settings, plus your own
 - **A ribbon like Word's**, with four tabs:
-  - **File:** New Project, Open Folder, Open Recent, Import Word, Import References, Save, Close Folder, New Window, Example Paper, Settings
+  - **File:** New Project, Open Folder, Open Recent, Import Word, Export Word, Import References, Save, Close Folder, New Window, Example Paper, Settings
   - **Insert:** **Table** (pick a size from a grid), **Equation** (numbered, aligned, inline, and templates for fractions, roots, sums, integrals, derivatives, matrices, cases), **Symbol** (150+ symbols: every Greek letter in both cases, operators, relations, arrows, sets, physics symbols and accents, with search), **Figure** (from your project's images), **Citation** and **Cross-reference** (with autocomplete), and **Footnote**. Symbols are wrapped in `$…$` automatically when you're not already in math, and OpenTex offers to add packages such as `amssymb` when something needs one.
   - **Design:** switch the whole paper's look with one click: Article, Nature-style, Science-style, Physical Review-style, IEEE conference (official IEEEtran class) and Review draft (double spaced, line numbers). Only the class, margins, font, line spacing and citation/reference style change, in the main file and in a preamble file it pulls in with `\input{preamble}`; your text isn't touched. Your own setup is saved as **Custom** the first time you switch, so you can always go back to it exactly. (The "-style" presets imitate each journal's look with standard packages; for a final submission, use the journal's own template.)
   - **Plugins:** turn each plugin on or off, open the plugins folder
@@ -28,6 +28,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - **Focus mode** (`Ctrl/Cmd+Shift+F`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
 - **Comments** that live in the `.tex` file, so they travel with the paper (see below)
 - **One-click TinyTeX install** if you don't have TeX, and missing packages are installed when a paper needs them
+- **Update notice:** once a day OpenTex checks GitHub for a newer version and says so in the status bar, with a Download link (nothing installs by itself). Help → Check for Updates… checks now; turn it off in Settings
 
 ## Download
 
@@ -86,6 +87,8 @@ Tracked changes are accepted, and Word comments become [OpenTex comments](#comme
 The conversion uses [Pandoc](https://pandoc.org), a free document converter. The first time, OpenTex offers to download it (about 35 MB) into its own folder, with no administrator rights needed. If your network blocks that, install Pandoc from pandoc.org (on Windows, the `.msi` installs just for you), and OpenTex will find it.
 
 Older `.doc` files must be saved as `.docx` in Word first. Pictures stored in Windows-only formats (EMF/WMF) must be re-saved as PNG under the same name (`fig3.emf` → `fig3.png`); OpenTex lists any it finds.
+
+To send a paper to a co-author or journal as a Word file, choose **File → Export to Word…** (or **Export Word** on the ribbon). The main file and everything it includes become one `.docx`, with figures, equations (numbered), tables, numbered sections, and citations and the reference list written out as text. Open comments become Word comments; resolved ones are left out. Your `.tex` files aren't changed. Word can't reproduce every LaTeX layout, so check tables and figure placement; PDF and EPS figures are turned into PNG on macOS and Windows.
 
 ### EndNote, Zotero and Mendeley libraries
 

@@ -1,0 +1,4 @@
+/* The Export to Word dialog (word-export.ts). */
+.word-export label { display: inline-flex; align-items: center; gap: 6px; }
+.word-export input:disabled + span { color: var(--muted); }
+.word-export .hint { color: var(--muted); font-size: 12px; }

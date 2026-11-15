@@ -19,6 +19,8 @@ import { applyDesign, currentDesign, CustomDesign, PreambleFile, preambleInputs,
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
+import { exportToWord } from './word-export'
+import { setupUpdateNotice } from './update-notice'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -1459,23 +1461,7 @@ async function importWordDoc(docx?: string): Promise<void> {
     }
   )
   if (go !== 'go') return
-  if (!(await api.findPandoc())) {
-    const r = await ask(
-      'To convert Word files, OpenTex uses Pandoc, a free, widely used document converter (about 35 MB). OpenTex can download it from the Pandoc project on GitHub and keep it in its own folder. No administrator password is needed.',
-      ['Download Pandoc', 'I’ll install it myself', 'Cancel']
-    )
-    if (r === 1) {
-      window.open('https://pandoc.org/installing.html')
-      await ask('Install Pandoc (the Windows .msi installs just for you without admin rights), then try the import again.', ['OK'])
-      return
-    }
-    if (r !== 0) return
-    const ok = await withProgress('Getting Pandoc', () => api.installPandoc())
-    if (!ok) {
-      await ask('Pandoc could not be downloaded (your network may block it). You can install it from pandoc.org instead, then import again.', ['OK'])
-      return
-    }
-  }
+  if (!(await ensurePandoc())) return
   type Res = { ok: boolean; folder: string; log: string; citations: number; comments: number; images: number; unsupportedImages: string[] }
   let res: Res | null = null
   const ok = await withProgress(`Converting ${name}`, async () => {
@@ -1500,6 +1486,24 @@ async function importWordDoc(docx?: string): Promise<void> {
   if (r.unsupportedImages.length) msg += `\n\n${r.unsupportedImages.length} picture(s) are in a Windows-only format LaTeX can’t use (${r.unsupportedImages.join(', ')}). In Word, right-click each one → Save as Picture → PNG, and save it in the figures folder with the same name (for example fig3.png for fig3.emf).`
   await ask(msg, ['OK'])
   compile()
+}
+
+/** Make sure Pandoc is here, offering to download it. False if it isn't (the user was told why). */
+async function ensurePandoc(): Promise<boolean> {
+  if (await api.findPandoc()) return true
+  const r = await ask(
+    'To convert Word files, OpenTex uses Pandoc, a free, widely used document converter (about 35 MB). OpenTex can download it from the Pandoc project on GitHub and keep it in its own folder. No administrator password is needed.',
+    ['Download Pandoc', 'I’ll install it myself', 'Cancel']
+  )
+  if (r === 1) {
+    window.open('https://pandoc.org/installing.html')
+    await ask('Install Pandoc (the Windows .msi installs just for you without admin rights), then try again.', ['OK'])
+    return false
+  }
+  if (r !== 0) return false
+  const ok = await withProgress('Getting Pandoc', () => api.installPandoc())
+  if (!ok) await ask('Pandoc could not be downloaded (your network may block it). You can install it from pandoc.org instead, then try again.', ['OK'])
+  return ok
 }
 
 // Drop files onto the window: .docx → Word import; reference libraries → reference import.
@@ -1639,6 +1643,7 @@ async function chooseFolder(): Promise<void> {
   await setProject(await api.chooseProject())
 }
 
+const updates = setupUpdateNotice(api, ask)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const actions: Record<string, (...args: any[]) => unknown> = {
   'new-project': () => newProject(),
@@ -1659,6 +1664,8 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'install-tinytex': () => installTinyTex(),
   'import-word': () => importWordDoc(),
   'import-refs': () => importRefs(),
+  'export-word': () => exportToWord({ project: () => project, saveAll, ensurePandoc, withProgress, modal, ask, log: (l) => progressSink?.(l) }),
+  'check-updates': () => updates.checkNow(),
   'show-comments': () => layout.show('comments'),
   'sync-forward': () => syncForward(),
   'show-insert': () => updateSettings({ showInsertBar: !settings.showInsertBar }),

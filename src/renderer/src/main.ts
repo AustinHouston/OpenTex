@@ -1768,6 +1768,7 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'import-word': () => importWordDoc(),
   'import-refs': () => importRefs(),
   'export-word': () => exportToWord({ project: () => project, saveAll, ensurePandoc, withProgress, modal, ask, log: (l) => progressSink?.(l) }),
+  'export-review': () => import('./review-pdf').then((m) => m.exportReviewPdf({ project: () => project, saveAll, withProgress, modal, ask, log: (l) => progressSink?.(l), engine: () => $<HTMLSelectElement>('engine').value, sessions: () => versions.sessions() })),
   'check-updates': () => updates.checkNow(),
   'add-doi': () => doi.open(),
   'show-comments': () => layout.show('comments'),

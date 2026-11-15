@@ -558,6 +558,8 @@ export function setupHistory(h: HistoryHost) {
       if (path && HISTORY_EXT.test(path)) void openFileHistory(path)
       else void openChanges()
     },
-    changes: (): void => void openChanges()
+    changes: (): void => void openChanges(),
+    /** Earlier times this project was open, newest first (for "since I last had it open"). */
+    sessions: (): Session[] => sessions.slice()
   }
 }

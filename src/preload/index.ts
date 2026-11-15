@@ -48,6 +48,7 @@ const api = {
   exportWordChoose: (): Promise<string | null> => ipcRenderer.invoke('word:exportChoose'),
   exportWord: (mainFile: string, comments: object[]) => ipcRenderer.invoke('word:export', mainFile, comments),
   revealExport: () => ipcRenderer.invoke('word:revealExport'),
+  reviewPdf: (op: 'start' | 'choose' | 'latexdiff' | 'build' | 'reveal', ...args: unknown[]) => ipcRenderer.invoke(`review:${op}`, ...args),
   updatePending: () => ipcRenderer.invoke('update:pending'),
   checkUpdates: () => ipcRenderer.invoke('update:check'),
   skipUpdate: (version: string) => ipcRenderer.invoke('update:skip', version),

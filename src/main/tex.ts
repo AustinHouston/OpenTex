@@ -1,6 +1,6 @@
 import { spawn, ChildProcess } from 'child_process'
 import { existsSync, readdirSync, promises as fs } from 'fs'
-import { homedir } from 'os'
+import { homedir, setPriority } from 'os'
 import { basename, delimiter, dirname, join, relative, resolve, sep } from 'path'
 import { CompileResult, Engine, Problem, TexInfo } from '../shared/types'
 import { addLogExtras } from './log-extras'
@@ -57,11 +57,23 @@ interface RunOut {
 const running = new Map<string, ChildProcess>()
 const cancelled = new Set<string>()
 
-function run(cmd: string, args: string[], cwd: string, binDir: string, key: string): Promise<RunOut> {
+/** Extra settings for a compile: lowPriority runs TeX "nicely", for work in the background. */
+export interface CompileOptions {
+  lowPriority?: boolean
+}
+
+function run(cmd: string, args: string[], cwd: string, binDir: string, key: string, opts: CompileOptions = {}): Promise<RunOut> {
   return new Promise((done) => {
     const env = { ...process.env, PATH: binDir + delimiter + (process.env.PATH ?? '') }
     let output = ''
     const p = spawn(join(binDir, exe(cmd)), args, { cwd, env, windowsHide: true })
+    if (opts.lowPriority && p.pid) {
+      try {
+        setPriority(p.pid, 10) // programs it starts (latexmk → pdflatex, bibtex) inherit this
+      } catch {
+        /* not allowed here: run at normal priority */
+      }
+    }
     running.set(key, p)
     const timer = setTimeout(() => p.kill(), 5 * 60_000)
     p.stdout.on('data', (d) => (output += d))
@@ -86,7 +98,7 @@ export function cancelCompile(root: string): void {
   }
 }
 
-export async function compile(root: string, mainFile: string, engine: Engine, tex: TexInfo, useLatexmk: boolean): Promise<CompileResult> {
+export async function compile(root: string, mainFile: string, engine: Engine, tex: TexInfo, useLatexmk: boolean, opts: CompileOptions = {}): Promise<CompileResult> {
   const start = Date.now()
   cancelled.delete(root)
   const isCancelled = (): boolean => cancelled.has(root)
@@ -102,26 +114,26 @@ export async function compile(root: string, mainFile: string, engine: Engine, te
   let usedLatexmk = false
   if (useLatexmk && tex.latexmk) {
     const flag = { pdflatex: '-pdf', xelatex: '-pdfxe', lualatex: '-pdflua' }[engine]
-    const r = await run('latexmk', [flag, '-f', ...common, name], cwd, binDir, root)
+    const r = await run('latexmk', [flag, '-f', ...common, name], cwd, binDir, root, opts)
     log += r.output
     // latexmk needs Perl; MiKTeX on Windows often lacks it. Fall back to running the engine directly.
     usedLatexmk = !/perl/i.test(r.output.slice(0, 2000)) || existsSync(join(cwd, `${stem}.pdf`))
   }
   if (!usedLatexmk && !isCancelled()) {
     log = ''
-    let r = await run(engine, [...common, name], cwd, binDir, root)
+    let r = await run(engine, [...common, name], cwd, binDir, root, opts)
     log += r.output
     const aux = await fs.readFile(join(cwd, `${stem}.aux`), 'utf8').catch(() => '')
     let rerun = /Rerun to get|Label\(s\) may have changed/.test(r.output)
     if (existsSync(join(cwd, `${stem}.bcf`)) && existsSync(join(binDir, exe('biber')))) {
-      log += (await run('biber', [stem], cwd, binDir, root)).output
+      log += (await run('biber', [stem], cwd, binDir, root, opts)).output
       rerun = true
     } else if (/\\bibdata/.test(aux)) {
-      log += (await run('bibtex', [stem], cwd, binDir, root)).output
+      log += (await run('bibtex', [stem], cwd, binDir, root, opts)).output
       rerun = true
     }
     for (let i = 0; rerun && i < 2 && !isCancelled(); i++) {
-      r = await run(engine, [...common, name], cwd, binDir, root)
+      r = await run(engine, [...common, name], cwd, binDir, root, opts)
       log += r.output
       rerun = /Rerun to get|Label\(s\) may have changed/.test(r.output)
     }

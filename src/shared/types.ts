@@ -22,6 +22,7 @@ export interface Settings {
   liveCompile: boolean
   disabledPlugins: string[]
   showInsertBar: boolean
+  autoSave: boolean // save edited files 2 seconds after typing stops (never compiles)
   layout?: unknown // panel arrangement, see renderer/src/layout.ts
 }
 
@@ -44,7 +45,8 @@ export const DEFAULT_SETTINGS: Settings = {
   spellcheck: true,
   liveCompile: false,
   disabledPlugins: [],
-  showInsertBar: true
+  showInsertBar: true,
+  autoSave: true
 }
 
 /** Stored in <project>/.opentex/project.json so collaborators share it. */

@@ -23,6 +23,9 @@ export function openSettings(s: Settings, themes: Theme[], tex: TexInfo, api: Ap
       <label>Text width (characters)</label><input type="number" name="focusWidth" min="40" max="200" />
       <label>Dim other paragraphs</label><input type="checkbox" name="focusDim" />
       <label>Go full screen</label><input type="checkbox" name="focusFullscreen" />
+      <h3>Saving</h3>
+      <label>Save automatically</label><input type="checkbox" name="autoSave" />
+      <span></span><span class="note">Saves your changes 2 seconds after you stop typing. Automatic saves don’t compile; press Ctrl/Cmd+S or Compile for that. OpenTex also keeps earlier versions of each file (File → History…).</span>
       <h3>Compiling</h3>
       <label>Default engine</label><select name="engine">${opt('pdflatex', 'pdfLaTeX', s.engine)}${opt('xelatex', 'XeLaTeX', s.engine)}${opt('lualatex', 'LuaLaTeX', s.engine)}</select>
       <label>Compile on save</label><input type="checkbox" name="compileOnSave" />

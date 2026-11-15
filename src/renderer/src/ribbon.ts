@@ -23,6 +23,7 @@ const ICON = {
   word: I('<path d="M5 2.5h6.5L15.5 6.5V17a.5.5 0 0 1-.5.5H5a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5z"/><path d="M7 9.5l1 4 2-3 2 3 1-4"/>'),
   refs: I('<path d="M4 3.5h9.5a1.5 1.5 0 0 1 1.5 1.5v11.5H5.5A1.5 1.5 0 0 1 4 15z"/><path d="M4 15a1.5 1.5 0 0 1 1.5-1.5H15M7.5 6.5h4.5M7.5 9h3"/>'),
   save: I('<path d="M4 3.5h10l2.5 2.5v10.5H4z"/><path d="M7 3.5v4h6v-4M7 16.5v-5h6v5"/>'),
+  history: I('<path d="M3.6 11.5A6.5 6.5 0 1 0 5.4 5.4"/><path d="M5.6 2.8v2.8H2.8M10 6.5V10l2.5 1.5"/>'),
   close: I('<path d="M2.5 15V5.5a1 1 0 0 1 1-1h4l1.5 1.8h6.5a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1z"/><path d="M8 9l4 4M12 9l-4 4"/>'),
   window: I('<rect x="2.5" y="5.5" width="11" height="10" rx="1.5"/><path d="M6.5 5.5V4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 17.5 4v7a1.5 1.5 0 0 1-1.5 1.5h-2.5"/>'),
   example: I('<path d="M3 4.5c2.5-1 5-1 7 .5 2-1.5 4.5-1.5 7-.5v11c-2.5-1-5-1-7 .5-2-1.5-4.5-1.5-7-.5z"/><path d="M10 5v11"/>'),
@@ -95,6 +96,7 @@ export class Ribbon {
       </div><div class="rb-sep"></div>
       <div class="rb-group">
         ${btn('data-run="save"', ICON.save, 'Save', 'Save the current file (Ctrl/Cmd+S)')}
+        ${btn('data-run="history"', ICON.history, 'History', 'Earlier versions of this file, and what changed in the project')}
         ${btn('data-run="close-folder"', ICON.close, 'Close Folder', 'Close this project and go back to the start page')}
         ${btn('data-run="new-window"', ICON.window, 'New Window', 'Work on another folder at the same time')}
       </div><div class="rb-sep"></div>

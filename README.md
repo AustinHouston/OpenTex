@@ -15,6 +15,7 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - Optional compile-while-typing, git branch and change count in the status bar
 - Compile with latexmk (or pdfLaTeX/XeLaTeX/LuaLaTeX + BibTeX/Biber directly), compile-on-save, clickable error list
 - Built-in PDF viewer that keeps your place between compiles
+- **Saves automatically** 2 seconds after you stop typing (without compiling), and brings back unsaved changes if OpenTex closes unexpectedly. **File → History…** shows earlier versions of each file with what changed, and restores any of them (Undo works); **Changes Since…** lists what changed in the project since a time you pick, or since you last had it open, including changes a co-author made outside OpenTex. Versions are kept in OpenTex's own folder, not in your project.
 - 12 built-in themes with previews in Settings, plus your own
 - **A ribbon like Word's**, with four tabs:
   - **File:** New Project, Open Folder, Open Recent, Import Word, Import References, Save, Close Folder, New Window, Example Paper, Settings

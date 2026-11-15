@@ -9,6 +9,7 @@ import { builtinPluginsDir, listPlugins, pluginStorageGet, pluginStorageSet, reg
 import { findPandoc, importWord, installPandoc, pandocVersion } from './pandoc'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
+import { noteWrite, registerHistoryIpc } from './history'
 
 registerPluginScheme()
 
@@ -150,6 +151,8 @@ async function buildMenu(): Promise<void> {
         { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
         { type: 'separator' },
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
+        { label: 'History…', click: () => send('history') },
+        { label: 'Changes Since…', click: () => send('changes-since') },
         { label: 'Close Tab', accelerator: 'CmdOrCtrl+W', click: () => send('close-tab') },
         { label: 'Close Folder', click: () => send('close-folder') },
         { label: 'Close Window', accelerator: 'CmdOrCtrl+Shift+W', click: () => BrowserWindow.getFocusedWindow()?.close() },
@@ -321,6 +324,7 @@ function registerIpc(): void {
   ipcMain.handle('file:write', async (e, rel: string, text: string) => {
     const p = need(e).abs(rel)
     await fs.mkdir(dirname(p), { recursive: true })
+    noteWrite(need(e).root, rel, text)
     await fs.writeFile(p, text, 'utf8')
   })
   ipcMain.handle('file:create', async (e, rel: string) => {
@@ -425,6 +429,7 @@ app.whenReady().then(async () => {
   await listPlugins()
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()
+  registerHistoryIpc(need)
   await buildMenu()
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())

@@ -19,6 +19,7 @@ import { applyDesign, currentDesign, CustomDesign, PreambleFile, preambleInputs,
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
+import { setupHistory } from './history'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -59,6 +60,7 @@ const extensions = [...makeExtensions(
       scheduleLiveCompile()
       scheduleWords()
       scheduleDocument()
+      versions.edited()
     },
     onTyped: (n) => noteTyping(n),
     onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
@@ -69,6 +71,8 @@ const extensions = [...makeExtensions(
 ), commentField, commentClicks((id) => layout.isVisible('comments') && focusCard(id))]
 const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
+// Saving automatically, crash recovery and version history (history.ts).
+const versions = setupHistory({ api, view, files, active: () => active, project: () => project, settings: () => settings, openFile, autoSave: (p) => save(p, false, true), renderTabs, reloadTree, status: setCompileStatus })
 
 // ---------- Settings & themes ----------
 function applySettings(): void {
@@ -136,6 +140,7 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   await migrateLegacyComments()
   mainTextCache = info.mainFile ? (textOf(info.mainFile) ?? (await api.readFile(info.mainFile).catch(() => ''))) : ''
   await refreshPreambles()
+  await versions.projectOpened()
 }
 
 function refreshProjectUi(): void {
@@ -154,6 +159,7 @@ function treeMenu(n: TreeNode, x: number, y: number): void {
   const items: [string, () => void][] = []
   if (!n.dir && n.path.endsWith('.tex')) items.push(['Set as main file', () => setMainFile(n.path)])
   if (!n.dir) items.push(['Open', () => openFile(n.path)])
+  if (!n.dir && versions.tracked(n.path)) items.push(['Show history', () => versions.open(n.path)])
   items.push(['New file here…', () => newFile(n.dir ? n.path + '/' : n.path.replace(/[^/]+$/, ''))])
   items.push([navigator.platform.startsWith('Mac') ? 'Reveal in Finder' : 'Show in folder', () => api.reveal(n.path)])
   contextMenu(x, y, items)
@@ -260,6 +266,7 @@ async function closeTab(path: string): Promise<void> {
   const i = tabOrder.indexOf(path)
   tabOrder.splice(i, 1)
   files.delete(path)
+  versions.closed(path)
   if (active === path) {
     active = null
     const next = tabOrder[Math.min(i, tabOrder.length - 1)]
@@ -272,7 +279,7 @@ async function closeTab(path: string): Promise<void> {
   } else renderTabs()
 }
 
-async function save(path = active, maybeCompile = true): Promise<void> {
+async function save(path = active, maybeCompile = true, auto = false): Promise<void> {
   if (!path) return
   const f = files.get(path)
   if (!f) return
@@ -281,6 +288,7 @@ async function save(path = active, maybeCompile = true): Promise<void> {
   await api.writeFile(path, text)
   f.saved = text
   f.dirty = false
+  versions.saved(path, text, auto)
   syncAnchors(path, state)
   if (path === project?.mainFile) mainTextCache = text
   if (path === project?.mainFile || preambles.some((f) => f.path === path)) void refreshPreambles()
@@ -300,12 +308,14 @@ async function confirmDiscardAll(): Promise<boolean> {
   if (!dirty.length) return true
   const r = await ask(`You have unsaved changes in ${dirty.map((f) => f.path).join(', ')}.`, ['Save all', 'Discard', 'Cancel'])
   if (r === 0) await saveAll()
+  if (r === 1) await versions.discarded()
   return r === 0 || r === 1
 }
 
 /** Files changed on disk (by a collaborator, Dropbox, git or another editor). */
 async function onDiskChange(paths: string[]): Promise<void> {
   if (!project) return
+  versions.diskChanged(paths)
   const structural = paths.some((p) => !/\.(aux|log|fls|fdb_latexmk|synctex\.gz|out|toc|bbl|blg|bcf|xml)$/i.test(p))
   if (structural) reloadTree()
   if (paths.includes(COMMENTS_FILE)) {
@@ -1095,7 +1105,7 @@ function scheduleLiveCompile(): void {
   clearTimeout(liveTimer)
   liveTimer = window.setTimeout(async () => {
     if (active && /\.(tex|bib)$/.test(active) && files.get(active)?.dirty) {
-      await save(active, false)
+      await save(active, false, true)
       compile()
     }
   }, 1500)
@@ -1216,6 +1226,8 @@ async function applyDesignPreset(id: string): Promise<void> {
     return
   }
   if (r.custom !== saved) project.config = await api.setProjectConfig({ design: { custom: r.custom } })
+  await versions.before(main, text, 'design')
+  for (const f of r.extras) await versions.before(f.path, textOf(f.path), 'design')
   if (files.has(main)) {
     // Through the editor, so Undo works.
     const st = stateOf(main)!
@@ -1650,6 +1662,8 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'new-file': () => newFile(),
   save: () => save(),
   'close-tab': () => active && closeTab(active),
+  history: () => versions.open(active),
+  'changes-since': () => versions.changes(),
   settings: () => openSettings(settings, themes, tex, api, updateSettings, allPlugins),
   focus: () => project && setFocus(!focusOn),
   'toggle-sidebar': () => layout.toggle('files'),

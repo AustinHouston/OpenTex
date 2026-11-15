@@ -1,0 +1,42 @@
+/* File → History… and "What changed in this project" (see history.ts). */
+dialog.hist { width: min(1200px, 94vw); height: 86vh; max-width: 94vw; }
+dialog.hist[open] { display: flex; flex-direction: column; }
+dialog.hist .pane-head { height: auto; min-height: 40px; padding: 4px 8px 4px 14px; gap: 8px; flex-wrap: wrap; }
+dialog.hist .pane-head b { color: var(--text); text-transform: none; letter-spacing: 0; font-size: 12px; }
+dialog.hist .pane-head select, dialog.hist .pane-head input { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text); width: auto; }
+.hist-body { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--border); }
+.hist-list { width: 300px; flex: none; overflow: auto; margin: 0; padding: 6px; list-style: none; border-right: 1px solid var(--border); outline: none; }
+.hist-list li { padding: 7px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.hist-list li + li { margin-top: 2px; }
+.hist-list li:hover { background: var(--panelAlt); }
+.hist-list li.on { background: color-mix(in srgb, var(--accent) 15%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.hist-list:focus-visible li.on { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hv-when { font-weight: 600; word-break: break-all; }
+.hv-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; font-size: 11px; color: var(--muted); }
+.hv-tag { margin-left: 8px; padding: 0 6px; border-radius: 8px; font-size: 10px; font-weight: 500; background: var(--panelAlt); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+.hv-src.src-outside { color: var(--warning); font-weight: 600; }
+.hv-src.src-design, .hv-src.src-restore { color: var(--accent); }
+.hv-add, .lg-add { color: #2da44e; font-weight: 600; }
+.hv-del, .lg-del { color: var(--error); font-weight: 600; }
+.hist-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hist-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px 6px; }
+.hist-bar button:not(.primary) { border-color: var(--border); }
+.hist-bar button:disabled { opacity: 0.5; cursor: default; }
+.hist-info { line-height: 1.45; min-width: 0; }
+.hist-cmp { color: var(--muted); font-size: 12px; }
+.hist-legend { padding: 0 14px 8px; font-size: 11px; color: var(--muted); min-height: 8px; }
+.hist-diff { flex: 1; overflow: auto; background: var(--bg); border-top: 1px solid var(--border); font: 12px/1.55 var(--editor-font); padding: 4px 0 24px; }
+.hd-row { display: grid; grid-template-columns: 46px 46px 18px 1fr; }
+.hd-n { text-align: right; padding-right: 8px; color: var(--muted); opacity: 0.75; user-select: none; }
+.hd-s { color: var(--muted); user-select: none; text-align: center; }
+.hd-t { white-space: pre-wrap; word-break: break-word; padding-right: 16px; }
+.hd-add { background: color-mix(in srgb, #2da44e 16%, transparent); }
+.hd-add .hd-s { color: #2da44e; }
+.hd-del { background: color-mix(in srgb, var(--error) 14%, transparent); }
+.hd-del .hd-s { color: var(--error); }
+.hd-row mark { color: inherit; border-radius: 2px; }
+.hd-add mark { background: color-mix(in srgb, #2da44e 38%, transparent); }
+.hd-del mark { background: color-mix(in srgb, var(--error) 34%, transparent); }
+.hd-gap { display: block; width: 100%; text-align: left; border-radius: 0; padding: 3px 0 3px 110px; margin: 2px 0; font: inherit; font-size: 11px; color: var(--accent); background: var(--panel); border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); }
+.hd-gap:hover { background: var(--panelAlt); }
+.hd-same { padding: 18px 20px; color: var(--muted); font: 13px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; }

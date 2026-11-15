@@ -10,6 +10,7 @@ import { findPandoc, importWord, installPandoc, pandocVersion } from './pandoc'
 import { installMissing, installTinyTex, isTinyTex } from './tinytex'
 import { loadSettings, loadUserThemes, saveSettings, settingsPath, themesDir } from './settings'
 import { noteWrite, registerHistoryIpc } from './history'
+import { editMenu, registerFileOpsIpc } from './fileops'
 
 registerPluginScheme()
 
@@ -161,7 +162,7 @@ async function buildMenu(): Promise<void> {
         ...(isMac ? [] : [{ type: 'separator' as const }, { role: 'quit' as const }])
       ]
     },
-    { role: 'editMenu' },
+    editMenu(isMac, () => send('find-in-project')),
     {
       label: 'View',
       submenu: [
@@ -430,6 +431,7 @@ app.whenReady().then(async () => {
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()
   registerHistoryIpc(need)
+  registerFileOpsIpc(need)
   await buildMenu()
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())

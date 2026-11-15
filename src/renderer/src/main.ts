@@ -20,6 +20,9 @@ import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
 import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
 import type { PluginInfo } from '../../shared/types'
 import { setupHistory } from './history'
+import type { AppHost } from './apphost'
+import { FileOps } from './fileops'
+import { ProjectSearch } from './search'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -61,6 +64,7 @@ const extensions = [...makeExtensions(
       scheduleWords()
       scheduleDocument()
       versions.edited()
+      projectSearch.edited()
     },
     onTyped: (n) => noteTyping(n),
     onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
@@ -119,6 +123,7 @@ async function setProject(info: ProjectInfo | null): Promise<void> {
   tabOrder = []
   active = null
   project = info
+  projectSearch.reset()
   lastPdf = null
   pdf.clear()
   showProblems([], false)
@@ -147,7 +152,8 @@ function refreshProjectUi(): void {
   if (!project) return
   renderTree($('tree'), project.tree, active, project.mainFile, {
     open: (p) => openFile(p),
-    contextMenu: (n, x, y) => treeMenu(n, x, y)
+    contextMenu: (n, x, y) => treeMenu(n, x, y),
+    decorate: (row, n) => fileOps.decorate(row, n)
   })
   const sel = $('st-main') as HTMLSelectElement
   const texFiles = allFiles(project.tree, (p) => p.endsWith('.tex'))
@@ -161,6 +167,7 @@ function treeMenu(n: TreeNode, x: number, y: number): void {
   if (!n.dir) items.push(['Open', () => openFile(n.path)])
   if (!n.dir && versions.tracked(n.path)) items.push(['Show history', () => versions.open(n.path)])
   items.push(['New file here…', () => newFile(n.dir ? n.path + '/' : n.path.replace(/[^/]+$/, ''))])
+  items.push(...fileOps.menuItems(n))
   items.push([navigator.platform.startsWith('Mac') ? 'Reveal in Finder' : 'Show in folder', () => api.reveal(n.path)])
   contextMenu(x, y, items)
 }
@@ -318,6 +325,7 @@ async function onDiskChange(paths: string[]): Promise<void> {
   versions.diskChanged(paths)
   const structural = paths.some((p) => !/\.(aux|log|fls|fdb_latexmk|synctex\.gz|out|toc|bbl|blg|bcf|xml)$/i.test(p))
   if (structural) reloadTree()
+  projectSearch.diskChanged(paths)
   if (paths.includes(COMMENTS_FILE)) {
     const now = await api.readFile(COMMENTS_FILE).catch(() => '')
     if (now !== storeText) await loadComments() // a collaborator's comments arrived
@@ -1202,11 +1210,21 @@ const plugins = new PluginPanels(layout, {
   context: () => ({ project: project?.name ?? null, file: active, words: Number(($('st-words').textContent ?? '').replace(/[^0-9]/g, '').slice(0, 9)) || 0 })
 })
 
+// File management in the file list (fileops.ts) and Find in Project (search.ts).
+const appHost: AppHost = {
+  api, view, files, project: () => project, active: () => active, setActive: (p) => (active = p), tabOrder: () => tabOrder,
+  openFile, closeTab, newFile, renderTabs, reloadTree, setMainFile, threads: () => store, saveComments, scheduleComments,
+  lastPdf: () => lastPdf, showPdf, forgetPdf: () => ((lastPdf = null), pdf.clear()), refresh: () => (refreshIndex(), void refreshPreambles()), status: setCompileStatus
+}
+const fileOps = new FileOps(appHost)
+const projectSearch = new ProjectSearch(appHost)
+
 function setupPanels(saved: unknown): void {
   layout.state = normalizeLayout(saved as LayoutState | undefined)
   layout.add({ id: 'files', title: 'Files', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
   layout.add({ id: 'pdf', title: 'PDF', body: $('pdf'), extras: $('pdf-extras'), defaultZone: 'right' })
   layout.add({ id: 'comments', title: 'Comments', body: $('comments'), extras: $('comments-extras'), defaultZone: 'side', onVisible: () => scheduleComments() })
+  projectSearch.mount(layout)
   layout.render()
   updatePanelButtons()
 }
@@ -1674,6 +1692,7 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'import-word': () => importWordDoc(),
   'import-refs': () => importRefs(),
   'show-comments': () => layout.show('comments'),
+  'find-in-project': () => projectSearch.open(),
   'sync-forward': () => syncForward(),
   'show-insert': () => updateSettings({ showInsertBar: !settings.showInsertBar }),
   'insert-table': () => openInsertTool('table'),

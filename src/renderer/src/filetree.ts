@@ -3,6 +3,7 @@ import type { TreeNode } from '../../shared/types'
 export interface TreeHooks {
   open: (path: string) => void
   contextMenu: (node: TreeNode, x: number, y: number) => void
+  decorate?: (row: HTMLElement, node: TreeNode) => void // e.g. drag and drop (fileops.ts)
 }
 
 const collapsed = new Set<string>()
@@ -59,6 +60,7 @@ export function renderTree(host: HTMLElement, nodes: TreeNode[], active: string 
         hooks.contextMenu(n, e.clientX, e.clientY)
       })
       li.appendChild(row)
+      hooks.decorate?.(row, n)
       if (isOpen && n.children?.length) li.appendChild(build(n.children, depth + 1))
       ul.appendChild(li)
     }

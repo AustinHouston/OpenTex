@@ -1,0 +1,30 @@
+/* File list: drag and drop, and the "update references" dialog (fileops.ts). */
+.tree .row.ft-dragging { opacity: 0.5; }
+.tree li.ft-drop {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -1px;
+  border-radius: 6px;
+}
+.tree li.ft-drop > .row .ficon.dir { color: var(--accent); }
+.tree.ft-drop-root {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -4px;
+  border-radius: 8px;
+}
+
+.fo-refs { max-width: 600px; }
+.fo-refs p { line-height: 1.45; }
+.fo-reflist {
+  list-style: none; margin: 0 0 12px; padding: 6px 8px; max-height: 240px; overflow: auto;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+}
+.fo-reflist li { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 3px 0; font-size: 12px; }
+.fo-reflist li + li { border-top: 1px solid var(--border); }
+.fo-where { color: var(--muted); }
+.fo-change { font-family: var(--editor-font); word-break: break-all; }
+.fo-change del { color: var(--error); }
+.fo-change ins { color: var(--accent); text-decoration: none; font-weight: 600; }
+.fo-more { color: var(--muted); }
+.fo-refs .hint { color: var(--muted); font-size: 12px; }

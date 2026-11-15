@@ -1,0 +1,13 @@
+/* The Export Review PDF dialog (review-pdf.ts). */
+.review-pdf .rp-opts { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+.review-pdf label { display: inline-flex; align-items: center; gap: 6px; }
+.review-pdf input:disabled + span { color: var(--muted); }
+.review-pdf .rp-sub { margin-left: 22px; }
+.review-pdf .rp-since { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.review-pdf .rp-since.off { opacity: 0.55; }
+.review-pdf .rp-since select { max-width: 100%; }
+.review-pdf .rp-since .hint { flex-basis: 100%; margin: 2px 0 0; }
+.review-pdf .hint { color: var(--muted); font-size: 12px; }
+.review-pdf .rp-save { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-pdf .rp-save code { overflow-wrap: anywhere; }
+.review-pdf .rp-save button { border-color: var(--border); }

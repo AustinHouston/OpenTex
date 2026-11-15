@@ -13,6 +13,7 @@ import { noteWrite, registerHistoryIpc } from './history'
 import { editMenu, registerFileOpsIpc } from './fileops'
 import { registerPasteIpc } from './paste'
 import { registerWordExportIpc } from './word-export'
+import { registerReviewPdfIpc } from './review-pdf'
 import { checkForUpdatesInBackground, registerUpdateIpc } from './updates'
 import { registerDoiIpc } from './doi'
 import { registerFeedbackIpc } from './feedback'
@@ -155,6 +156,7 @@ async function buildMenu(): Promise<void> {
         { type: 'separator' },
         { label: 'Import Word Document…', click: () => send('import-word') },
         { label: 'Export to Word…', click: () => send('export-word') },
+        { label: 'Export Review PDF…', click: () => send('export-review') },
         { label: 'Import References (EndNote, Zotero, Mendeley)…', click: () => send('import-refs') },
         { label: 'Add Reference by DOI…', click: () => send('add-doi') },
         { type: 'separator' },
@@ -446,6 +448,7 @@ app.whenReady().then(async () => {
   registerFileOpsIpc(need)
   registerPasteIpc(need)
   registerWordExportIpc(need)
+  registerReviewPdfIpc(need)
   registerUpdateIpc()
   registerDoiIpc()
   registerFeedbackIpc()

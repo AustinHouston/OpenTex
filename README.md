@@ -99,6 +99,8 @@ Older `.doc` files must be saved as `.docx` in Word first. Pictures stored in Wi
 
 To send a paper to a co-author or journal as a Word file, choose **File → Export to Word…** (or **Export Word** on the ribbon). The main file and everything it includes become one `.docx`, with figures, equations (numbered), tables, numbered sections, and citations and the reference list written out as text. Open comments become Word comments; resolved ones are left out. Your `.tex` files aren't changed. Word can't reproduce every LaTeX layout, so check tables and figure placement; PDF and EPS figures are turned into PNG on macOS and Windows.
 
+For co-authors and supervisors who just want to read and print, choose **File → Export Review PDF…** (or **Review PDF** on the ribbon). It makes a PDF with a wider right margin where the comments appear as notes, with their replies, next to the highlighted text. Comments in headings, captions, equations or tables go to the nearest place a note fits. You can also mark the changes since you last had the project open, since a date and time, or since a saved version: added words are underlined in blue and removed words struck through in red (OpenTex uses latexdiff when it's installed). Everything happens in a temporary copy, so your files aren't changed, and if the marked-up copy won't compile, OpenTex tries simpler versions and tells you what it left out.
+
 ### EndNote, Zotero and Mendeley libraries
 
 Choose **File → Import References…**, or drag the exported file onto the window. OpenTex adds the references to your project's `.bib` file with readable keys (like `novoselov2004electric`), and skips ones already there. If your main file has no bibliography yet, it offers to add one.

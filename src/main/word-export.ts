@@ -62,7 +62,7 @@ async function sourceFiles(root: string): Promise<string[]> {
 const mark = (kind: 'S' | 'E', n: number): string => `XQOTX${kind}${n}QX`
 
 /** Spans of text where a marker must not go: math, % comments and \verb. */
-function noGoZones(text: string): [number, number][] {
+export function noGoZones(text: string): [number, number][] {
   const zones: [number, number][] = []
   const re = /\\verb\*?(.)|\\\\|\\[$%()[\]]|\\begin\{(equation|align|gather|multline|eqnarray|displaymath|math|flalign|alignat)(\*?)\}|\$\$|\$|%/g
   let m: RegExpExecArray | null
@@ -163,7 +163,7 @@ function enclosingCommand(text: string, skip: Uint8Array, p: number): { start: n
 }
 
 /** Move a marker position out of places where it would break the LaTeX or get lost. */
-function safeSpot(text: string, zones: [number, number][], skip: Uint8Array, p: number, isEnd: boolean): number {
+export function safeSpot(text: string, zones: [number, number][], skip: Uint8Array, p: number, isEnd: boolean): number {
   for (let guard = 0; guard < 12; guard++) {
     const before = p
     // Not between a backslash and the character it escapes (\%, \&…), nor inside a command name,

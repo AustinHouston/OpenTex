@@ -45,7 +45,8 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 
 | Your computer | Download |
 | --- | --- |
-| **Mac** (Apple Silicon or Intel) | **[OpenTex-mac.dmg](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac.dmg)** |
+| **Mac** with Apple silicon (M1 or newer) | **[OpenTex-mac-apple-silicon.dmg](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac-apple-silicon.dmg)** |
+| **Mac** with an Intel processor | **[OpenTex-mac-intel.dmg](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac-intel.dmg)** |
 | **Windows** | **[OpenTex-windows-setup.exe](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-setup.exe)** (installs just for you, no admin needed) |
 | **Windows**, if installers are blocked | **[OpenTex-windows-portable.zip](https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-portable.zip)** (nothing to install: unzip and run) |
 
@@ -57,7 +58,9 @@ No administrator rights are needed on either system.
 
 ### Mac
 
-1. Open **OpenTex-mac.dmg** and drag **OpenTex** to **Applications**. If you aren't allowed to change Applications, drag it to your **Desktop** or **Documents** folder instead. It runs from anywhere.
+Not sure which Mac you have? Apple menu → **About This Mac**: "Chip: Apple M…" means Apple silicon, "Processor: … Intel" means Intel.
+
+1. Open the **.dmg** and drag **OpenTex** to **Applications**. If you aren't allowed to change Applications, drag it to your **Desktop** or **Documents** folder instead. It runs from anywhere.
 2. Open OpenTex. The first time, macOS says it can't verify the developer. Click **Done**.
 3. Open **System Settings → Privacy & Security**, scroll down to the message about OpenTex, and click **Open Anyway**. You only do this once.
    (On macOS 14 or earlier, you can instead right-click the app, choose **Open**, then **Open** again.)

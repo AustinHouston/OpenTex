@@ -2,7 +2,8 @@
 #   git tag v0.2.0 && git push origin v0.2.0
 # and publishes them as a GitHub Release. File names never change, so these links always
 # point at the newest version:
-#   https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac.dmg
+#   https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac-apple-silicon.dmg
+#   https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac-intel.dmg
 #   https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-windows-setup.exe
 #
 # Optional code signing (removes the "unidentified developer" / SmartScreen warnings). Add these
@@ -28,8 +29,10 @@ jobs:
           - os: macos-latest
             target: --mac
             files: |
-              dist/OpenTex-mac.dmg
-              dist/OpenTex-mac.zip
+              dist/OpenTex-mac-apple-silicon.dmg
+              dist/OpenTex-mac-apple-silicon.zip
+              dist/OpenTex-mac-intel.dmg
+              dist/OpenTex-mac-intel.zip
           - os: windows-latest
             target: --win
             files: |
@@ -68,6 +71,13 @@ jobs:
             export WIN_CSC_LINK="$S_WIN_CSC_LINK" WIN_CSC_KEY_PASSWORD="$S_WIN_CSC_KEY_PASSWORD"
           fi
           npx electron-builder ${{ matrix.target }} --publish never
+          # One Mac file per chip (half the size of a universal one), named so people can tell them apart.
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            for ext in dmg zip; do
+              mv "dist/OpenTex-mac-arm64.$ext" "dist/OpenTex-mac-apple-silicon.$ext"
+              mv "dist/OpenTex-mac-x64.$ext" "dist/OpenTex-mac-intel.$ext"
+            done
+          fi
       - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.os }}
@@ -95,10 +105,12 @@ jobs:
 
           | | |
           | --- | --- |
-          | **Mac** (Apple Silicon and Intel) | [OpenTex-mac.dmg](https://github.com/${{ github.repository }}/releases/latest/download/OpenTex-mac.dmg) |
+          | **Mac** with Apple silicon (M1 or newer; every Mac sold since 2023) | [OpenTex-mac-apple-silicon.dmg](https://github.com/${{ github.repository }}/releases/latest/download/OpenTex-mac-apple-silicon.dmg) |
+          | **Mac** with an Intel processor | [OpenTex-mac-intel.dmg](https://github.com/${{ github.repository }}/releases/latest/download/OpenTex-mac-intel.dmg) |
           | **Windows**, installs just for you, no admin needed | [OpenTex-windows-setup.exe](https://github.com/${{ github.repository }}/releases/latest/download/OpenTex-windows-setup.exe) |
           | **Windows**, no install: unzip and run | [OpenTex-windows-portable.zip](https://github.com/${{ github.repository }}/releases/latest/download/OpenTex-windows-portable.zip) |
 
+          Not sure which Mac you have? Apple menu → **About This Mac**: "Chip: Apple M…" is Apple silicon, "Processor: … Intel" is Intel.
           First time opening it? See [Installing](https://github.com/${{ github.repository }}#installing) for the one-time security prompt.
           EOF
           if gh release view "$TAG" >/dev/null 2>&1; then

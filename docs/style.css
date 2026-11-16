@@ -212,6 +212,8 @@ kbd {
 .os h3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
 .os h3 a { font-family: var(--sans); font-size: 15px; font-weight: 600; text-decoration: none; border: 1px solid var(--accent); padding: 5px 12px; border-radius: 8px; }
 .os h3 a:hover { background: var(--accent); color: var(--accent-text); }
+.os h3 .dl-pair { display: flex; gap: 8px; flex-wrap: wrap; }
+.os .which-mac { margin: -8px 0 16px; }
 .steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
 .steps li { counter-increment: s; position: relative; padding-left: 46px; margin: 0 0 16px; font-size: 17px; }
 .steps li::before {

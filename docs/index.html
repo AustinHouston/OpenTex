@@ -263,9 +263,10 @@
 
           <div class="os">
             <div class="card" id="mac">
-              <h3>Mac <a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac.dmg">Download .dmg</a></h3>
+              <h3>Mac <span class="dl-pair"><a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac-apple-silicon.dmg">Apple silicon</a><a href="https://github.com/AustinHouston/OpenTex/releases/latest/download/OpenTex-mac-intel.dmg">Intel</a></span></h3>
+              <p class="note which-mac">Which one? Apple menu → <b>About This Mac</b>. <i>Chip: Apple M…</i> means Apple silicon (every Mac sold since 2023); <i>Processor: … Intel</i> means Intel.</p>
               <ol class="steps">
-                <li>Open <b>OpenTex-mac.dmg</b> and drag <b>OpenTex</b> into <b>Applications</b>. Not allowed to? Drag it to your <b>Desktop</b> or <b>Documents</b> instead. It runs from anywhere.</li>
+                <li>Open the <b>.dmg</b> and drag <b>OpenTex</b> into <b>Applications</b>. Not allowed to? Drag it to your <b>Desktop</b> or <b>Documents</b> instead. It runs from anywhere.</li>
                 <li>Open OpenTex. The first time, macOS says it can't verify the developer. Click <b>Done</b>.</li>
                 <li>Open <b>System Settings → Privacy &amp; Security</b>, scroll down, and click <b>Open Anyway</b> next to OpenTex. You only do this once.</li>
               </ol>
@@ -320,23 +321,44 @@
       ;(function () {
         var base = 'https://github.com/AustinHouston/OpenTex/releases/latest/download/'
         var ua = navigator.userAgent
-        var mac = '<a href="' + base + 'OpenTex-mac.dmg">Mac</a>'
+        var silicon = base + 'OpenTex-mac-apple-silicon.dmg', intel = base + 'OpenTex-mac-intel.dmg'
+        var mac = 'Mac (<a href="' + silicon + '">Apple silicon</a> or <a href="' + intel + '">Intel</a>)'
         var win = '<a href="' + base + 'OpenTex-windows-setup.exe">Windows</a>'
         var portable = '<a href="' + base + 'OpenTex-windows-portable.zip">Windows portable</a>'
         var href = null, label = null, alt
-        if (/Mac/.test(ua) && !/iPhone|iPad/.test(ua)) {
-          href = base + 'OpenTex-mac.dmg'; label = 'Download for Mac'
-          alt = 'Also for ' + win + ' &middot; ' + portable
+        var isMac = /Mac/.test(ua) && !/iPhone|iPad/.test(ua) && !(navigator.maxTouchPoints > 1)
+        var macFor = function (chip) {
+          // chip: 'arm', 'x86' or null when the browser can't tell (Safari). Most Macs are Apple silicon.
+          if (chip === 'x86') {
+            href = intel; label = 'Download for Mac (Intel)'
+            alt = '<a href="' + silicon + '">Apple silicon Mac?</a> &middot; also for ' + win
+          } else {
+            href = silicon; label = 'Download for Mac (Apple silicon)'
+            alt = '<a href="' + intel + '">Intel Mac?</a> <a href="#mac">How to tell</a> &middot; also for ' + win
+          }
+        }
+        if (isMac) {
+          macFor(null)
+          // Chrome and Edge can say which chip this Mac has; update the buttons when they answer.
+          if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+            navigator.userAgentData.getHighEntropyValues(['architecture']).then(function (v) {
+              macFor(v.architecture === 'x86' ? 'x86' : v.architecture === 'arm' ? 'arm' : null)
+              apply()
+            }).catch(function () {})
+          }
         } else if (/Windows/.test(ua)) {
           href = base + 'OpenTex-windows-setup.exe'; label = 'Download for Windows'
           alt = '<a href="' + base + 'OpenTex-windows-portable.zip">Portable version (no install)</a> &middot; also for ' + mac
         } else {
           alt = mac + ' &middot; ' + win + ' &middot; ' + portable
         }
-        document.querySelectorAll('.dl-main').forEach(function (btn) {
-          if (href) { btn.href = href; btn.querySelector('span').textContent = label }
-        })
-        document.querySelectorAll('.dl-alt').forEach(function (el) { el.innerHTML = alt })
+        var apply = function () {
+          document.querySelectorAll('.dl-main').forEach(function (btn) {
+            if (href) { btn.href = href; btn.querySelector('span').textContent = label }
+          })
+          document.querySelectorAll('.dl-alt').forEach(function (el) { el.innerHTML = alt })
+        }
+        apply()
 
         var bar = document.querySelector('.topbar')
         var onScroll = function () { bar.classList.toggle('scrolled', window.scrollY > 8) }

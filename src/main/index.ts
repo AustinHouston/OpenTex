@@ -26,6 +26,9 @@ interface WindowCtx {
   win: BrowserWindow
   project: Project | null
   forceClose: boolean
+  /** The page has started and is listening for menu actions; until then they wait in `queue`. */
+  ready: boolean
+  queue: (() => void)[]
 }
 const windows = new Map<number, WindowCtx>() // keyed by webContents id
 
@@ -58,12 +61,14 @@ function createWindow(openFolder?: string): BrowserWindow {
       sandbox: true
     }
   })
-  const ctx: WindowCtx = { win, project: null, forceClose: false }
+  const ctx: WindowCtx = { win, project: null, forceClose: false, ready: false, queue: [] }
   const id = win.webContents.id
   windows.set(id, ctx)
   win.once('ready-to-show', () => win.show())
   // Keep the folder name in the title bar instead of the page's <title>.
   win.on('page-title-updated', (e) => e.preventDefault())
+  // A reload (after a crash, say) starts the page over: hold menu actions until it says it's ready again.
+  win.webContents.on('did-start-loading', () => (ctx.ready = false))
   // Open external links in the user's browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url)
@@ -98,19 +103,44 @@ function createWindow(openFolder?: string): BrowserWindow {
   return win
 }
 
+// Quitting asks each window about unsaved changes, which stops the quit while it asks. Once a window
+// says it's fine, carry on quitting; if the user chooses Cancel, stop. Without this, Quit closed the
+// windows but left OpenTex running with none open (on a Mac).
+let quitting = false
+app.on('before-quit', () => (quitting = true))
 ipcMain.on('app:close-ok', (e) => {
   const ctx = ctxOf(e)
   if (!ctx) return
   ctx.forceClose = true
   ctx.win.close()
+  if (quitting) setImmediate(() => app.quit())
+})
+ipcMain.on('app:close-cancel', () => (quitting = false))
+
+/** Progress lines for the window that started a long job; dropped once that window is closed. */
+const progressTo = (wc: Electron.WebContents) => (line: string): void => {
+  if (!wc.isDestroyed()) wc.send('tex:progress', line)
+}
+
+// The page says it has finished starting and is listening; run the menu actions that were waiting.
+ipcMain.on('app:ready', (e) => {
+  const ctx = ctxOf(e)
+  if (!ctx) return
+  ctx.ready = true
+  for (const go of ctx.queue.splice(0)) go()
 })
 
-/** Send a menu action to the focused window (creating one if none is open). */
+/** Send a menu action to the focused window (creating one if none is open). A window that is still
+ *  starting gets it once its page is listening, so the action isn't lost (e.g. Open Recent with no
+ *  window open on a Mac). */
 function send(action: string, ...args: unknown[]): void {
   const w = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? createWindow()
-  const go = (): void => w.webContents.send('menu', action, ...args)
-  if (w.webContents.isLoading()) w.webContents.once('did-finish-load', go)
-  else go()
+  const ctx = windows.get(w.webContents.id)
+  const go = (): void => {
+    if (!w.isDestroyed()) w.webContents.send('menu', action, ...args)
+  }
+  if (!ctx || ctx.ready) go()
+  else ctx.queue.push(go)
 }
 
 async function recentProjects(): Promise<string[]> {
@@ -123,7 +153,7 @@ async function setPluginEnabled(id: string, on: boolean): Promise<void> {
   if (on) off.delete(id)
   else off.add(id)
   const s = await saveSettings({ disabledPlugins: [...off] })
-  for (const c of windows.values()) c.win.webContents.send('settings:changed', s, { enabledPlugin: on ? id : null })
+  for (const c of windows.values()) if (!c.win.isDestroyed()) c.win.webContents.send('settings:changed', s, { enabledPlugin: on ? id : null })
   buildMenu()
 }
 
@@ -278,7 +308,7 @@ async function openProject(ctx: WindowCtx, root: string) {
   ctx.project?.close()
   const project = new Project(root)
   ctx.project = project
-  project.watch((paths) => ctx.win.webContents.send('project:changed', paths))
+  project.watch((paths) => !ctx.win.isDestroyed() && ctx.win.webContents.send('project:changed', paths))
   const recent = [root, ...(await recentProjects()).filter((p) => p !== root)].slice(0, 12)
   await saveSettings({ lastProject: root, recentProjects: recent })
   app.addRecentDocument(root)
@@ -405,7 +435,7 @@ function registerIpc(): void {
     const v = p && (await pandocVersion(p))
     return v ? { path: p, version: v } : null
   })
-  ipcMain.handle('pandoc:install', (e) => installPandoc((line) => e.sender.send('tex:progress', line)))
+  ipcMain.handle('pandoc:install', (e) => installPandoc(progressTo(e.sender)))
   ipcMain.handle('word:import', async (_e, docx: string, parent: string, keepComments: boolean) => {
     const p = await findPandoc()
     if (!p) throw new Error('Pandoc is not installed')
@@ -433,15 +463,25 @@ function registerIpc(): void {
   ipcMain.handle('plugins:storageGet', (_e, id: string) => pluginStorageGet(id))
   ipcMain.handle('plugins:storageSet', (_e, id: string, key: string, value: unknown) => pluginStorageSet(id, key, value))
 
-  ipcMain.handle('tinytex:install', (e) => installTinyTex((line) => e.sender.send('tex:progress', line)))
+  ipcMain.handle('tinytex:install', (e) => installTinyTex(progressTo(e.sender)))
   ipcMain.handle('tex:canInstallPackages', async () => isTinyTex(detectTex((await loadSettings()).texPath).binDir))
   ipcMain.handle('tex:installMissing', async (e, files: string[]) => {
     const tex = detectTex((await loadSettings()).texPath)
-    return tex.binDir ? installMissing(tex.binDir, files, (line) => e.sender.send('tex:progress', line)) : false
+    return tex.binDir ? installMissing(tex.binDir, files, progressTo(e.sender), ctxOf(e)?.project?.root) : false
   })
 }
 
+// One OpenTex at a time: opening it again (a second click on the Windows shortcut) brings the running
+// one forward with a new window, instead of a second copy that would overwrite the first's settings.
+// (Installed copies only, so a development build can run next to the installed app.)
+const firstCopy = !app.isPackaged || app.requestSingleInstanceLock()
+if (!firstCopy) app.quit()
+app.on('second-instance', () => {
+  if (app.isReady()) createWindow()
+})
+
 app.whenReady().then(async () => {
+  if (!firstCopy) return
   await listPlugins()
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()

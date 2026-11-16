@@ -45,7 +45,7 @@ export function registerReviewPdfIpc(need: (e: IpcMainInvokeEvent) => Project): 
     if (!tex.found || !tex.binDir) return { ok: false, error: 'No TeX installation was found, so OpenTex can’t make PDFs yet. Install TinyTeX (File menu) or MacTeX/MiKTeX, then try again.' }
     const engine = ENGINES.includes(req.engine) ? req.engine : s.engine
     const { buildReviewPdf } = await import('./review-pdf-build')
-    return buildReviewPdf(need(e), { ...req, engine, comments: Array.isArray(req.comments) ? req.comments : [] }, out, tex, s.useLatexmk, (line) => e.sender.send('tex:progress', line))
+    return buildReviewPdf(need(e), { ...req, engine, comments: Array.isArray(req.comments) ? req.comments : [] }, out, tex, s.useLatexmk, (line) => !e.sender.isDestroyed() && e.sender.send('tex:progress', line))
   })
   ipcMain.handle('review:reveal', (e) => {
     const out = chosen.get(e.sender.id)

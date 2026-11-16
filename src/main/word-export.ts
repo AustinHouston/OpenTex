@@ -7,6 +7,8 @@ import { tmpdir } from 'os'
 import { basename, delimiter, dirname, extname, join, relative, resolve, sep } from 'path'
 import { findPandoc, pandocVersion, run } from './pandoc'
 import type { Project } from './project'
+import { detectTex } from './tex'
+import { loadSettings } from './settings'
 
 export interface ExportComment {
   file: string // project-relative path of the .tex file
@@ -501,16 +503,24 @@ function findImage(name: string, dirs: string[]): string | null {
   return null
 }
 
-/** Word can't show PDF or EPS pictures: turn them into PNG where the system can (macOS, Windows). */
+/** Word can't show PDF or EPS pictures: turn them into PNG. The system's thumbnail maker does it on
+ *  macOS; Windows has none for PDFs unless Adobe Reader is installed, so then use the Ghostscript
+ *  that comes with TeX Live and TinyTeX on Windows (rungs). */
 async function toPng(src: string, dest: string): Promise<boolean> {
   try {
     const img = await nativeImage.createThumbnailFromPath(src, { width: 2000, height: 2000 })
-    if (img.isEmpty()) return false
-    await fs.writeFile(dest, img.toPNG())
-    return true
+    if (!img.isEmpty()) {
+      await fs.writeFile(dest, img.toPNG())
+      return true
+    }
   } catch {
-    return false
+    /* no thumbnail maker for this file type: try Ghostscript */
   }
+  const binDir = detectTex((await loadSettings()).texPath).binDir
+  const gs = binDir && [join(binDir, process.platform === 'win32' ? 'rungs.exe' : 'rungs')].find((p) => existsSync(p))
+  if (!gs) return false
+  const r = await run(gs, ['-q', '-dSAFER', '-dBATCH', '-dNOPAUSE', '-sDEVICE=png16m', '-r220', '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4', '-dFirstPage=1', '-dLastPage=1', '-dEPSCrop', `-sOutputFile=${dest}`, src])
+  return r.code === 0 && existsSync(dest)
 }
 
 // ---------- The export ----------
@@ -553,8 +563,23 @@ export async function exportWord(project: Project, mainFile: string, out: string
     const imgDir = join(tmp, 'img')
     await fs.mkdir(imgDir, { recursive: true })
     const done = new Map<string, string | null>() // source picture -> copy (null: unusable)
+    // Only the files this paper includes: another document in the folder (a supplement, say) has
+    // its own figures, which shouldn't be converted, counted or reported missing here.
+    const inPaper = new Set<string>()
+    const mainRel = relative(root, main).split(sep).join('/')
+    const visit = (rel: string): void => {
+      if (inPaper.has(rel) || !texts.has(rel)) return
+      inPaper.add(rel)
+      const text = texts.get(rel)!.replace(/(^|[^\\])%.*$/gm, '$1')
+      for (const m of text.matchAll(/\\(?:input|include|subfile)\s*\{([^}]+)\}/g)) {
+        const name = m[1].trim()
+        const base = relative(root, resolve(mainDir, name)).split(sep).join('/')
+        visit(/\.tex$/i.test(base) ? base : `${base}.tex`)
+      }
+    }
+    visit(mainRel)
     for (const [rel, text] of texts) {
-      if (!rel.endsWith('.tex')) continue
+      if (!rel.endsWith('.tex') || !inPaper.has(rel)) continue
       const re = /\\includegraphics(\s*\[[^\]]*\])?\s*\{([^}]*)\}/g
       let next = ''
       let last = 0
@@ -664,7 +689,7 @@ export function registerWordExportIpc(need: (e: IpcMainInvokeEvent) => Project):
   ipcMain.handle('word:export', async (e, mainFile: string, comments: ExportComment[]) => {
     const out = chosen.get(e.sender.id)
     if (!out) throw new Error('Choose where to save the Word file first.')
-    return exportWord(need(e), mainFile, out, Array.isArray(comments) ? comments : [], (line) => e.sender.send('tex:progress', line))
+    return exportWord(need(e), mainFile, out, Array.isArray(comments) ? comments : [], (line) => !e.sender.isDestroyed() && e.sender.send('tex:progress', line))
   })
   ipcMain.handle('word:revealExport', (e) => {
     const out = chosen.get(e.sender.id)

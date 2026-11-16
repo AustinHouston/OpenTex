@@ -45,7 +45,7 @@ export class Project {
 
   async readConfig(): Promise<ProjectConfig> {
     try {
-      return JSON.parse(await fs.readFile(join(this.root, '.opentex', 'project.json'), 'utf8'))
+      return JSON.parse((await fs.readFile(join(this.root, '.opentex', 'project.json'), 'utf8')).replace(/^\uFEFF/, ''))
     } catch {
       return {}
     }

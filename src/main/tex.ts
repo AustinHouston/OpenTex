@@ -114,7 +114,13 @@ export async function compile(root: string, mainFile: string, engine: Engine, te
   let usedLatexmk = false
   if (useLatexmk && tex.latexmk) {
     const flag = { pdflatex: '-pdf', xelatex: '-pdfxe', lualatex: '-pdflua' }[engine]
-    const r = await run('latexmk', [flag, '-f', ...common, name], cwd, binDir, root, opts)
+    let r = await run('latexmk', [flag, '-f', ...common, name], cwd, binDir, root, opts)
+    // After a failed run, latexmk won't try again until a file it knows about changes, so a package
+    // installed since then (or a fix outside the folder) changes nothing: it just reports the old
+    // failure. Go ahead anyway with -g.
+    if (r.code !== 0 && /Nothing to do for|All targets .* are up-to-date/.test(r.output) && !isCancelled()) {
+      r = await run('latexmk', [flag, '-f', '-g', ...common, name], cwd, binDir, root, opts)
+    }
     log += r.output
     // latexmk needs Perl; MiKTeX on Windows often lacks it. Fall back to running the engine directly.
     usedLatexmk = !/perl/i.test(r.output.slice(0, 2000)) || existsSync(join(cwd, `${stem}.pdf`))
@@ -143,6 +149,8 @@ export async function compile(root: string, mainFile: string, engine: Engine, te
   const texLog = await fs.readFile(join(cwd, `${stem}.log`), 'latin1').catch(() => '')
   const pdfAbs = join(cwd, `${stem}.pdf`)
   const { problems, missingFiles } = parseLog(texLog || log, root, cwd)
+  // BibTeX says it its own way, in the compile output rather than the .log: offer to install that too.
+  for (const m of log.matchAll(/I couldn't open style file (\S+\.bst)/g)) if (!missingFiles.includes(m[1])) missingFiles.push(m[1])
   await addLogExtras(problems, texLog || log, log, root, cwd, stem)
   const hasPdf = existsSync(pdfAbs)
   return {

@@ -691,7 +691,9 @@ export const RULES: Rule[] = [
     match: /^File `([^']+)\.(sty|cls)' not found/,
     async explain(m, c) {
       const name = m[1]
-      const guess = closest(name, KNOWN_PACKAGES, { ignoreCase: true })
+      // A package we know (setspace, lineno…) is real, just not installed: never suggest a look-alike.
+      const known = KNOWN_PACKAGES.some((p) => p.toLowerCase() === name.toLowerCase())
+      const guess = known ? null : closest(name, KNOWN_PACKAGES, { ignoreCase: true })
       const fixes: Fix[] = []
       let at: Spot | undefined
       if (guess) {
@@ -705,9 +707,9 @@ export const RULES: Rule[] = [
       const kind = m[2] === 'cls' ? 'document class' : 'package'
       return {
         text: guess
-          ? `There’s no ${kind} called ${tick(name)}. Did you mean ${tick(guess)}?`
+          ? `The ${kind} ${tick(name)} isn’t installed on this computer. If that’s a typo, did you mean ${tick(guess)}? If not, it may be a real ${kind} that just isn’t installed yet${m[2] === 'cls' ? '' : ': OpenTex offers to install it'}.`
           : `The ${kind} ${tick(name)} isn’t installed on this computer${m[2] === 'cls' ? '. Journal classes usually come with the journal’s template: put its .cls file in your project folder' : '. If it’s a real package, OpenTex offers to install it'}.`,
-        short: guess ? `No package ${name} (did you mean ${guess}?)` : `${kind[0].toUpperCase() + kind.slice(1)} ${name} not installed`,
+        short: guess ? `${kind[0].toUpperCase() + kind.slice(1)} ${name} not installed (typo for ${guess}?)` : `${kind[0].toUpperCase() + kind.slice(1)} ${name} not installed`,
         fixes,
         at
       }

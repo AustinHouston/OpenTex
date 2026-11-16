@@ -78,7 +78,7 @@ export async function installTinyTex(log: Log): Promise<boolean> {
       log('Unpacking…')
       const parent = join(root, '..')
       await fs.mkdir(parent, { recursive: true })
-      const code = await run('tar', ['-xf', file, '-C', parent], log)
+      const code = await run(existsSync('/usr/bin/tar') ? '/usr/bin/tar' : 'tar', ['-xf', file, '-C', parent], log) // the system tar, not one earlier on the PATH
       if (code !== 0) throw new Error(`Unpacking failed (code ${code})`)
       const bin = await tinytexBin()
       if (bin) await run(join(bin, 'tlmgr'), ['postaction', 'install', 'script', 'xetex'], log)
@@ -110,14 +110,68 @@ export function isTinyTex(binDir: string | null): boolean {
   return Boolean(binDir && /tinytex/i.test(binDir))
 }
 
-/** Find the TeX Live packages that provide the missing files, then install them. */
-export async function installMissing(binDir: string, files: string[], log: Log): Promise<boolean> {
+/** Ask TeX which of these files it can't find (kpsewhich prints the path of each one it finds). */
+async function notFound(binDir: string, files: string[], cwd?: string): Promise<string[]> {
+  if (!files.length) return []
+  const out = await new Promise<string>((done) => {
+    let text = ''
+    const p = spawn(join(binDir, isWin ? 'kpsewhich.exe' : 'kpsewhich'), files, { cwd, windowsHide: true })
+    p.stdout.on('data', (d) => (text += d))
+    p.on('close', () => done(text))
+    p.on('error', () => done(''))
+  })
+  const found = new Set(out.split(/\r?\n/).map((l) => l.trim().split(/[\\/]/).pop()!.toLowerCase()).filter(Boolean))
+  return files.filter((f) => !found.has(f.toLowerCase()))
+}
+
+/** Every package, class and bibliography style the paper's .tex files ask for (skipping comments). */
+async function wantedFiles(root: string): Promise<string[]> {
+  const wanted = new Set<string>()
+  const walk = async (dir: string, depth: number): Promise<void> => {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => [])
+    for (const e of entries) {
+      if (e.name.startsWith('.') || e.name === 'node_modules') continue
+      const p = join(dir, e.name)
+      if (e.isDirectory() && depth < 3) await walk(p, depth + 1)
+      else if (e.isFile() && /\.tex$/i.test(e.name)) {
+        const text = (await fs.readFile(p, 'utf8').catch(() => '')).replace(/(^|[^\\])%.*$/gm, '$1')
+        for (const m of text.matchAll(/\\(usepackage|RequirePackage|documentclass)\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}/g))
+          for (const n of m[2].split(',').map((x) => x.trim()).filter((x) => /^[A-Za-z0-9._-]+$/.test(x)))
+            wanted.add(n + (m[1] === 'documentclass' ? '.cls' : '.sty'))
+        for (const m of text.matchAll(/\\bibliographystyle\s*\{([A-Za-z0-9._-]+)\}/g)) wanted.add(m[1] + '.bst')
+      }
+    }
+  }
+  await walk(root, 0)
+  return [...wanted]
+}
+
+/** Find the TeX Live packages that provide the missing files, then install them. With the project
+ *  folder, also everything else the paper uses that isn't installed yet, so a fresh TinyTeX gets them
+ *  all in one go instead of one compile (and one question) per package. */
+export async function installMissing(binDir: string, files: string[], log: Log, root?: string): Promise<boolean> {
   const tlmgr = isWin ? join(binDir, 'tlmgr.bat') : join(binDir, 'tlmgr')
   const exec = (args: string[]): Promise<number> => (isWin ? run('cmd.exe', ['/c', tlmgr, ...args], log) : run(tlmgr, args, log))
+  let todo = [...new Set(files)]
+  if (root) {
+    log('Checking what else this paper needs…')
+    const more = (await notFound(binDir, await wantedFiles(root), root)).filter((f) => !todo.includes(f))
+    if (more.length) log(`Also not installed yet: ${more.join(', ')}`)
+    todo = [...todo, ...more]
+  }
+  // Most packages are named after their file (setspace.sty is in "setspace"): try those all at once,
+  // which is one download of the package list instead of one search per file.
+  const named = todo.filter((f) => /\.(sty|cls)$/i.test(f)).map((f) => f.replace(/\.[^.]+$/, ''))
+  if (named.length) {
+    log(`Installing ${named.join(', ')}…`)
+    await exec(['install', ...named])
+  }
+  let left = await notFound(binDir, todo, root)
+  // The rest (and anything whose package has another name, like angew.bst): look up the package.
   const pkgs = new Set<string>()
-  for (const f of files) {
+  for (const f of left) {
     let out = ''
-    const p = isWin ? spawn('cmd.exe', ['/c', tlmgr, 'search', '--global', '--file', `/${f}`]) : spawn(tlmgr, ['search', '--global', '--file', `/${f}`])
+    const p = isWin ? spawn('cmd.exe', ['/c', tlmgr, 'search', '--global', '--file', `/${f}`], { windowsHide: true }) : spawn(tlmgr, ['search', '--global', '--file', `/${f}`])
     log(`Looking up ${f}…`)
     await new Promise<void>((done) => {
       p.stdout.on('data', (d) => (out += d))
@@ -129,8 +183,12 @@ export async function installMissing(binDir: string, files: string[], log: Log):
     if (pkg) pkgs.add(pkg.slice(0, -1))
     else log(`No package found that provides ${f}.`)
   }
-  if (!pkgs.size) return false
-  log(`Installing ${[...pkgs].join(', ')}…`)
-  const code = await exec(['install', ...pkgs])
-  return code === 0
+  if (pkgs.size) {
+    log(`Installing ${[...pkgs].join(', ')}…`)
+    await exec(['install', ...pkgs])
+    left = await notFound(binDir, left, root)
+  }
+  if (left.length) log(`Still missing: ${left.join(', ')}`)
+  // Done if the files this compile stopped on are there now (an optional extra may still be missing).
+  return files.every((f) => !left.includes(f))
 }

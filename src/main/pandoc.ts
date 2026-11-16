@@ -99,8 +99,14 @@ export async function installPandoc(log: Log): Promise<boolean> {
     log('Unpacking…')
     await fs.rm(ownDir(), { recursive: true, force: true })
     await fs.mkdir(ownDir(), { recursive: true })
-    // bsdtar (macOS, and Windows 10+) reads zip files too.
-    const r = await run('tar', ['-xf', file, '-C', ownDir()])
+    // The system's own tar (bsdtar on macOS and Windows 10+, which reads zip files too), by its full
+    // path: another tar first on the PATH (Git for Windows' GNU tar) reads "C:\..." as a network address.
+    const sysTar = process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe') : '/usr/bin/tar'
+    const r = existsSync(sysTar)
+      ? await run(sysTar, ['-xf', file, '-C', ownDir()])
+      : process.platform === 'win32'
+        ? await run('powershell.exe', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${file.replace(/'/g, "''")}' -DestinationPath '${ownDir().replace(/'/g, "''")}' -Force`])
+        : await run('tar', ['-xf', file, '-C', ownDir()])
     await fs.rm(tmp, { recursive: true, force: true })
     if (r.code !== 0) throw new Error(`Unpacking failed: ${r.out.slice(0, 300)}`)
     const p = await findPandoc()

@@ -33,7 +33,16 @@ import { hoverPreviews } from './hover'
 import { setupLivePreview } from './live-preview'
 
 const api = (window as unknown as { opentex: OpenTexApi }).opentex
-const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T
+// Elements are found once and remembered: a hidden panel is taken out of the page, and its
+// elements (like the comment count) must still be reachable while it is hidden.
+const found = new Map<string, HTMLElement>()
+const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
+  const known = found.get(id)
+  if (known?.isConnected) return known as T
+  const el = document.getElementById(id)
+  if (el) found.set(id, el)
+  return (el ?? known) as T
+}
 
 // ---------- State ----------
 interface OpenFile {
@@ -617,8 +626,20 @@ async function withProgress(title: string, task: () => Promise<boolean>): Promis
   d.innerHTML = `<div class="modal-body"><p><b></b></p></div><pre class="progress-log"></pre><div class="modal-actions"><button class="primary" disabled>Working…</button></div>`
   d.querySelector('b')!.textContent = title
   const logEl = d.querySelector('pre')!
-  progressSink = (line) => {
-    logEl.textContent += line + '\n'
+  // Installers redraw their progress line with backspaces or carriage returns ("61% 6710 - file"):
+  // keep only what's left after the redraw, show one updating percentage line instead of thousands,
+  // and keep just the last few hundred lines so a long install stays light.
+  const lines: string[] = []
+  const percent = /^\d+%/
+  progressSink = (raw) => {
+    for (const piece of raw.split('\n')) {
+      const line = piece.split(/[\r\b]+/).map((x) => x.trim()).filter(Boolean).pop()?.replace(/\s{2,}/g, ' ')
+      if (!line) continue
+      if (percent.test(line) && percent.test(lines[lines.length - 1] ?? '')) lines[lines.length - 1] = line
+      else lines.push(line)
+    }
+    if (lines.length > 400) lines.splice(0, lines.length - 400)
+    logEl.textContent = lines.join('\n')
     logEl.scrollTop = logEl.scrollHeight
   }
   d.addEventListener('cancel', (e) => e.preventDefault(), { once: true }) // Esc can't hide a running install
@@ -674,16 +695,21 @@ function textOf(path: string): string | null {
 }
 const stateOf = (path: string): EditorState | null => (path === active ? view.state : (files.get(path)?.state ?? null))
 
+/** The comments file is there but can't be read (a merge conflict, say): never write over it. */
+let commentsUnreadable = false
+
 async function loadComments(): Promise<void> {
   store = []
   detached.clear()
+  commentsUnreadable = false
   if (!project) return
   storeText = await api.readFile(COMMENTS_FILE).catch(() => '')
   if (storeText.trim()) {
     try {
-      const d = JSON.parse(storeText) as StoreFile
+      const d = JSON.parse(storeText.replace(/^\uFEFF/, '')) as StoreFile // a byte-order mark from Notepad is fine
       store = Array.isArray(d.threads) ? d.threads.filter((t) => t && t.id && t.file) : []
     } catch {
+      commentsUnreadable = true
       setCompileStatus(`${COMMENTS_FILE} could not be read, so comments are not shown`, 'warn')
     }
   }
@@ -692,9 +718,22 @@ async function loadComments(): Promise<void> {
   scheduleComments()
 }
 
+let warnedUnreadable = false
+
 async function saveComments(): Promise<void> {
   if (!project) return
   if (!store.length && !storeText) return // nothing to save and no file yet
+  if (commentsUnreadable) {
+    // Saving now would replace everyone's comments with only the ones made since. Leave the file alone.
+    if (!warnedUnreadable) {
+      warnedUnreadable = true
+      await ask(
+        `${COMMENTS_FILE} can't be read, so OpenTex won't change it: saving now would delete the comments in it. It may have a sync or merge conflict. Fix or replace the file (an earlier copy from Dropbox, OneDrive or git), and the comments will come back. New comments can't be kept until then.`,
+        ['OK']
+      )
+    }
+    return
+  }
   storeText = JSON.stringify({ version: 1, threads: store } satisfies StoreFile, null, 2) + '\n'
   await api.writeFile(COMMENTS_FILE, storeText)
 }
@@ -1826,6 +1865,7 @@ function wire(): void {
   api.on('project:changed', (paths: string[]) => onDiskChange(paths))
   api.on('app:before-close', async () => {
     if (await confirmDiscardAll()) api.closeOk()
+    else api.closeCancel() // the user chose Cancel: stop quitting too
   })
   $('btn-open').onclick = chooseFolder
   $('btn-import-word').onclick = () => importWordDoc()
@@ -1918,4 +1958,6 @@ async function init(): Promise<void> {
   if (!project) await showWelcome()
 }
 
-init()
+// Menu actions sent while the window was starting (Open Recent with no window open) run once it is
+// ready, and also if starting failed part way, so they are never lost.
+init().finally(() => api.ready())

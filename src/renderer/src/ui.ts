@@ -39,10 +39,18 @@ export function promptText(message: string, initial = ''): Promise<string | null
   })
 }
 
-export function contextMenu(x: number, y: number, items: [string, () => void][]): void {
+export type MenuItem = [string, () => void] | null // null draws a separator
+
+let closeMenu: (() => void) | null = null
+
+export function contextMenu(x: number, y: number, items: MenuItem[]): void {
   const m = document.getElementById('ctx-menu')!
+  // A menu opened from another menu's item replaces it: the first one's closing click must not close this one.
+  if (closeMenu) document.removeEventListener('click', closeMenu)
   m.replaceChildren(
-    ...items.map(([label, fn]) => {
+    ...items.map((item) => {
+      if (!item) return Object.assign(document.createElement('div'), { className: 'ctx-sep' })
+      const [label, fn] = item
       const b = document.createElement('button')
       b.textContent = label
       b.onclick = () => {
@@ -55,5 +63,14 @@ export function contextMenu(x: number, y: number, items: [string, () => void][])
   m.style.left = `${x}px`
   m.style.top = `${y}px`
   m.classList.remove('hidden')
-  setTimeout(() => document.addEventListener('click', () => m.classList.add('hidden'), { once: true }))
+  // Keep it on screen.
+  const r = m.getBoundingClientRect()
+  if (r.right > window.innerWidth - 4) m.style.left = `${Math.max(4, window.innerWidth - r.width - 4)}px`
+  if (r.bottom > window.innerHeight - 4) m.style.top = `${Math.max(4, window.innerHeight - r.height - 4)}px`
+  const close = (): void => {
+    m.classList.add('hidden')
+    if (closeMenu === close) closeMenu = null
+  }
+  closeMenu = close
+  setTimeout(() => closeMenu === close && document.addEventListener('click', close, { once: true }))
 }

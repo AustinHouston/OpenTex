@@ -6,7 +6,7 @@ import { EditorView } from '@codemirror/view'
 import { allFiles } from './filetree'
 import { ask } from './ui'
 import { AppHost, editOpenFile, editText, esc, liveText } from './apphost'
-import { Layout, ZONES } from './layout'
+import type { Layout } from './layout'
 
 const SEARCHABLE = /\.(tex|bib|sty|cls|txt|md)$/i
 const CAP = 2000
@@ -106,9 +106,7 @@ export class ProjectSearch {
   /** Add the panel: left, under Files, hidden until asked for. */
   mount(layout: Layout): void {
     this.layout = layout
-    const fresh = !ZONES.some((z) => layout.state.zones[z].includes('search'))
-    layout.add({ id: 'search', title: 'Search', body: this.body, defaultZone: 'left', onVisible: () => this.stale && this.schedule(0) })
-    if (fresh) layout.state.hidden.push('search')
+    layout.add({ id: 'search', title: 'Search', body: this.body, defaultZone: 'left', startHidden: true, onVisible: () => this.stale && this.schedule(0) })
   }
 
   /** Edit → Find in Project (Cmd/Ctrl+Shift+H). */

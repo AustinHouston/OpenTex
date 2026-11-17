@@ -15,12 +15,19 @@ export interface HostFile {
 
 export interface AppHost {
   api: OpenTexApi
+  /** The focused file window's editor. */
   view: EditorView
+  /** The editor showing this file, if it is the active tab of a file window. */
+  viewOf: (path: string) => EditorView | null
   files: Map<string, HostFile>
   project: () => ProjectInfo | null
   active: () => string | null
-  setActive: (path: string | null) => void
-  tabOrder: () => string[] // the live array; edited in place
+  /** Every open tab (text files and pictures), in all file windows. */
+  openTabs: () => string[]
+  /** Copy the editors' current states into `files` (before reading every open file's state). */
+  syncStates: () => void
+  /** Files were renamed or moved: point the tabs at their new paths. */
+  renamed: (map: (path: string) => string | null) => void
   openFile: (path: string) => Promise<void>
   closeTab: (path: string) => Promise<void>
   newFile: (prefix?: string) => Promise<void>
@@ -40,7 +47,8 @@ export interface AppHost {
 
 /** Live text of an open file, or null when it isn't open. */
 export function liveText(host: AppHost, path: string): string | null {
-  if (path === host.active()) return host.view.state.doc.toString()
+  const v = host.viewOf(path)
+  if (v) return v.state.doc.toString()
   return host.files.get(path)?.state.doc.toString() ?? null
 }
 
@@ -51,14 +59,15 @@ export function liveText(host: AppHost, path: string): string | null {
 export function editOpenFile(host: AppHost, path: string, changes: { from: number; to: number; expect: string; insert: string }[]): number {
   const f = host.files.get(path)
   if (!f) return 0
-  const state = path === host.active() ? host.view.state : f.state
+  const v = host.viewOf(path)
+  const state = v ? v.state : f.state
   const ok = changes
     .filter((c) => c.to <= state.doc.length && state.sliceDoc(c.from, c.to) === c.expect)
     .sort((a, b) => a.from - b.from)
     .filter((c, i, all) => i === 0 || c.from >= all[i - 1].to) // never overlapping
   if (!ok.length) return 0
   const spec = { changes: ok.map(({ from, to, insert }) => ({ from, to, insert })), userEvent: 'input.replace' }
-  if (path === host.active()) host.view.dispatch(spec)
+  if (v) v.dispatch(spec)
   else f.state = f.state.update(spec).state
   f.dirty = true
   host.renderTabs()

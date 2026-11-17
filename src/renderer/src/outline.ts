@@ -7,7 +7,7 @@ import type { Extension } from '@codemirror/state'
 import type { ProjectInfo } from '../../shared/types'
 import { countWords } from './assist'
 import { allFiles } from './filetree'
-import { Layout, ZONES } from './layout'
+import type { Layout } from './layout'
 
 export interface OutlineHost {
   project: () => ProjectInfo | null
@@ -270,15 +270,10 @@ export function setupOutline(layout: Layout, savedLayout: unknown, host: Outline
   }
 
   // A layout saved before the Outline existed: add it without moving anything else around.
-  const s = layout.state
-  const known = ZONES.some((z) => s.zones[z].includes('outline'))
-  const hadSaved = Boolean(savedLayout && typeof savedLayout === 'object' && (savedLayout as { zones?: unknown }).zones)
-  if (!known && hadSaved) {
-    const leftOpen = s.zones.left.some((id) => !s.hidden.includes(id) && !s.collapsed.includes(id))
-    if (leftOpen) s.collapsed.push('outline')
-    else s.hidden.push('outline')
-  }
-  layout.add({ id: 'outline', title: 'Outline', body, extras, defaultZone: 'left', onVisible: () => schedule(0) })
+  const hadSaved = Boolean(savedLayout && typeof savedLayout === 'object')
+  const fresh = hadSaved && !layout.knows('outline')
+  const projectOpen = layout.isVisible('project')
+  layout.add({ id: 'outline', title: 'Outline', body, extras, defaultZone: 'left', onVisible: () => schedule(0), startCollapsed: fresh && projectOpen, startHidden: fresh && !projectOpen })
 
   // ---------- Keeping it up to date ----------
   const disk = new Map<string, string | null>() // text of files that aren't open, until they change on disk

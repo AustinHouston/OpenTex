@@ -121,8 +121,8 @@ export const pluginMarks = StateField.define<DecorationSet>({
 })
 
 export interface EditorHooks {
-  onChange: () => void
-  onCursor: (line: number, col: number) => void
+  onChange: (view: EditorView) => void
+  onCursor: (line: number, col: number, view: EditorView) => void
   onSelection?: (view: EditorView) => void
   onTyped?: (chars: number) => void
 }
@@ -154,7 +154,7 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: (
     keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) {
-        hooks.onChange()
+        hooks.onChange(u.view)
         // Count characters typed or deleted by the user (not reloads from disk).
         if (u.transactions.some((t) => t.isUserEvent('input') || t.isUserEvent('delete'))) {
           let n = 0
@@ -166,7 +166,7 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: (
       if (u.selectionSet || u.docChanged) {
         const pos = u.state.selection.main.head
         const line = u.state.doc.lineAt(pos)
-        hooks.onCursor(line.number, pos - line.from + 1)
+        hooks.onCursor(line.number, pos - line.from + 1, u.view)
       }
     })
   ]

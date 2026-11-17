@@ -202,7 +202,8 @@ function figureDialog(previewUrl: string, defaultName: string, folder: string, t
 
 // ---------- Install ----------
 export function installPaste(host: PasteHost): { tableButtons: (el: HTMLElement) => void } {
-  const view = host.view
+  // The focused file window's editor; refreshed at the start of every paste, drop and button press.
+  let view = host.view
 
   // Where pictures go: the folder \graphicspath names, else figures/ next to the main file.
   const figureFolder = (): { dir: string; mainDir: string } => {
@@ -370,6 +371,7 @@ export function installPaste(host: PasteHost): { tableButtons: (el: HTMLElement)
   const usable = (g: Grid | null | undefined): g is Grid => Boolean(g && g.rows.length && (g.rows.length >= 2 || g.rows[0].length >= 2))
 
   async function pasteFromClipboard(): Promise<void> {
+    view = host.view
     if (!needTex()) return
     const at = keepRange(view)
     const { html, text } = await api.readClipboard()
@@ -382,7 +384,7 @@ export function installPaste(host: PasteHost): { tableButtons: (el: HTMLElement)
     insertTable(grid, 'Inserted a table from the clipboard', at)
   }
 
-  async function tableFromFile(file?: { name: string; text: string }, at = keepRange(view)): Promise<void> {
+  async function tableFromFile(file?: { name: string; text: string }, at = keepRange((view = host.view))): Promise<void> {
     if (!needTex()) return
     if (!file) {
       try {
@@ -403,9 +405,10 @@ export function installPaste(host: PasteHost): { tableButtons: (el: HTMLElement)
   // ----- Event hooks -----
   const inEditor = (t: EventTarget | null): boolean => t instanceof Node && view.contentDOM.contains(t)
 
-  view.dom.addEventListener(
+  document.addEventListener(
     'paste',
     (e) => {
+      view = host.view
       if (!host.texActive() || !e.clipboardData || !inEditor(e.target)) return
       const dt = e.clipboardData
       const html = dt.getData('text/html')
@@ -434,9 +437,11 @@ export function installPaste(host: PasteHost): { tableButtons: (el: HTMLElement)
   )
 
   // Cmd/Ctrl+Shift+V: paste as plain text, never a table or figure.
-  view.dom.addEventListener(
+  document.addEventListener(
     'keydown',
     (e) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey) return
+      view = host.view
       if (!(e.metaKey || e.ctrlKey) || !e.shiftKey || e.altKey || (e.code !== 'KeyV' && e.key.toLowerCase() !== 'v') || !inEditor(e.target)) return
       e.preventDefault()
       e.stopPropagation()
@@ -457,6 +462,7 @@ export function installPaste(host: PasteHost): { tableButtons: (el: HTMLElement)
     (e) => {
       const files = [...(e.dataTransfer?.files ?? [])]
       if (!files.length || !host.texActive() || !host.project()) return
+      view = host.view
       const images = files.filter((f) => IMAGE_FILE.test(f.name))
       const table = files.length === 1 && TABLE_FILE.test(files[0].name) ? files[0] : null
       if (!table && images.length !== files.length) return

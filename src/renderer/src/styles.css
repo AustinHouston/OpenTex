@@ -94,16 +94,16 @@ body.no-pdf .pdf-col, body.no-pdf .splitter[data-target='pdf-col'] { display: no
 .tab.dirty .close:hover::before { content: none; }
 
 /* Editor */
-#editor { flex: 1; min-height: 0; }
-#editor .cm-editor { font-size: var(--editor-font-size); }
-#editor .cm-editor.cm-focused { outline: none; }
-.welcome { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 8px; }
+.fw-editor { flex: 1; min-height: 0; background: var(--bg); }
+.fw-editor .cm-editor { font-size: var(--editor-font-size); }
+.fw-editor .cm-editor.cm-focused { outline: none; }
+.welcome { position: absolute; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 8px; }
 .welcome h1 { font-weight: 600; font-size: 28px; margin: 0; }
 .welcome p { max-width: 460px; color: var(--muted); }
 .welcome .hint { font-size: 12px; }
 
 /* Problems */
-.problems { border-top: 1px solid var(--border); max-height: 30%; display: flex; flex-direction: column; background: var(--panel); }
+.problems { display: flex; flex-direction: column; background: var(--panel); overflow: auto; }
 .problems ul { list-style: none; margin: 0; padding: 0 0 6px; overflow: auto; }
 .problems li { padding: 3px 12px; cursor: pointer; display: flex; gap: 8px; font-size: 12px; }
 .problems li:hover { background: var(--panelAlt); }
@@ -137,8 +137,9 @@ body.no-pdf .pdf-col, body.no-pdf .splitter[data-target='pdf-col'] { display: no
 .statusbar .warn { color: var(--warning); }
 
 /* Focus mode: only the text you are writing. */
-body.focus .toolbar, body.focus .zone, body.focus .zsplit,
-body.focus .tabs, body.focus .statusbar, body.focus .problems, body.focus .dock, body.focus .comment-bubble { display: none !important; }
+body.focus .toolbar, body.focus .panel:not(.fw-focused), body.focus .lsplit, body.focus .panel-head,
+body.focus .tabs, body.focus .statusbar, body.focus .dock, body.focus .comment-bubble { display: none !important; }
+body.focus .panel.fw-focused { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
 body.focus .cm-gutters { display: none; }
 body.focus .cm-content { max-width: var(--focus-width); margin: 0 auto; padding: 18vh 32px 45vh; }
 body.focus .cm-activeLine { background: transparent; }
@@ -225,24 +226,10 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 .plugin-row { display: flex; gap: 8px; align-items: flex-start; }
 .plugin-row .note-inline { font-size: 11px; color: var(--muted); }
 
-/* ---------- Movable panel layout ---------- */
-.workspace { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.ws-row { flex: 1; display: flex; min-height: 0; }
-.editor-col { flex: 1; min-width: 200px; }
-.zone { display: flex; min-width: 0; min-height: 0; background: var(--panel); flex: none; }
-.zone-v { flex-direction: column; min-width: 160px; }
-.zone-h { flex-direction: row; min-height: 90px; border-top: 1px solid var(--border); }
-.zone[data-zone='left'] { border-right: 1px solid var(--border); }
-.zone[data-zone='right'], .zone[data-zone='side'] { border-left: 1px solid var(--border); }
-.zone.empty { display: none; }
-.zsplit { flex: none; z-index: 2; }
-.zsplit-v { width: 5px; margin: 0 -2px; cursor: col-resize; }
-.zsplit-h { height: 5px; margin: -2px 0; cursor: row-resize; }
-.zsplit:hover, .zsplit.dragging { background: var(--accent); opacity: 0.5; }
-.panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-.zone-v .panel { min-height: 32px; }
-.zone-h .panel { min-width: 120px; }
-.zone-h .panel + .pdiv + .panel, .zone-h .panel { border-right: 1px solid var(--border); }
+/* ---------- Movable panel layout (layout.ts positions every panel) ---------- */
+/* The 1px gaps between panels show the workspace background as divider lines. */
+.workspace { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--border); }
+.panel { position: absolute; display: flex; flex-direction: column; overflow: hidden; background: var(--panel); }
 .panel-head { height: 32px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); cursor: grab; user-select: none; border-bottom: 1px solid transparent; }
 .panel-head:active { cursor: grabbing; }
 .panel-head .ptitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -253,39 +240,46 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 .panel.collapsed .panel-head .collapse svg { transform: rotate(-90deg); }
 .panel.collapsed .panel-body { display: none; }
 .panel:not(.collapsed) .panel-head { border-bottom-color: var(--border); }
-.pextras { display: inline-flex; align-items: center; gap: 2px; text-transform: none; letter-spacing: 0; font-size: 12px; }
 .panel-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .panel-body > * { flex: 1; min-height: 0; }
 .panel-body > .tree, .panel-body > .comments { overflow: auto; }
 .panel-body iframe { border: 0; width: 100%; height: 100%; background: transparent; }
-.zone-v > .panel + .pdiv { border-top: 1px solid var(--border); }
-.pdiv { flex: none; z-index: 2; }
-.pdiv-h { height: 5px; margin: -2px 0; cursor: row-resize; }
-.pdiv-v { width: 5px; margin: 0 -2px; cursor: col-resize; }
-.pdiv:hover { background: var(--accent); opacity: 0.5; }
-.pdiv.inert { cursor: default; pointer-events: none; }
-.pcount { color: var(--accent); font-weight: 600; }
 .pdf-extras { gap: 2px; }
 .pdf-extras #pdf-zoom { min-width: 34px; text-align: center; font-size: 11px; }
 .pdf-extras #pdf-pages { font-size: 11px; margin-left: 4px; }
 
-/* A column whose panels are all collapsed becomes a thin strip with vertical titles. */
-.zone-v.all-collapsed .panel { flex: 0 0 auto !important; }
-.zone-v.all-collapsed .panel-head { writing-mode: vertical-rl; height: auto; width: 100%; padding: 8px 0; gap: 6px; justify-content: flex-start; cursor: pointer; }
-.zone-v.all-collapsed .panel-head .pextras, .zone-v.all-collapsed .panel-head .spacer { display: none; }
-.zone-v.all-collapsed .pdiv { display: none; }
-.zone[data-zone='left'].all-collapsed .panel-head { transform: rotate(180deg); }
+/* Splitters sit over the 1px gaps. */
+.lsplit { position: absolute; z-index: 5; }
+.lsplit-v { cursor: col-resize; }
+.lsplit-h { cursor: row-resize; }
+.lsplit:hover, .lsplit.dragging { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.lsplit.inert { cursor: default; pointer-events: none; }
+body.resizing-col, body.resizing-col * { cursor: col-resize !important; }
+body.resizing-row, body.resizing-row * { cursor: row-resize !important; }
+body.resizing-col iframe, body.resizing-row iframe { pointer-events: none; }
 
-/* While dragging a panel: show every zone, including empty ones, as a drop target. */
+/* A panel collapsed inside a row is a thin strip with a vertical title. */
+.panel.vstrip .panel-head { writing-mode: vertical-rl; height: 100%; width: 100%; padding: 8px 0; gap: 6px; justify-content: flex-start; cursor: pointer; border-bottom: none; }
+.panel.vstrip .panel-head .pextras, .panel.vstrip .panel-head .spacer { display: none; }
+
+/* Dragging a panel or a tab: a translucent preview of the region it will fill. */
+body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; }
 body.dragging-panel iframe { pointer-events: none; }
-body.dragging-panel .zone.empty { display: flex; outline: 2px dashed var(--border); outline-offset: -6px; }
-body.dragging-panel .zone-v.empty { width: 70px !important; }
-body.dragging-panel .zone-h.empty { height: 70px !important; }
-body.dragging-panel .zone.drop-target { outline: 2px dashed var(--accent); outline-offset: -6px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
-.panel.being-dragged { opacity: 0.45; }
-.drop-line { position: fixed; z-index: 30; background: var(--accent); border-radius: 2px; pointer-events: none; }
+.panel.being-dragged { opacity: 0.55; }
+.tab.being-dragged { opacity: 0.45; }
+.drop-preview { position: absolute; z-index: 30; pointer-events: none; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 2px solid var(--accent); border-radius: 6px; transition: left 0.08s, top 0.08s, width 0.08s, height 0.08s; }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2); white-space: nowrap; }
 
-.zone-v.all-collapsed { min-width: 0; }
+/* File windows: "Files" with its tabs underneath. */
+.fw { display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
+.panel-body > .fw > * { flex: none; }
+.fw > .fw-editor, .fw > .fw-viewer, .fw > .fw-empty { flex: 1; min-height: 0; }
+.tab.viewer span { font-style: italic; }
+.fw-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text); text-align: center; padding: 16px; }
+.fw-empty p { margin: 2px 0; }
+.fw-panel.fw-focused .panel-head .ptitle { color: var(--text); }
+
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
 /* Import dialogs */
 .modal-body.import { max-width: 560px; }
@@ -298,7 +292,7 @@ kbd { font: 11px var(--editor-font); border: 1px solid var(--border); border-bot
 button.secondary { border: 1px solid var(--border); background: var(--panel); }
 
 /* Welcome page */
-body.no-project .zone, body.no-project .zsplit, body.no-project .tabs, body.no-project #engine, body.no-project #btn-compile,
+body.no-project .panel, body.no-project .lsplit, body.no-project #engine, body.no-project #btn-compile,
 body.no-project #btn-focus, body.no-project #btn-pdf, body.no-project #btn-comment, body.no-project #btn-panels, body.no-project #btn-sidebar,
 body.no-project .statusbar .st-main { display: none !important; }
 .welcome { overflow: auto; align-items: stretch; justify-content: flex-start; text-align: left; padding: 0; }
@@ -428,6 +422,6 @@ body.comments-off .cm-ot-cpoint { display: none; }
 /* One steady cursor: an I-beam anywhere you can place the caret or select text (also over
    comments, the gaps between PDF words and the space below the last line), an arrow on the
    line numbers. A cursor that changes shape at every word looks like flicker. */
-#editor .cm-scroller, #editor .cm-content { cursor: text; }
-#editor .cm-gutters { cursor: default; }
+.fw-editor .cm-scroller, .fw-editor .cm-content { cursor: text; }
+.fw-editor .cm-gutters { cursor: default; }
 .pdf-page .textLayer { cursor: text; }

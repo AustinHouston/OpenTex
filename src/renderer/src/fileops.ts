@@ -126,7 +126,7 @@ export class FileOps {
     if (!project) return
     const inside = (p: string): boolean => p === n.path || (n.dir && p.startsWith(n.path + '/'))
     const count = n.dir ? allFiles(n.children ?? [], () => true).length : 0
-    if (host.active() && host.files.has(host.active()!)) host.files.get(host.active()!)!.state = host.view.state
+    host.syncStates()
     const unsaved = [...host.files.values()].filter((f) => inside(f.path) && f.dirty).map((f) => nameOf(f.path))
     const what = n.dir
       ? `the folder “${n.name}”${count ? ` and the ${count === 1 ? 'file' : `${count} files`} in it` : ''}`
@@ -141,8 +141,9 @@ export class FileOps {
       await ask(`Could not move “${n.name}” to the ${BIN}: ${errText(e)}`, ['OK'])
       return
     }
-    for (const p of [...host.tabOrder()].filter(inside)) {
-      host.files.get(p)!.dirty = false // the user agreed to lose them
+    for (const p of host.openTabs().filter(inside)) {
+      const f = host.files.get(p)
+      if (f) f.dirty = false // the user agreed to lose them
       await host.closeTab(p)
     }
     const pdf = host.lastPdf()
@@ -161,7 +162,7 @@ export class FileOps {
     const project = host.project()
     if (!project || to === n.path) return
     const move: Move = { from: n.path, to, dir: n.dir }
-    if (host.active() && host.files.has(host.active()!)) host.files.get(host.active()!)!.state = host.view.state
+    host.syncStates()
 
     // Look for references while the old paths still exist.
     const all = new Set(allFiles(project.tree, () => true))
@@ -196,10 +197,7 @@ export class FileOps {
       f.path = q
       host.files.set(q, f)
     }
-    const order = host.tabOrder()
-    order.forEach((p, i) => (order[i] = map(p) ?? p))
-    const active = host.active()
-    if (active && map(active)) host.setActive(map(active))
+    host.renamed(map)
 
     // Comments.
     let changed = false

@@ -18,6 +18,8 @@ import { maskComments, tidy } from './outline'
 export interface HoverHost {
   project: () => ProjectInfo | null
   active: () => string | null
+  /** The file shown in this editor (there can be several file windows). */
+  fileOf?: (view: EditorView) => string | null
   textOf: (path: string) => string | null // text of an open file, with unsaved edits
   lastPdf: () => string | null
 }
@@ -740,7 +742,7 @@ export async function preview(view: EditorView, pos: number): Promise<Tooltip | 
   const state = view.state
   const line = state.doc.lineAt(pos)
   const tip = (from: number, to: number, dom: HTMLElement): Tooltip => ({ pos: from, end: to, above: true, create: () => ({ dom }) })
-  const file = host.active() ?? p.mainFile ?? ''
+  const file = host.fileOf?.(view) ?? host.active() ?? p.mainFile ?? ''
 
   const ref = commandAt(line.text, line.from, pos, REF)
   if (ref && ref.keys.length) return tip(ref.from, ref.to, await refCard(ref.key ?? ref.keys[0]))

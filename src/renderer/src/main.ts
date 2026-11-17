@@ -1,5 +1,5 @@
 import './styles.css'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Transaction } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import type { CompileResult, Engine, Problem, ProjectInfo, Settings, TexInfo, Theme, TreeNode } from '../../shared/types'
 import type { OpenTexApi } from '../../preload/index'
@@ -8,7 +8,7 @@ import { allFiles, isTextFile, renderTree } from './filetree'
 import { PdfView } from './pdfview'
 import { openSettings } from './settings-ui'
 import { applyTheme, BUILT_IN } from './themes'
-import { ask, contextMenu, promptText } from './ui'
+import { ask, contextMenu, MenuItem, promptText } from './ui'
 import { findQuote, parseComments } from './comments'
 import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Placed, placedIn, setComments, StoreFile, Thread, today } from './review'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
@@ -18,7 +18,8 @@ import { installPaste } from './paste'
 import { Ribbon } from './ribbon'
 import { applyDesign, currentDesign, CustomDesign, PreambleFile, preambleInputs, PRESETS } from './design'
 import { detectFormat, mergeIntoBib, parseRefs, RefFormat } from './refs-import'
-import { Layout, LayoutState, normalize as normalizeLayout } from './layout'
+import { Layout, LayoutState, normalize as normalizeLayout, Rect, Side } from './layout'
+import { FileViewer, isViewable, ViewerHost } from './viewer'
 import type { PluginInfo } from '../../shared/types'
 import { setupHistory } from './history'
 import type { AppHost } from './apphost'
@@ -52,7 +53,27 @@ interface OpenFile {
   dirty: boolean
 }
 const files = new Map<string, OpenFile>()
-let tabOrder: string[] = []
+/**
+ * A file window: a panel titled "Files" with its tabs and one editor. Inactive tabs keep their
+ * EditorState in `files`; pictures and PDF figures open as viewer tabs (not in `files`).
+ */
+interface FileWindow {
+  id: string // 'files' (the primary one, always there), 'files:2', …
+  el: HTMLElement
+  tabsEl: HTMLElement
+  host: HTMLElement // holds the editor
+  emptyEl: HTMLElement
+  view: EditorView
+  tabs: string[]
+  active: string | null // the active tab: a text file or a viewer tab
+  viewer: FileViewer | null
+  shown: string | null // what the viewer shows
+}
+const windows: FileWindow[] = []
+// `view` and `active` are the focused file window's editor and text file (null for a picture or
+// no file), so everything that works on "the open file" works on the one you're in.
+let focused: FileWindow
+let view: EditorView
 let active: string | null = null
 let project: ProjectInfo | null = null
 let settings: Settings
@@ -70,8 +91,9 @@ let liveTimer = 0
 
 const extensions = [...makeExtensions(
   {
-    onChange: () => {
-      const f = active && files.get(active)
+    onChange: (v) => {
+      const path = windows.find((w) => w.view === v)?.active ?? null
+      const f = path && files.get(path)
       if (f && !f.dirty) {
         f.dirty = true
         renderTabs()
@@ -81,24 +103,25 @@ const extensions = [...makeExtensions(
       live.edited()
       scheduleWords()
       scheduleDocument()
-      versions.edited()
+      versions.edited(path)
       projectSearch.edited()
     },
     onTyped: (n) => noteTyping(n),
-    onCursor: (line, col) => ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
+    onCursor: (line, col, v) => v === view && ($('st-cursor').textContent = `Ln ${line}, Col ${col}`),
     onSelection: () => placeBubble()
   },
   false,
   () => completion
 ), commentField, commentClicks((id) => layout.isVisible('comments') && focusCard(id))]
-extensions.push(hoverPreviews({ project: () => project, active: () => active, textOf, lastPdf: () => lastPdf })) // hover previews (hover.ts)
-const view = new EditorView({ parent: $('editor'), state: EditorState.create({ doc: '', extensions }) })
+extensions.push(hoverPreviews({ project: () => project, active: () => active, fileOf: (v) => windows.find((w) => w.view === v)?.active ?? null, textOf, lastPdf: () => lastPdf })) // hover previews (hover.ts)
+const emptyState = (): EditorState => EditorState.create({ doc: '', extensions })
+createWindow('files')
 const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
 // Saving automatically, crash recovery and version history (history.ts).
-const versions = setupHistory({ api, view, files, active: () => active, project: () => project, settings: () => settings, openFile, autoSave: (p) => save(p, false, true), renderTabs, reloadTree, status: setCompileStatus })
+const versions = setupHistory({ api, viewOf, files, active: () => active, project: () => project, settings: () => settings, openFile, autoSave: (p) => save(p, false, true), renderTabs, reloadTree, status: setCompileStatus })
 // Live preview: background builds of the unsaved text while typing (live-preview.ts).
 const live = setupLivePreview({
-  api, view, pdf, pdfEl: $('pdf'), enabled: () => !!settings?.livePreview && !!project, active: () => active, target: compileTarget,
+  api, get view() { return view }, pdf, pdfEl: $('pdf'), enabled: () => !!settings?.livePreview && !!project, active: () => active, target: compileTarget,
   engine: () => ($('engine') as HTMLSelectElement).value as Engine, compiling: () => compiling, pdfVisible: () => layout.isVisible('pdf'),
   edits: () => [...files.values()].filter((f) => f.dirty && /\.(tex|bib|sty|cls|bst)$/i.test(f.path)).map((f) => ({ path: f.path, text: textOf(f.path) ?? f.state.doc.toString() })),
   jump: (file, line) => void openFile(file).then(() => (goToLine(view, line), view.focus()))
@@ -114,8 +137,10 @@ function applySettings(): void {
   r.setProperty('--editor-line-height', String(settings.lineHeight))
   r.setProperty('--focus-width', `${settings.focusWidth}ch`)
   document.body.classList.toggle('no-ribbon', settings.showInsertBar === false)
-  view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
-  view.requestMeasure()
+  for (const w of windows) {
+    w.view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim && w === focused)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
+    w.view.requestMeasure()
+  }
   plugins?.broadcastTheme()
 }
 
@@ -157,9 +182,8 @@ async function switchProject(open: () => Promise<ProjectInfo | null>): Promise<v
 async function setProject(info: ProjectInfo | null, confirmed = false): Promise<void> {
   if (!info) return
   if (!confirmed && !(await confirmDiscardAll())) return
-  files.clear()
-  tabOrder = []
-  active = null
+  clearWindows()
+  siblingCache.clear()
   project = info
   projectSearch.reset()
   lastPdf = null
@@ -189,7 +213,7 @@ async function setProject(info: ProjectInfo | null, confirmed = false): Promise<
 
 function refreshProjectUi(): void {
   if (!project) return
-  renderTree($('tree'), project.tree, active, project.mainFile, {
+  renderTree($('tree'), project.tree, focused.active ?? active, project.mainFile, {
     open: (p) => openFile(p),
     contextMenu: (n, x, y) => treeMenu(n, x, y),
     decorate: (row, n) => fileOps.decorate(row, n)
@@ -201,14 +225,14 @@ function refreshProjectUi(): void {
 }
 
 function treeMenu(n: TreeNode, x: number, y: number): void {
-  const items: [string, () => void][] = []
+  const items: MenuItem[] = []
   if (!n.dir && n.path.endsWith('.tex')) items.push(['Set as main file', () => setMainFile(n.path)])
   if (!n.dir) items.push(['Open', () => openFile(n.path)])
   if (!n.dir && versions.tracked(n.path)) items.push(['Show history', () => versions.open(n.path)])
   items.push(['New file here…', () => newFile(n.dir ? n.path + '/' : n.path.replace(/[^/]+$/, ''))])
   items.push(...fileOps.menuItems(n))
   items.push([navigator.platform.startsWith('Mac') ? 'Reveal in Finder' : 'Show in folder', () => api.reveal(n.path)])
-  contextMenu(x, y, items)
+  contextMenu(x, y, [...items, null, ...splitItems('project', x, y)])
 }
 
 async function setMainFile(path: string): Promise<void> {
@@ -224,6 +248,7 @@ async function reloadTree(): Promise<void> {
   if (!project) return
   const info: ProjectInfo = await api.projectInfo()
   project.tree = info.tree
+  siblingCache.clear()
   project.mainFile = info.mainFile
   refreshProjectUi()
 }
@@ -242,14 +267,188 @@ async function newFile(prefix = ''): Promise<void> {
   await openFile(name)
 }
 
-// ---------- Files & tabs ----------
-async function openFile(path: string): Promise<void> {
-  if (/\.pdf$/i.test(path)) return showPdf(path)
-  if (!isTextFile(path)) {
+// ---------- File windows, files & tabs ----------
+const TAB_CLOSE = '<button class="close" title="Close"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button>'
+const primaryWindow = (): FileWindow => windows[0]
+const windowOf = (path: string): FileWindow | undefined => windows.find((w) => w.tabs.includes(path))
+
+/** The editor showing this file, when it is the active tab of a file window. */
+function viewOf(path: string): EditorView | null {
+  const w = windows.find((x) => x.active === path)
+  return w && files.has(path) ? w.view : null
+}
+
+/** Make a file window. Its panel is added to the layout by addWindowPanel. */
+function createWindow(id: string): FileWindow {
+  const el = document.createElement('div')
+  el.className = 'fw'
+  const tabsEl = document.createElement('div')
+  tabsEl.className = 'tabs fw-tabs'
+  const host = document.createElement('div')
+  host.className = 'fw-editor'
+  if (id === 'files') {
+    host.id = 'editor'
+    tabsEl.id = 'tabs'
+  }
+  const emptyEl = document.createElement('div')
+  emptyEl.className = 'fw-empty'
+  emptyEl.innerHTML = '<p>No file open here.</p><p class="muted">Click a file in Project, or drag a tab here.</p>'
+  el.append(tabsEl, host, emptyEl)
+  const v = new EditorView({ parent: host, state: emptyState() })
+  const w: FileWindow = { id, el, tabsEl, host, emptyEl, view: v, tabs: [], active: null, viewer: null, shown: null }
+  windows.push(w)
+  el.addEventListener('pointerdown', () => focusWindow(w), true)
+  el.addEventListener('focusin', () => focusWindow(w))
+  host.addEventListener('scroll', hideBubble, true)
+  if (!focused) {
+    focused = w
+    view = v
+  }
+  updateEmpty(w)
+  return w
+}
+
+function addWindowPanel(w: FileWindow): void {
+  const primary = w.id === 'files'
+  layout.add({
+    id: w.id,
+    title: 'Files',
+    body: w.el,
+    className: 'fw-panel',
+    defaultZone: 'right',
+    onClose: primary ? undefined : () => closeWindow(w),
+    closeTitle: primary ? 'Hide this file window' : 'Close this file window (its files move to the first one)'
+  })
+  if (w === focused) layout.element(w.id)?.classList.add('fw-focused')
+}
+
+/** A new, empty file window (place it with layout.place). */
+function newWindow(): FileWindow {
+  let n = 2
+  while (windows.some((w) => w.id === `files:${n}`) || layout.knows(`files:${n}`)) n++
+  const w = createWindow(`files:${n}`)
+  addWindowPanel(w)
+  return w
+}
+
+/** Close a secondary file window; its tabs move to the primary one, unsaved edits and all. */
+function closeWindow(w: FileWindow): void {
+  const main = primaryWindow()
+  if (w === main) return
+  if (w.active && files.has(w.active)) files.get(w.active)!.state = w.view.state
+  const show = !main.active && w.tabs.length ? (w.active ?? w.tabs[0]) : null
+  main.tabs.push(...w.tabs)
+  w.tabs = []
+  w.active = null
+  removeWindow(w)
+  if (show) showTab(main, show)
+  renderTabs()
+}
+
+function removeWindow(w: FileWindow): void {
+  const i = windows.indexOf(w)
+  if (i <= 0) return
+  windows.splice(i, 1)
+  if (focused === w) focusWindow(windows[0])
+  w.viewer?.dispose()
+  w.view.destroy()
+  layout.forget(w.id)
+}
+
+/** Where a file clicked in the Project tree opens: the file window used last. */
+function targetWindow(): FileWindow {
+  if (layout.isShown(focused.id)) return focused
+  return windows.find((w) => layout.isShown(w.id)) ?? focused
+}
+
+/** Make `w` the focused file window: `view` and `active` follow it. */
+function focusWindow(w: FileWindow, always = false): void {
+  const changed = focused !== w
+  if (changed) {
+    const old = focused
+    layout.element(old.id)?.classList.remove('fw-focused')
+    focused = w
+    view = w.view
+    layout.element(w.id)?.classList.add('fw-focused')
+    if (focusOn && settings.focusDim) {
+      old.view.dispatch({ effects: dimCompartment.reconfigure(dimExtension(false)) })
+      if (w.active && files.has(w.active)) view.dispatch({ effects: dimCompartment.reconfigure(dimExtension(true)) })
+    }
+  }
+  active = w.active && files.has(w.active) ? w.active : null
+  if (changed || always) focusChanged()
+}
+
+/** The focused window or its file changed: update what follows the open file. */
+function focusChanged(): void {
+  hideBubble()
+  updateWords()
+  scheduleDocument(50)
+  refreshProjectUi()
+  followTargetPdf()
+  if (active) {
+    const pos = view.state.selection.main.head
+    const line = view.state.doc.lineAt(pos)
+    $('st-cursor').textContent = `Ln ${line.number}, Col ${pos - line.from + 1}`
+  } else $('st-cursor').textContent = ''
+}
+
+/** Show the editor, the viewer or the empty message, whichever the window's active tab needs. */
+function updateEmpty(w: FileWindow): void {
+  const text = !!w.active && files.has(w.active)
+  w.host.classList.toggle('hidden', !text)
+  w.viewer?.el.classList.toggle('hidden', !w.active || text)
+  w.emptyEl.classList.toggle('hidden', !!w.active)
+}
+
+// Viewable files per folder, in tree order (the viewer asks on every show); cleared when the tree changes.
+const siblingCache = new Map<string, string[]>()
+function viewerHost(w: FileWindow): ViewerHost {
+  const dirOf = (p: string): string => p.slice(0, p.lastIndexOf('/') + 1)
+  return {
+    readBinary: (rel) => api.readBinary(rel),
+    siblings: (rel) => {
+      if (!project) return []
+      const dir = dirOf(rel)
+      let list = siblingCache.get(dir)
+      if (!list) siblingCache.set(dir, (list = allFiles(project.tree, (p) => isViewable(p) && dirOf(p) === dir)))
+      return list
+    },
+    navigate: (rel) => {
+      const i = w.active ? w.tabs.indexOf(w.active) : -1
+      if (i < 0 || w.active === rel || files.has(w.active!)) return
+      const other = windowOf(rel)
+      if (other) return switchTo(other, rel)
+      w.tabs[i] = rel
+      w.active = rel
+      w.shown = rel
+      void w.viewer?.show(rel)
+      renderTabs()
+    },
+    reveal: (rel) => api.reveal(rel)
+  }
+}
+
+/** A .pdf that Compile makes goes to the PDF panel; other PDFs are figures. */
+function isOutputPdf(path: string): boolean {
+  if (!project) return false
+  const pdfOf = (p: string | null | undefined): string | null => (p ? p.replace(/\.tex$/i, '.pdf') : null)
+  return path === lastPdf || path === pdfOf(compileTarget()) || path === pdfOf(project.mainFile)
+}
+
+async function openFile(path: string, into?: FileWindow): Promise<void> {
+  if (/\.pdf$/i.test(path) && isOutputPdf(path)) return showPdf(path)
+  const picture = isViewable(path)
+  if (!picture && !isTextFile(path)) {
     api.reveal(path)
     return
   }
-  if (!files.has(path)) {
+  const open = windowOf(path)
+  if (open) {
+    if (!layout.isVisible(open.id)) layout.show(open.id)
+    return switchTo(open, path)
+  }
+  if (!picture && !files.has(path)) {
     let text: string
     try {
       text = await api.readFile(path)
@@ -257,79 +456,224 @@ async function openFile(path: string): Promise<void> {
       await ask(`Could not open ${path}.`, ['OK'])
       return
     }
+    const meanwhile = windowOf(path)
+    if (meanwhile) return switchTo(meanwhile, path)
     files.set(path, { path, saved: text, dirty: false, state: EditorState.create({ doc: text, extensions }) })
-    tabOrder.push(path)
     placeIn(path)
   }
-  switchTo(path)
+  const w = into ?? targetWindow()
+  if (!layout.isVisible(w.id)) layout.show(w.id)
+  w.tabs.push(path)
+  switchTo(w, path)
 }
 
-function switchTo(path: string): void {
-  if (active && files.has(active)) files.get(active)!.state = view.state
-  active = path
-  view.setState(files.get(path)!.state)
-  view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
-  hideBubble()
-  updateWords()
-  scheduleDocument(50)
+/** Make `path` (one of w's tabs) the window's active tab, without moving the focus. */
+function showTab(w: FileWindow, path: string): void {
+  const f = files.get(path)
+  if (w.active !== path) {
+    if (w.active && files.has(w.active)) files.get(w.active)!.state = w.view.state
+    w.view.setState(f ? f.state : emptyState())
+    if (f) w.view.dispatch({ effects: [dimCompartment.reconfigure(dimExtension(focusOn && settings.focusDim && w === focused)), spellCompartment.reconfigure(spellExtension(settings.spellcheck))] })
+    w.active = path
+  }
+  if (!f) {
+    if (!w.viewer) {
+      w.viewer = new FileViewer(viewerHost(w))
+      w.viewer.el.classList.add('fw-viewer')
+      w.el.append(w.viewer.el)
+    }
+    if (w.shown !== path) {
+      w.shown = path
+      void w.viewer.show(path)
+    }
+  }
+  updateEmpty(w)
+  if (w === focused) active = f ? path : null
   renderTabs()
-  refreshProjectUi()
-  followTargetPdf()
-  view.focus()
+}
+
+function switchTo(w: FileWindow, path: string): void {
+  showTab(w, path)
+  focusWindow(w, true)
+  if (files.has(path)) w.view.focus()
+}
+
+/** Move a tab to another window (or another place in its own), keeping its state. */
+function moveTab(path: string, to: FileWindow, index?: number): void {
+  const from = windowOf(path)
+  if (!from) return
+  const i = from.tabs.indexOf(path)
+  const wasActive = from.active === path
+  if (wasActive && files.has(path)) files.get(path)!.state = from.view.state
+  from.tabs.splice(i, 1)
+  if (wasActive && from !== to) {
+    from.active = null
+    from.view.setState(emptyState())
+    const next = from.tabs[Math.min(i, from.tabs.length - 1)]
+    if (next) showTab(from, next)
+    else updateEmpty(from)
+  }
+  to.tabs.splice(Math.min(index ?? to.tabs.length, to.tabs.length), 0, path)
+  if (from === to) return renderTabs()
+  if (!from.tabs.length && from !== primaryWindow()) removeWindow(from)
+  switchTo(to, path)
 }
 
 function renderTabs(): void {
-  const host = $('tabs')
-  host.replaceChildren(
-    ...tabOrder.map((p) => {
-      const f = files.get(p)!
-      const tab = document.createElement('div')
-      tab.className = `tab${p === active ? ' active' : ''}${f.dirty ? ' dirty' : ''}`
-      tab.title = p
-      tab.innerHTML = `<span></span><button class="close" title="Close"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></button>`
-      tab.firstElementChild!.textContent = p.split('/').pop()!
-      tab.addEventListener('mousedown', (e) => {
-        if (e.button === 1) closeTab(p)
+  for (const w of windows) {
+    w.tabsEl.replaceChildren(
+      ...w.tabs.map((p) => {
+        const f = files.get(p)
+        const tab = document.createElement('div')
+        tab.className = `tab${p === w.active ? ' active' : ''}${f?.dirty ? ' dirty' : ''}${f ? '' : ' viewer'}`
+        tab.title = p
+        tab.dataset.path = p
+        tab.innerHTML = `<span></span>${TAB_CLOSE}`
+        tab.firstElementChild!.textContent = p.split('/').pop()!
+        tab.addEventListener('pointerdown', (e) => {
+          if (e.button === 0 && !(e.target as HTMLElement).closest('.close')) dragTab(e, p)
+        })
+        tab.addEventListener('mousedown', (e) => {
+          if (e.button === 1) closeTab(p)
+        })
+        tab.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('.close')) closeTab(p)
+          else switchTo(w, p)
+        })
+        return tab
       })
-      tab.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('.close')) closeTab(p)
-        else if (p !== active) switchTo(p)
-      })
-      return tab
-    })
-  )
+    )
+    updateEmpty(w)
+  }
+}
+
+/** Drag a tab: onto a tab strip (reorder or move), into another file window, or to an edge (a new window there). */
+function dragTab(e: PointerEvent, path: string): void {
+  type Plan = { kind: 'strip'; w: FileWindow; index: number } | { kind: 'into'; w: FileWindow } | { kind: 'split'; target: string | null; side: Side }
+  let origin = { left: 0, top: 0 }
+  let strips: { w: FileWindow; r: DOMRect; tabs: DOMRect[] }[] = []
+  let ready = false
+  const decide = (x: number, y: number): { plan: Plan; rect: Rect } | null => {
+    const from = windowOf(path)
+    if (!from) return null
+    for (const s of strips) {
+      if (y < s.r.top - 4 || y > s.r.bottom + 4 || x < s.r.left || x > s.r.right) continue
+      const index = s.tabs.filter((t) => x > t.left + t.width / 2).length
+      const at = index < s.tabs.length ? s.tabs[index].left : s.tabs.length ? s.tabs[s.tabs.length - 1].right : s.r.left + 2
+      return { plan: { kind: 'strip', w: s.w, index }, rect: { x: at - origin.left - 1, y: s.r.top - origin.top, w: 3, h: s.r.height } }
+    }
+    const h = layout.hit(x, y, origin)
+    if (!h) return null
+    if (h.side === 'center') {
+      const w = windows.find((x) => x.id === h.id)
+      return w && w !== from ? { plan: { kind: 'into', w }, rect: h.rect } : null
+    }
+    if (h.id === from.id && from.tabs.length === 1) return null
+    return { plan: { kind: 'split', target: h.id, side: h.side }, rect: h.rect }
+  }
+  layout.drag(e, {
+    label: path.split('/').pop()!,
+    move: (x, y) => {
+      if (!ready) {
+        ready = true
+        origin = layout.origin()
+        strips = windows
+          .filter((w) => layout.isVisible(w.id))
+          .map((w) => ({ w, r: w.tabsEl.getBoundingClientRect(), tabs: [...w.tabsEl.querySelectorAll<HTMLElement>('.tab')].filter((t) => t.dataset.path !== path).map((t) => t.getBoundingClientRect()) }))
+          .filter((s) => s.r.width > 0)
+        document.querySelector(`.tab[data-path="${CSS.escape(path)}"]`)?.classList.add('being-dragged')
+      }
+      return decide(x, y)?.rect ?? null
+    },
+    drop: (x, y) => {
+      const d = decide(x, y)
+      if (!d) return
+      const p = d.plan
+      if (p.kind === 'strip') moveTab(path, p.w, p.index)
+      else if (p.kind === 'into') moveTab(path, p.w)
+      else {
+        const w = newWindow()
+        layout.place(w.id, p.target, p.side, p.target ? 0.5 : 0.25)
+        moveTab(path, w)
+      }
+    },
+    end: () => document.querySelector('.tab.being-dragged')?.classList.remove('being-dragged')
+  })
 }
 
 async function closeTab(path: string): Promise<void> {
   const f = files.get(path)
-  if (!f) return
-  if (path === active) f.state = view.state
-  if (f.dirty) {
-    const r = await ask(`Save changes to ${path}?`, ['Save', "Don't save", 'Cancel'])
-    if (r === 2 || r === -1) return
-    if (r === 0) await save(path, false)
+  if (f) {
+    const v = viewOf(path)
+    if (v) f.state = v.state
+    if (f.dirty) {
+      const r = await ask(`Save changes to ${path}?`, ['Save', "Don't save", 'Cancel'])
+      if (r === 2 || r === -1) return
+      if (r === 0) await save(path, false)
+    }
   }
-  const i = tabOrder.indexOf(path)
-  tabOrder.splice(i, 1)
-  files.delete(path)
-  versions.closed(path)
-  if (active === path) {
-    active = null
-    const next = tabOrder[Math.min(i, tabOrder.length - 1)]
-    if (next) switchTo(next)
+  const w = windowOf(path)
+  if (!w) return
+  const i = w.tabs.indexOf(path)
+  w.tabs.splice(i, 1)
+  if (f) {
+    files.delete(path)
+    versions.closed(path)
+  }
+  if (w.active === path) {
+    w.active = null
+    w.shown = null
+    const next = w.tabs[Math.min(i, w.tabs.length - 1)]
+    if (next) switchTo(w, next)
+    else if (w !== primaryWindow()) removeWindow(w)
     else {
-      view.setState(EditorState.create({ doc: '', extensions }))
+      w.view.setState(emptyState())
+      if (w === focused) active = null
       renderTabs()
-      refreshProjectUi()
+      focusChanged()
     }
   } else renderTabs()
+}
+
+/** Copy each window's live editor state into `files`. */
+function syncStates(): void {
+  for (const w of windows) if (w.active && files.has(w.active)) files.get(w.active)!.state = w.view.state
+}
+
+/** Files were renamed or moved (fileops.ts already re-keyed `files`). */
+function renamePaths(map: (p: string) => string | null): void {
+  for (const w of windows) {
+    w.tabs = w.tabs.map((p) => map(p) ?? p)
+    const to = w.active && map(w.active)
+    if (to) {
+      w.active = to
+      if (!files.has(to)) {
+        w.shown = to
+        void w.viewer?.show(to)
+      }
+    }
+  }
+  active = focused.active && files.has(focused.active) ? focused.active : null
+}
+
+/** Forget every open tab (another project is opening, or the folder closed). */
+function clearWindows(): void {
+  files.clear()
+  for (const w of windows) {
+    w.tabs = []
+    w.active = null
+    w.shown = null
+    w.view.setState(emptyState())
+  }
+  active = null
+  renderTabs()
 }
 
 async function save(path = active, maybeCompile = true, auto = false): Promise<void> {
   if (!path) return
   const f = files.get(path)
   if (!f) return
-  const state = path === active ? view.state : f.state
+  const state = stateOf(path)!
   const text = state.doc.toString()
   await api.writeFile(path, text)
   f.saved = text
@@ -349,7 +693,7 @@ async function saveAll(): Promise<void> {
 }
 
 async function confirmDiscardAll(): Promise<boolean> {
-  if (active && files.has(active)) files.get(active)!.state = view.state
+  syncStates()
   const dirty = [...files.values()].filter((f) => f.dirty)
   if (!dirty.length) return true
   const r = await ask(`You have unsaved changes in ${dirty.map((f) => f.path).join(', ')}.`, ['Save all', 'Discard', 'Cancel'])
@@ -365,6 +709,7 @@ async function onDiskChange(paths: string[]): Promise<void> {
   const structural = paths.some((p) => !/\.(aux|log|fls|fdb_latexmk|synctex\.gz|out|toc|bbl|blg|bcf|xml)$/i.test(p))
   if (structural) reloadTree()
   projectSearch.diskChanged(paths)
+  for (const w of windows) if (w.viewer && w.shown && paths.includes(w.shown)) void w.viewer.show(w.shown) // a figure was regenerated
   if (paths.includes(COMMENTS_FILE)) {
     const now = await api.readFile(COMMENTS_FILE).catch(() => '')
     if (now !== storeText) await loadComments() // a collaborator's comments arrived
@@ -377,10 +722,11 @@ async function onDiskChange(paths: string[]): Promise<void> {
     if (!f.dirty) {
       // Reload silently, keeping the cursor roughly where it was.
       f.saved = disk
-      const state = p === active ? view.state : f.state
+      const v = viewOf(p)
+      const state = v ? v.state : f.state
       const head = Math.min(state.selection.main.head, disk.length)
       const tr = state.update({ changes: { from: 0, to: state.doc.length, insert: disk }, selection: { anchor: head } })
-      if (p === active) view.dispatch(tr)
+      if (v) v.dispatch(tr)
       else f.state = tr.state
       f.dirty = false
       placeIn(p) // match the comments to the new text
@@ -513,7 +859,9 @@ async function showPdf(path: string): Promise<void> {
 
 // Plain-English explanations and one-click fixes for the problems list (see explain/).
 const explainHost: ExplainHost = {
-  view,
+  get view() {
+    return view
+  },
   openFile,
   readText: async (p) => textOf(p) ?? (await api.readFile(p).catch(() => null)),
   files: () => (project ? allFiles(project.tree, () => true) : []),
@@ -536,7 +884,7 @@ const explainHost: ExplainHost = {
 
 function showProblems(list: Problem[], open: boolean): void {
   problems = list
-  $('problems-title').textContent = list.length ? `Problems (${list.length})` : 'Problems'
+  layout.setTitle('problems', list.length ? `Problems (${list.length})` : 'Problems')
   const ul = $('problems-list')
   ul.replaceChildren(
     ...list.map((p) => {
@@ -556,8 +904,8 @@ function showProblems(list: Problem[], open: boolean): void {
     })
   )
   void decorateProblems(ul, list, explainHost)
-  if (open) $('problems').classList.remove('hidden')
-  if (!list.length) $('problems').classList.add('hidden')
+  if (open && list.length) layout.show('problems')
+  if (!list.length && layout.isShown('problems')) layout.hide('problems')
 }
 
 // ---------- Interface zoom ----------
@@ -690,10 +1038,21 @@ function scheduleComments(): void {
 }
 
 function textOf(path: string): string | null {
-  if (path === active) return view.state.doc.toString()
-  return files.get(path)?.state.doc.toString() ?? null
+  return stateOf(path)?.doc.toString() ?? null
 }
-const stateOf = (path: string): EditorState | null => (path === active ? view.state : (files.get(path)?.state ?? null))
+function stateOf(path: string): EditorState | null {
+  return viewOf(path)?.state ?? files.get(path)?.state ?? null
+}
+
+/** Apply a transaction made from stateOf(path) to that file, in its editor if it is showing. */
+function dispatchTo(path: string, tr: Transaction): void {
+  const v = viewOf(path)
+  if (v) v.dispatch(tr)
+  else {
+    const f = files.get(path)
+    if (f) f.state = tr.state
+  }
+}
 
 /** The comments file is there but can't be read (a merge conflict, say): never write over it. */
 let commentsUnreadable = false
@@ -741,7 +1100,8 @@ async function saveComments(): Promise<void> {
 function applyPlaced(path: string, placed: Placed[]): void {
   const f = files.get(path)
   if (!f) return
-  if (path === active) view.dispatch({ effects: setComments.of(placed) })
+  const v = viewOf(path)
+  if (v) v.dispatch({ effects: setComments.of(placed) })
   else f.state = f.state.update({ effects: setComments.of(placed) }).state
 }
 
@@ -1047,8 +1407,7 @@ async function migrateLegacyComments(): Promise<void> {
       // Replace the open copy right away so the comments land on the new text.
       const st = stateOf(file)!
       const tr = st.update({ changes: { from: 0, to: st.doc.length, insert: newText } })
-      if (file === active) view.dispatch(tr)
-      else f.state = tr.state
+      dispatchTo(file, tr)
       f.saved = newText
       f.dirty = false
     }
@@ -1086,7 +1445,7 @@ function placeBubble(): void {
   const sel = view.state.selection.main
   if (sel.empty || !view.hasFocus || !active?.endsWith('.tex')) return hideBubble()
   const start = view.coordsAtPos(sel.from)
-  const host = $('editor').getBoundingClientRect()
+  const host = view.dom.getBoundingClientRect()
   if (!start || start.top < host.top || start.top > host.bottom) return hideBubble()
   const end = view.coordsAtPos(sel.to)
   const left = end && Math.abs(end.top - start.top) < 4 ? (start.left + end.left) / 2 : start.left + 30
@@ -1116,8 +1475,9 @@ document.addEventListener('contextmenu', (e) => {
 function showContextMenu(spell: { misspelled: string; suggestions: string[] }): void {
   const c = lastContext
   if (!c) return
-  const items: [string, () => void][] = []
-  if (c.target.closest('#editor')) {
+  const items: MenuItem[] = []
+  const inWindow = windows.find((w) => w.host.contains(c.target))
+  if (inWindow) {
     const pos = view.posAtCoords({ x: c.x, y: c.y })
     const word = pos !== null ? view.state.wordAt(pos) : null
     if (spell.misspelled && word) {
@@ -1130,12 +1490,14 @@ function showContextMenu(spell: { misspelled: string; suggestions: string[] }): 
     items.push(['Show in PDF', () => syncForward()])
     if (!sel.empty) items.push(['Cut', () => api.editCommand('cut')], ['Copy', () => api.editCommand('copy')])
     items.push(['Paste', () => api.editCommand('paste')])
+    items.push(null, ...splitItems(inWindow.id, c.x, c.y))
   } else if (c.target.closest('#pdf')) {
     if (pdf.selection()) items.push(['Add comment on selection', () => commentFromPdf()], ['Copy', () => api.editCommand('copy')])
     items.push(['Show source here', () => {
       const hit = pdf.pointAt(c.x, c.y)
       if (hit) syncInverse(hit.page, hit.x, hit.y)
     }])
+    items.push(null, ...splitItems('pdf', c.x, c.y))
   } else return
   hideBubble()
   contextMenu(c.x, c.y, items)
@@ -1295,8 +1657,8 @@ const plugins = new PluginPanels(layout, {
   },
   clearHighlights: () => {
     const none = setPluginMarks.of([])
-    view.dispatch({ effects: none })
-    for (const [path, f] of files) if (path !== active) f.state = f.state.update({ effects: none }).state
+    for (const w of windows) w.view.dispatch({ effects: none })
+    for (const [path, f] of files) if (!viewOf(path)) f.state = f.state.update({ effects: none }).state
   },
   goTo: async (file, from, to) => {
     if (file !== active) await openFile(file)
@@ -1311,7 +1673,7 @@ const plugins = new PluginPanels(layout, {
 
 // File management in the file list (fileops.ts) and Find in Project (search.ts).
 const appHost: AppHost = {
-  api, view, files, project: () => project, active: () => active, setActive: (p) => (active = p), tabOrder: () => tabOrder,
+  api, get view() { return view }, viewOf, files, project: () => project, active: () => active, openTabs: () => windows.flatMap((w) => w.tabs), syncStates, renamed: renamePaths,
   openFile, closeTab, newFile, renderTabs, reloadTree, setMainFile, threads: () => store, saveComments, scheduleComments,
   lastPdf: () => lastPdf, showPdf, forgetPdf: () => ((lastPdf = null), pdf.clear()), refresh: () => (refreshIndex(), void refreshPreambles()), status: setCompileStatus
 }
@@ -1320,16 +1682,87 @@ const projectSearch = new ProjectSearch(appHost)
 
 let outline: Outline | null = null
 function setupPanels(saved: unknown): void {
-  layout.state = normalizeLayout(saved as LayoutState | undefined)
-  layout.add({ id: 'files', title: 'Files', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
+  // Remember the panels' elements now: a hidden panel is out of the page, where getElementById can't find it.
+  document.querySelectorAll<HTMLElement>('#panel-store [id]').forEach((el) => found.set(el.id, el))
+  layout.state = normalizeLayout(saved, layout.workspaceSize())
+  layout.add({ id: 'project', title: 'Project', body: $('tree'), extras: $('files-extras'), defaultZone: 'left' })
+  addWindowPanel(primaryWindow())
+  // File windows saved in the layout come back (empty) where they were.
+  for (const id of layout.treeIds().filter((x) => /^files:\d+$/.test(x))) addWindowPanel(createWindow(id))
   layout.add({ id: 'pdf', title: 'PDF', body: $('pdf'), extras: $('pdf-extras'), defaultZone: 'right' })
   layout.add({ id: 'comments', title: 'Comments', body: $('comments'), extras: $('comments-extras'), defaultZone: 'side', onVisible: () => scheduleComments() })
+  layout.add({ id: 'problems', title: 'Problems', body: $('problems'), extras: $('problems-extras'), defaultZone: 'bottom', startHidden: true })
   projectSearch.mount(layout)
   outline = setupOutline(layout, saved, { project: () => project, active: () => active, cursor: () => (active ? view.state.selection.main.head : null), textOf, goTo: async (f, line) => (await openFile(f), goToLine(view, line)) })
   extensions.push(outline.extension) // follows the cursor in files opened from now on
+  layout.onHeaderMenu = (id, x, y) => contextMenu(x, y, panelMenu(id, x, y))
   layout.render()
   updatePanelButtons()
 }
+
+// ---------- Splitting: right-click → Split Right… and so on ----------
+const SPLITS: [string, Side][] = [['Split Right…', 'right'], ['Split Left…', 'left'], ['Split Down…', 'bottom'], ['Split Up…', 'top']]
+
+function panelLabel(id: string): string {
+  const n = /^files:(\d+)$/.exec(id)
+  return n ? `Files ${n[1]}` : layout.title(id)
+}
+
+/** Split Right…, Split Left…, Split Down…, Split Up… for this panel. */
+function splitItems(panel: string, x: number, y: number): MenuItem[] {
+  return SPLITS.map(([label, side]) => [label, () => chooseSplit(panel, side, x, y)] as [string, () => void])
+}
+
+/** After choosing a split: what fills the new space (a new file window, or any other panel, moved there). */
+function chooseSplit(target: string, side: Side, x: number, y: number): void {
+  const items: MenuItem[] = [
+    [
+      'New file window',
+      () => {
+        const w = newWindow()
+        layout.place(w.id, target, side)
+        focusWindow(w)
+      }
+    ],
+    null
+  ]
+  for (const id of layout.ids()) if (id !== target) items.push([panelLabel(id), () => layout.place(id, target, side)])
+  contextMenu(x, y, items)
+}
+
+/** Right-click on a panel's title bar (or on a panel with no menu of its own). */
+function panelMenu(id: string, x: number, y: number): MenuItem[] {
+  const w = windows.find((x) => x.id === id)
+  const items: MenuItem[] = [...splitItems(id, x, y), null]
+  items.push([layout.state.collapsed.includes(id) ? 'Expand' : 'Collapse', () => layout.toggleCollapsed(id)])
+  if (w && w !== primaryWindow()) items.push(['Close window', () => closeWindow(w)])
+  else items.push(['Hide', () => layout.hide(id)])
+  return items
+}
+
+/** Right-click on a tab. */
+function tabMenu(path: string, x: number, y: number): MenuItem[] {
+  const w = windowOf(path)!
+  const toNew = (side: Side) => () => {
+    const nw = newWindow()
+    layout.place(nw.id, w.id, side)
+    moveTab(path, nw)
+  }
+  const items: MenuItem[] = [['Close', () => closeTab(path)]]
+  if (w.tabs.length > 1) items.push(['Move to New Window on the Right', toNew('right')], ['Move to New Window Below', toNew('bottom')])
+  return [...items, null, ...splitItems(w.id, x, y)]
+}
+
+// Panels whose body has no menu of its own (Comments, Outline, an empty file window…) get the split items.
+document.addEventListener('contextmenu', (e) => {
+  const t = e.target as HTMLElement
+  const panel = t.closest<HTMLElement>('.panel')
+  if (!panel || e.defaultPrevented || t.closest('.fw-editor, #pdf, input, textarea, select')) return
+  e.preventDefault()
+  const tab = t.closest<HTMLElement>('.tab')
+  const id = panel.dataset.panel!
+  contextMenu(e.clientX, e.clientY, tab?.dataset.path && windowOf(tab.dataset.path) ? tabMenu(tab.dataset.path, e.clientX, e.clientY) : panelMenu(id, e.clientX, e.clientY))
+})
 
 // ---------- Insert toolbar helpers ----------
 let ribbon: Ribbon | null = null
@@ -1352,8 +1785,7 @@ async function applyDesignPreset(id: string): Promise<void> {
     // Through the editor, so Undo works.
     const st = stateOf(main)!
     const tr = st.update({ changes: { from: 0, to: st.doc.length, insert: r.text }, userEvent: 'input' })
-    if (main === active) view.dispatch(tr)
-    else files.get(main)!.state = tr.state
+    dispatchTo(main, tr)
     files.get(main)!.dirty = true
     await save(main, false)
   } else await api.writeFile(main, r.text)
@@ -1362,8 +1794,7 @@ async function applyDesignPreset(id: string): Promise<void> {
     if (files.has(f.path)) {
       const st = stateOf(f.path)!
       const tr = st.update({ changes: { from: 0, to: st.doc.length, insert: f.text }, userEvent: 'input' })
-      if (f.path === active) view.dispatch(tr)
-      else files.get(f.path)!.state = tr.state
+      dispatchTo(f.path, tr)
       files.get(f.path)!.dirty = true
       await save(f.path, false)
     } else await api.writeFile(f.path, f.text)
@@ -1427,8 +1858,7 @@ async function ensurePackage(pkg: string): Promise<boolean> {
   if (f) {
     const st = stateOf(main)!
     const tr = st.update({ changes: { from: place(st.doc.toString()), insert: line } })
-    if (main === active) view.dispatch(tr)
-    else f.state = tr.state
+    dispatchTo(main, tr)
     f.dirty = true
     renderTabs()
   } else {
@@ -1444,14 +1874,23 @@ async function ensurePackage(pkg: string): Promise<boolean> {
 function updatePanelButtons(): void {
   // Comment highlights show only while the Comments panel is open (adding a comment reopens it).
   document.body.classList.toggle('comments-off', !layout.isVisible('comments'))
-  $('btn-sidebar').classList.toggle('on', layout.isVisible('files'))
+  $('btn-sidebar').classList.toggle('on', layout.isVisible('project'))
   $('btn-pdf').classList.toggle('on', layout.isVisible('pdf'))
+}
+
+/** Back to the standard layout: secondary file windows close (their files move to the first one). */
+function resetLayout(): void {
+  for (const w of windows.slice(1)) closeWindow(w)
+  layout.reset()
 }
 
 function panelsMenu(): void {
   const r = $('btn-panels').getBoundingClientRect()
-  const items: [string, () => void][] = layout.ids().map((id) => [`${layout.isShown(id) ? '✓' : '\u2003'}  ${layout.title(id)}`, () => (layout.isShown(id) ? layout.hide(id) : layout.show(id))])
-  items.push(['Reset layout', () => layout.reset()])
+  const items: MenuItem[] = layout
+    .ids()
+    .filter((id) => !/^files:/.test(id))
+    .map((id) => [`${layout.isShown(id) ? '✓' : '\u2003'}  ${layout.title(id)}`, () => (layout.isShown(id) ? layout.hide(id) : layout.show(id))])
+  items.push(null, ['Reset layout', () => resetLayout()])
   contextMenu(r.left - 120, r.bottom + 4, items)
 }
 
@@ -1682,12 +2121,8 @@ async function showWelcome(): Promise<void> {
   store = []
   storeText = ''
   detached.clear()
-  files.clear()
-  tabOrder = []
-  active = null
+  clearWindows()
   lastPdf = null
-  view.setState(EditorState.create({ doc: '', extensions }))
-  renderTabs()
   pdf.clear()
   live.compileStarting() // stop any background build of the closed folder
   live.projectPdfShown()
@@ -1807,14 +2242,14 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'open-folder': chooseFolder,
   'new-file': () => newFile(),
   save: () => save(),
-  'close-tab': () => active && closeTab(active),
+  'close-tab': () => focused.active && closeTab(focused.active),
   history: () => versions.open(active),
   'changes-since': () => versions.changes(),
   settings: () => openSettings(settings, themes, tex, { ...api, report: reportProblem }, updateSettings, allPlugins),
   'report-bug': () => reportProblem('bug'),
   'suggest-feature': () => reportProblem('idea'),
   focus: () => project && setFocus(!focusOn),
-  'toggle-sidebar': () => layout.toggle('files'),
+  'toggle-sidebar': () => layout.toggle('project'),
   'toggle-pdf': () => layout.toggle('pdf'),
   compile: () => compile(),
   'add-comment': () => addComment(),
@@ -1898,7 +2333,7 @@ function wire(): void {
       goToLine(view, 1)
     }
   })
-  const paste = installPaste({ view, texActive: () => Boolean(project && active?.endsWith('.tex')), project: () => project, mainText, hasPackage, ensurePackage, notice: (m) => setCompileStatus(m, 'warn') })
+  const paste = installPaste({ get view() { return view }, texActive: () => Boolean(project && active?.endsWith('.tex')), project: () => project, mainText, hasPackage, ensurePackage, notice: (m) => setCompileStatus(m, 'warn') })
   buildInsertBar($('rb-insert'), $('ins-pop'), {
     tableMore: paste.tableButtons,
     view: () => (active?.endsWith('.tex') ? view : null),
@@ -1916,12 +2351,10 @@ function wire(): void {
   const bubble = $('comment-bubble')
   bubble.addEventListener('pointerdown', (e) => e.preventDefault()) // keep the selection
   bubble.onclick = () => (bubble.dataset.source === 'pdf' ? commentFromPdf() : addComment())
-  $('editor').addEventListener('scroll', hideBubble, true)
   $('pdf').addEventListener('scroll', hideBubble)
   api.on('context-menu', (p: { misspelled: string; suggestions: string[] }) => showContextMenu(p))
   $('btn-log').onclick = actions['show-log']
-  $('btn-problems-close').onclick = () => $('problems').classList.add('hidden')
-  $('st-compile').onclick = () => problems.length && $('problems').classList.toggle('hidden')
+  $('st-compile').onclick = () => problems.length && layout.toggle('problems')
   $('pdf-zoom-in').onclick = () => pdf.zoomBy(1.2)
   $('pdf-zoom-out').onclick = () => pdf.zoomBy(1 / 1.2)
   $('pdf-fit').onclick = () => pdf.setZoom('fit')

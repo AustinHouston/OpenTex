@@ -22,7 +22,8 @@ export interface HistoryHost {
     readFile: (rel: string) => Promise<string>
     writeFile: (rel: string, text: string) => Promise<void>
   }
-  view: EditorView
+  /** The editor showing this file, if it is the active tab of a file window. */
+  viewOf: (path: string) => EditorView | null
   files: Map<string, OpenFileLike>
   active: () => string | null
   project: () => ProjectInfo | null
@@ -169,14 +170,14 @@ function renderDiff(el: HTMLElement, oldText: string, newText: string, ctx = 3):
 // ---------- Setup ----------
 export function setupHistory(h: HistoryHost) {
   const call = h.api.history
-  const textOf = (p: string): string | null => (p === h.active() ? h.view.state.doc.toString() : (h.files.get(p)?.state.doc.toString() ?? null))
+  const textOf = (p: string): string | null => h.viewOf(p)?.state.doc.toString() ?? h.files.get(p)?.state.doc.toString() ?? null
   const root = (): string | null => h.project()?.root ?? null
 
   // ----- Saving automatically -----
   const pending = new Set<string>()
   let saveTimer = 0
-  function edited(): void {
-    const p = h.active()
+  function edited(path?: string | null): void {
+    const p = path ?? h.active()
     if (!p) return
     pending.add(p)
     clearTimeout(saveTimer)
@@ -222,11 +223,12 @@ export function setupHistory(h: HistoryHost) {
   function replaceText(path: string, text: string): void {
     const f = h.files.get(path)
     if (!f) return
-    const st = path === h.active() ? h.view.state : f.state
+    const v = h.viewOf(path)
+    const st = v ? v.state : f.state
     const cur = st.doc.toString()
     const changes = cur.includes('\r') || text.includes('\r') ? [{ from: 0, to: cur.length, insert: text }] : lineChanges(cur, text)
     const tr = st.update({ changes, userEvent: 'input' })
-    if (path === h.active()) h.view.dispatch(tr)
+    if (v) v.dispatch(tr)
     else f.state = tr.state
     f.dirty = true
     pending.delete(path) // left for the user to look over and save; typing on saves it as usual

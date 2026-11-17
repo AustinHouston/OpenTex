@@ -213,4 +213,21 @@ Code layout:
 
 ## License
 
-MIT
+Copyright © 2026 Austin Houston
+
+OpenTex is free software: you can redistribute it and/or modify it under the terms of the
+[GNU Affero General Public License](LICENSE) as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version.
+
+OpenTex is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+[GNU Affero General Public License](LICENSE) for more details.
+
+In short: you can use OpenTex for anything, including at work. If you share a copy or a changed
+version, or offer it to people over a network, it must stay open source under the same license,
+keep the copyright notices, and say what you changed.
+
+The OpenTex name and icon are not covered by the license: a changed version needs its own name and
+icon. See [TRADEMARKS.md](TRADEMARKS.md).
+
+Versions up to and including v0.4.2 were released under the MIT License.

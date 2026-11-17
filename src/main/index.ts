@@ -277,6 +277,8 @@ async function buildMenu(): Promise<void> {
         { label: 'Open the Example Paper', click: () => send('open-example') },
         { label: 'OpenTex on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex') },
         { label: 'Check for Updates…', click: () => send('check-updates') },
+        // On a Mac, About is in the OpenTex menu; elsewhere it goes here.
+        ...(isMac ? [] : [{ label: 'About OpenTex', click: () => app.showAboutPanel() }]),
         { type: 'separator' },
         { label: 'Report a Bug…', click: () => send('report-bug') },
         { label: 'Suggest a Feature…', click: () => send('suggest-feature') }
@@ -482,6 +484,13 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   if (!firstCopy) return
+  // The license's "appropriate legal notices": shown in OpenTex → About OpenTex.
+  app.setAboutPanelOptions({
+    applicationName: 'OpenTex',
+    applicationVersion: app.getVersion(),
+    copyright: 'Copyright © 2026 Austin Houston\nFree software under the GNU AGPL v3 or later, with no warranty.\nSource code: github.com/AustinHouston/OpenTex',
+    website: 'https://github.com/AustinHouston/OpenTex'
+  })
   await listPlugins()
   servePlugins(join(builtinPluginsDir(), 'opentex-sdk.js'))
   registerIpc()

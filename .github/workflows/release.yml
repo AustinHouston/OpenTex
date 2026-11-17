@@ -26,7 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          # The Intel Mac runner builds both the Apple silicon and Intel files. GitHub's arm64 Mac
+          # runners (macos-latest) are often short of capacity: v0.5.0's job waited 15 minutes for one
+          # twice and was cancelled.
+          - os: macos-15-intel
             target: --mac
             files: |
               dist/OpenTex-mac-apple-silicon.dmg

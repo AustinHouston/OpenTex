@@ -38,3 +38,23 @@ one TeX pass per build, typing 95th percentile 17.4 ms while PDFs swap, no stall
 | Writing Garden (new) | – | 2.6% |
 
 Each open plugin also adds one browser process of about 100 MB.
+
+## File windows, figure viewer, new ribbon (after v0.4.2)
+
+Same 3,000-line paper, v0.4.2 against the build with the split layout, several file windows, the
+figure viewer and the reorganised ribbon. Median of 4 runs each, alternating, nothing else running.
+
+| | v0.4.2 | New |
+|---|---|---|
+| Start-up | 0.58 s | 0.36 s |
+| Open the paper | 51 ms | 43 ms |
+| Typing: median / slowest 5% / worst | 11.0 / 17.2 / 19.8 ms | 9.9 / 17.4 / 18.5 ms |
+| Long tasks while typing | 0 | 0 |
+| Scrolling, slowest 5% of frames | 17.6 ms | 17.5 ms |
+| CPU at rest / while typing | 0.2% / 9.3% | 0.2% / 9.4% |
+| Hover previews (repeat) | 18–20 ms | 5–9 ms |
+| Memory at start / after the run | 524 / 692 MB | 533 / 730 MB |
+| Compile | 5.2 s | 5.1 s |
+
+Typing and scrolling are unchanged. Repeat hover previews got faster and memory is about 10 MB
+higher at start and about 40 MB higher after the run; the causes of both weren't investigated.

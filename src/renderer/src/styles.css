@@ -164,6 +164,7 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 /* Context menu */
 .ctx-menu { position: fixed; z-index: 20; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); min-width: 180px; }
 .ctx-menu button { display: block; width: 100%; text-align: left; }
+.ctx-menu .ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
 /* Sidebar tabs */
 .side-tabs { gap: 2px; padding-left: 6px; }
@@ -351,8 +352,11 @@ body.no-project .ribbon, body.focus .ribbon, body.no-ribbon .ribbon { display: n
 .rb-tab.on { color: var(--accent); background: var(--bg); border-color: var(--border); font-weight: 600; }
 .rb-body { background: var(--bg); border-top: 1px solid var(--border); }
 body.ribbon-collapsed .rb-body { display: none; }
-.rb-pane { height: 44px; display: flex; align-items: center; gap: 2px; padding: 0 8px; overflow-x: auto; overflow-y: hidden; }
+.rb-pane { height: 64px; display: flex; align-items: center; gap: 2px; padding: 0 8px; overflow-x: auto; overflow-y: hidden; }
 .rb-pane.hidden { display: none; }
+/* A narrow window scrolls the ribbon sideways; keep the scrollbar thin so it doesn't cover the buttons. */
+.rb-pane::-webkit-scrollbar { height: 4px; }
+.rb-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 /* Design gallery */
 .ds-gallery { gap: 4px; }
 .ds-card { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; white-space: nowrap; color: var(--text); background: var(--panel); }
@@ -368,17 +372,27 @@ body.ribbon-collapsed .rb-body { display: none; }
 .pl-tile .pl-state { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: var(--panelAlt); color: var(--muted); }
 .pl-tile.on { border-color: var(--accent); }
 .pl-tile.on .pl-state { background: var(--accent); color: var(--accentText); }
-.rb-group { display: flex; gap: 1px; }
-.rb-sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; flex: none; }
-.rb-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; font-size: 12.5px; color: var(--text); white-space: nowrap; }
-.rb-btn svg { width: 17px; height: 17px; color: var(--accent); }
-.rb-btn.on { background: var(--panelAlt); }
-.rb-btn.rb-icon { padding: 4px 6px; }
-.rb-btn.rb-icon svg { width: 18px; height: 18px; }
+/* Same height as the ribbon buttons, so every tab lines up. */
+.ds-card, .pl-tile { height: 56px; }
+.rb-group { display: flex; gap: 4px; }
+.rb-sep { width: 1px; height: 40px; background: var(--border); margin: 0 6px; flex: none; }
+/* Ribbon buttons: near-square tiles, icon above a short label (up to two lines), outlined at rest
+   so each one is easy to tell apart. */
+.rb-btn { position: relative; flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 56px; max-width: 96px; height: 56px; padding: 3px 7px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); font-size: 11px; line-height: 1.15; text-align: center; color: var(--text); }
+.rb-btn span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.rb-btn svg { width: 19px; height: 19px; flex: none; color: var(--accent); }
+.rb-btn:hover { background: var(--panel); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.rb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rb-btn.on, .rb-btn:active { background: var(--panelAlt); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+/* Review → Comments is on while the Comments panel shows (main.ts sets body.comments-off otherwise). */
+body:not(.comments-off) .rb-btn[data-run='toggle-comments'] { background: var(--panelAlt); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.rb-caret { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: 9px; line-height: 1; color: var(--muted); }
+/* Icon-only tiles (Insert: superscript, subscript, bold, italic, lists, link) are narrower squares. */
+.rb-btn.rb-icon { min-width: 44px; padding: 3px 5px; }
+.rb-btn.rb-icon svg { width: 20px; height: 20px; }
 /* Narrow windows: the Insert tab drops labels (the tooltips still say what each tool does). */
-@media (max-width: 1000px) { #rb-insert .ins-tail .rb-btn > span { display: none; } }
-@media (max-width: 760px) { #rb-insert .rb-btn > span { display: none; } }
-.rb-caret { font-style: normal; font-size: 9px; color: var(--muted); margin-left: -1px; }
+@media (max-width: 1000px) { #rb-insert .ins-tail .rb-btn > span { display: none; } #rb-insert .ins-tail .rb-btn { min-width: 44px; } }
+@media (max-width: 760px) { #rb-insert .rb-btn > span { display: none; } #rb-insert .rb-btn { min-width: 44px; } }
 .ins-pop { position: fixed; z-index: 25; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22); padding: 8px 12px 12px; overflow: auto; }
 .ins-pop[data-tool='table'] { width: 230px; }
 .ins-pop[data-tool='equation'] { width: 360px; }

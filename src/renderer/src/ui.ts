@@ -49,7 +49,8 @@ export function contextMenu(x: number, y: number, items: MenuItem[]): void {
   if (closeMenu) document.removeEventListener('click', closeMenu)
   m.replaceChildren(
     ...items.map((item) => {
-      if (!item) return Object.assign(document.createElement('div'), { className: 'ctx-sep' })
+      // A separator line: null, or the label '-'.
+      if (!item || item[0] === '-') return Object.assign(document.createElement('div'), { className: 'ctx-sep' })
       const [label, fn] = item
       const b = document.createElement('button')
       b.textContent = label

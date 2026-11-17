@@ -45,12 +45,13 @@
               <span>Download OpenTex</span>
             </a>
             <div class="alt dl-alt"></div>
+            <p class="cta-version">Version 0.5.0 &middot; <a href="https://github.com/AustinHouston/OpenTex/releases/tag/v0.5.0">What’s new</a></p>
             <p class="cta-note">No administrator rights needed. No TeX yet? OpenTex offers to install a small one (TinyTeX) for you on first launch.</p>
           </div>
 
           <div class="window">
             <div class="chrome" aria-hidden="true"><i></i><i></i><i></i></div>
-            <img src="img/app.jpg" width="1400" height="868" alt="The OpenTex window: file tree, LaTeX source, compiled PDF, a comment thread and the Forest Timer." />
+            <img src="img/app.jpg" width="1400" height="868" alt="The OpenTex window: the ribbon on its Insert tab, file tree and outline, LaTeX source, the compiled PDF and a comment." />
           </div>
         </div>
       </section>
@@ -87,7 +88,7 @@
               <span class="why-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/><path d="M17 13.5v7M13.5 17h7"/></svg></span>
               <h3>Adaptable</h3>
               <p>Movable panels, expandable plugins.</p>
-              <p class="sub">Drag panels where you want them; add plugins as new panels.</p>
+              <p class="sub">Drag panels where you want them; turn plugins on in Settings to add new panels.</p>
             </div>
             <div class="why-item">
               <span class="why-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2.5h8l4 4V21a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 21V3a.5.5 0 0 1 .5-.5z"/><path d="M14 2.5V7h4"/><path d="M9 11.5l1.2 5 1.8-3.6 1.8 3.6 1.2-5"/></svg></span>
@@ -171,28 +172,29 @@
               <p>Select text in the editor or in the PDF, click <b>+&nbsp;Comment</b>, reply, resolve.</p>
               <p class="muted">Your .tex stays clean: comments are kept in a small file in the project folder, so they travel with it over email, Dropbox or git, and never appear in the PDF. If a collaborator edits the text in another editor, OpenTex finds each comment’s place again, and anything it can’t place gets a one-click Re-link.</p>
             </div>
-            <div class="shot"><img src="img/comments.jpg" width="1400" height="807" loading="lazy" alt="Comment lines highlighted in the source and the matching comment threads in the side panel, with Reply, Resolve and Delete." /></div>
+            <div class="shot"><img src="img/comments.jpg" width="1400" height="868" loading="lazy" alt="Commented text highlighted in the source, with the comment in the Comments panel: Reply, Resolve, Re-link and Delete." /></div>
           </div>
 
           <!-- SyncTeX -->
           <div class="row flip">
             <div class="text">
               <span class="tag">Navigate</span>
-              <h3>SyncTeX: source and PDF, linked</h3>
+              <h3>Source and PDF, linked</h3>
               <p><b>Double-click</b> anywhere in the PDF to jump to that line of source.</p>
               <p>Press <kbd>Ctrl</kbd>/<kbd>⌘</kbd>&nbsp;+&nbsp;<kbd>J</kbd> to jump from the source to the matching spot in the PDF.</p>
             </div>
-            <div class="shot"><img src="img/synctex.jpg" width="1600" height="992" loading="lazy" alt="LaTeX source on the left and the compiled PDF on the right." /></div>
+            <div class="shot"><img src="img/synctex.jpg" width="1400" height="868" loading="lazy" alt="LaTeX source beside the compiled PDF, with the ribbon above." /></div>
           </div>
 
           <!-- Layout -->
           <div class="row">
             <div class="text">
               <span class="tag">Adapt</span>
-              <h3>Panels where you want them</h3>
-              <p>Move panels around, stack them, collapse them or hide them. Here the Forest Timer sits under Files, the PDF is hidden and Comments is collapsed to a strip.</p>
+              <h3>A ribbon like Word’s, panels where you want them</h3>
+              <p>Five tabs, <b>File</b>, <b>Insert</b>, <b>Design</b>, <b>Citations</b> and <b>Review</b>, plus <b>Settings</b>. <b>Design</b> switches the whole paper to an Article, Nature-, Science-, Physical Review- or IEEE-style look, or a double-spaced review draft, in one click, without touching your text.</p>
+              <p class="muted">Move panels around, stack them, collapse them or hide them. Here the Project list is collapsed and Comments sits beside the PDF. Click the open tab to fold the ribbon away.</p>
             </div>
-            <div class="shot"><img src="img/layout.jpg" width="1400" height="868" loading="lazy" alt="A rearranged OpenTex layout: Forest Timer below the file list, a wide editor and a collapsed Comments panel." /></div>
+            <div class="shot"><img src="img/layout.jpg" width="1400" height="868" loading="lazy" alt="The ribbon on its Design tab with journal presets, a collapsed Project panel, the outline, source, PDF and Comments." /></div>
           </div>
 
           <!-- Themes -->
@@ -224,14 +226,14 @@
             <div class="text">
               <span class="tag">Focus</span>
               <h3>Just you and the text</h3>
-              <p>Focus mode (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>&nbsp;+&nbsp;<kbd>Shift</kbd>&nbsp;+&nbsp;<kbd>F</kbd>) hides everything but the text and dims all but the current paragraph.</p>
+              <p>Focus mode (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>&nbsp;+&nbsp;<kbd>Shift</kbd>&nbsp;+&nbsp;<kbd>D</kbd>, <kbd>Esc</kbd> to leave) hides everything but the text and dims all but the current paragraph.</p>
             </div>
             <div class="shot"><img src="img/focus.jpg" width="1200" height="516" loading="lazy" alt="Focus mode in the Dark theme: only the source text, with the next paragraph dimmed." /></div>
           </div>
 
           <div class="sec-head" style="margin-bottom:0">
             <h3>The Forest Timer</h3>
-            <p>A Pomodoro timer plugin whose pixel forest grows while you work, turns to autumn on short breaks and to winter on the long break.</p>
+            <p>A Pomodoro timer plugin whose pixel forest grows while you work, turns to autumn on short breaks and to winter on the long break. Also built in: Writing Garden, Lava Lamp, Starship and Readability. Turn any of them on in <b>Settings&nbsp;→&nbsp;Plugins</b>.</p>
           </div>
           <div class="forest">
             <figure><img src="img/forest-focus.png" width="600" height="1000" loading="lazy" alt="Forest Timer during focus: a green summer meadow." /><figcaption>Focus &middot; summer</figcaption></figure>
@@ -311,6 +313,7 @@
         <nav aria-label="Project links">
           <a href="https://github.com/AustinHouston/OpenTex">Source code and documentation on GitHub</a>
           <a href="https://github.com/AustinHouston/OpenTex/releases">All versions</a>
+          <a href="https://github.com/AustinHouston/OpenTex/issues/new">Report a bug</a>
           <a href="https://github.com/AustinHouston/OpenTex/blob/main/LICENSE">License: AGPL-3.0</a>
         </nav>
       </div>

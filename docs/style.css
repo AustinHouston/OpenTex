@@ -5,7 +5,7 @@
   --panel-alt: #e5d9c1;
   --border: #d8cbb0;
   --text: #433422;
-  --muted: #7d6a4f;
+  --muted: #6c5a40;
   --accent: #a0522d;
   --accent-hover: #8a4424;
   --accent-text: #fff8ee;
@@ -15,7 +15,7 @@
   --syn-cmd: #8b3a62;
   --syn-math: #3d6b3a;
   --syn-env: #2a5d8a;
-  --syn-comment: #a8957a;
+  --syn-comment: #85714f;
   --syn-bracket: #a0522d;
   --serif: 'EB Garamond', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --sans: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -39,7 +39,7 @@
     --syn-cmd: #d58fb4;
     --syn-math: #9ccc8f;
     --syn-env: #8fb6e0;
-    --syn-comment: #8c7c62;
+    --syn-comment: #a8977a;
     --syn-bracket: #d98a5c;
   }
 }
@@ -100,6 +100,8 @@ h3 { font-size: clamp(26px, 3.4vw, 32px); }
 .btn:hover { background: var(--accent-hover); color: var(--accent-text); transform: translateY(-1px); }
 .btn svg { width: 20px; height: 20px; flex: none; }
 .alt { font-size: 15px; color: var(--muted); }
+.cta-version { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
+.cta-version a { color: inherit; text-underline-offset: 3px; }
 .cta-note { font-size: 15px; color: var(--muted); margin: 4px 0 0; max-width: 34em; }
 
 .window {

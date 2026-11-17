@@ -1,7 +1,9 @@
-// The Insert toolbar (like Word's Insert tab): tables, equations, symbols, figures, citations,
-// cross-references and footnotes, inserted at the cursor.
-// Symbols know whether the cursor is in math: inside math they insert \alpha, outside they
-// insert $\alpha$. Anything that needs a package not yet loaded offers to add it.
+// The Insert toolbar (like Word's Insert tab): tables, equations, symbols, figures, superscript,
+// subscript, bold, italic, lists, links, cross-references and footnotes, inserted at the cursor.
+// (Citations have their own tab, which uses insertAtCursor from here.)
+// Tools know whether the cursor is in math: symbols insert \alpha inside math and $\alpha$
+// outside; superscript is ^{…} in math and \textsuperscript{…} in text. Anything that needs a
+// package not yet loaded offers to add it.
 
 import type { EditorState } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
@@ -12,9 +14,10 @@ export interface InsertHost {
   images: () => string[] // image files in the project, for figures
   ensurePackage: (pkg: string) => Promise<boolean> // true if loaded (or just added)
   hasPackage: (pkg: string) => boolean
+  mainText?: () => string // the main .tex file's text, to see if it already has a table of contents
   notice: (msg: string) => void
   tableMore?: (el: HTMLElement) => void // extra buttons under the table grid (paste.ts)
-  addByDoi?: () => void // makes Citation a drop-down with "Add by DOI…" (see doi.ts)
+  addByDoi?: () => void // no longer used here: citations (and Add by DOI) moved to the Citations tab
 }
 
 /** Where the text cursor marker goes after inserting a snippet. */
@@ -47,21 +50,101 @@ export function insertSnippet(view: EditorView, snippet: string, opts: { ownLine
   let text = snippet
   // If text was selected, it goes where the cursor marker is.
   if (selected && text.includes(CURSOR)) text = text.replace(CURSOR, selected + CURSOR)
-  if (opts.ownLine) {
-    const line = view.state.doc.lineAt(sel.from)
-    if (sel.from > line.from && line.text.slice(0, sel.from - line.from).trim()) text = '\n' + text
-    const after = view.state.doc.sliceString(sel.to, view.state.doc.lineAt(sel.to).to)
+  put(view, sel.from, sel.to, text, opts.ownLine)
+}
+
+/**
+ * Replace `from`–`to` with `text` in one edit (so one Undo takes it back). The first `¦` is where
+ * the cursor goes; with `select`, the text between the first and second `¦` is left selected.
+ * `ownLine` puts the text on lines of its own.
+ */
+function put(view: EditorView, from: number, to: number, text: string, ownLine = false, select = false): void {
+  if (ownLine) {
+    const line = view.state.doc.lineAt(from)
+    if (from > line.from && line.text.slice(0, from - line.from).trim()) text = '\n' + text
+    const after = view.state.doc.sliceString(to, view.state.doc.lineAt(to).to)
     if (after.trim()) text = text + '\n'
   }
   const cursorAt = text.indexOf(CURSOR)
+  const endAt = select && cursorAt >= 0 ? text.indexOf(CURSOR, cursorAt + 1) : -1
   const clean = text.split(CURSOR).join('')
+  const anchor = from + (cursorAt >= 0 ? cursorAt : clean.length)
   view.dispatch({
-    changes: { from: sel.from, to: sel.to, insert: clean },
-    selection: { anchor: sel.from + (cursorAt >= 0 ? cursorAt : clean.length) },
+    changes: { from, to, insert: clean },
+    selection: { anchor, head: endAt >= 0 ? from + endAt - 1 : anchor },
     scrollIntoView: true,
     userEvent: 'input'
   })
   view.focus()
+}
+
+/** True if the braces in `s` pair up (ignoring \{ and \}). */
+function balanced(s: string): boolean {
+  let depth = 0
+  for (const c of s.replace(/\\[{}]/g, '')) {
+    if (c === '{') depth++
+    else if (c === '}' && --depth < 0) return false
+  }
+  return depth === 0
+}
+
+/**
+ * Wrap the selection in `prefix…}` (like \textbf{…}) and keep it selected, so a second tool can
+ * wrap it again. With nothing selected, the cursor goes between the braces. If the selection is
+ * already wrapped in exactly this command, the command is removed instead (a second click undoes it).
+ */
+function wrap(view: EditorView, prefix: string): void {
+  const { from, to } = view.state.selection.main
+  const doc = view.state.doc
+  const sel = doc.sliceString(from, to)
+  const start = from - prefix.length
+  if (start >= 0 && doc.sliceString(start, from) === prefix && doc.sliceString(to, to + 1) === '}' && balanced(sel))
+    return put(view, start, to + 1, `¦${sel}¦`, false, true)
+  if (sel.startsWith(prefix) && sel.endsWith('}') && balanced(sel.slice(prefix.length, -1)))
+    return put(view, from, to, `¦${sel.slice(prefix.length, -1)}¦`, false, true)
+  put(view, from, to, sel ? `${prefix}¦${sel}¦}` : `${prefix}¦}`, false, true)
+}
+
+/** Itemize/enumerate: each selected line becomes an \item (an empty \item if nothing is selected). */
+function insertList(view: EditorView, env: 'itemize' | 'enumerate'): void {
+  const { from, to } = view.state.selection.main
+  const lines = view.state.doc
+    .sliceString(from, to)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+  const items = lines.length ? lines.map((l) => `  ${/^\\item\b/.test(l) ? l : `\\item ${l}`}`) : ['  \\item ']
+  items[items.length - 1] += CURSOR
+  put(view, from, to, `\\begin{${env}}\n${items.join('\n')}\n\\end{${env}}`, true)
+}
+
+const uncommented = (s: string): string => s.replace(/(^|[^\\])%.*$/gm, '$1')
+
+/** Table of contents, list of figures or list of tables, once, on its own line in the document body. */
+const CONTENTS: Record<string, [cmd: string, name: string]> = {
+  toc: ['\\tableofcontents', 'table of contents'],
+  lof: ['\\listoffigures', 'list of figures'],
+  lot: ['\\listoftables', 'list of tables']
+}
+function insertContents(view: EditorView, host: InsertHost, kind: string): void {
+  const [cmd, name] = CONTENTS[kind]
+  const doc = view.state.doc.toString()
+  const begin = /^[^%\n]*\\begin\{document\}/m.exec(doc)
+  if (begin && view.state.selection.main.from < begin.index + begin[0].length)
+    return host.notice(`Put the cursor after \\begin{document}: the ${name} goes in the body of the document.`)
+  const has = new RegExp(`\\${cmd}(?![a-zA-Z])`)
+  if (has.test(uncommented(doc)) || has.test(uncommented(host.mainText?.() ?? '')))
+    return host.notice(`This document already has a ${name} (${cmd}).`)
+  insertSnippet(view, cmd + CURSOR, { ownLine: true })
+}
+
+/** Web link:\url{…}; selected text becomes the link's words, \href{¦}{text}; a selected address, \url{address}. */
+function insertLink(view: EditorView): void {
+  const { from, to } = view.state.selection.main
+  const sel = view.state.doc.sliceString(from, to)
+  if (!sel) return put(view, from, to, '\\url{¦}')
+  if (/^\s*(https?:\/\/|www\.)\S+\s*$/i.test(sel)) return put(view, from, to, `\\url{${sel.trim()}}¦`)
+  put(view, from, to, `\\href{¦}{${sel}}`)
 }
 
 // ---------- Symbols ----------
@@ -331,42 +414,74 @@ function buildSections(el: HTMLElement, host: InsertHost): void {
 
 export { insertSnippet as insertAtCursor }
 
+const T = (x: number, y: number, size: number, body: string, attrs = ''): string =>
+  `<text x="${x}" y="${y}" font-size="${size}" font-family="Times New Roman, serif" fill="currentColor" stroke="none"${attrs}>${body}</text>`
+const N = (y: number, n: number): string =>
+  `<text x="1.8" y="${y}" font-size="6.5" font-family="system-ui, sans-serif" font-weight="700" fill="currentColor" stroke="none">${n}</text>`
+const DOT = (y: number): string => `<circle cx="4.5" cy="${y}" r="1.4" fill="currentColor" stroke="none"/>`
+const LINES = '<path d="M8.5 5.5h8M8.5 10h8M8.5 14.5h8"/>'
 const ICONS: Record<string, string> = {
   table: '<rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><path d="M2.5 8h15M2.5 12.5h15M7.5 3.5v13M12.5 3.5v13"/>',
   equation: '<path d="M14.5 4.5h-9l5 5.5-5 5.5h9"/>',
   symbol: '<text x="10" y="15.5" text-anchor="middle" font-size="15" font-family="Times New Roman, serif" fill="currentColor" stroke="none">Ω</text>',
   figure: '<rect x="2.5" y="3.5" width="15" height="13" rx="1.5"/><circle cx="7" cy="8" r="1.5"/><path d="M3 14.5l4-4 3 3 2.5-2.5 4.5 4"/>',
-  citation: '<path d="M4 3.5h9.5a1.5 1.5 0 0 1 1.5 1.5v11.5H5.5A1.5 1.5 0 0 1 4 15z"/><path d="M4 15a1.5 1.5 0 0 1 1.5-1.5H15M7.5 6.5h4.5M7.5 9h3"/>',
+  superscript: T(2, 16.5, 15, 'x', ' font-style="italic"') + T(10.5, 9, 9.5, '2'),
+  subscript: T(2, 13, 15, 'x', ' font-style="italic"') + T(10.5, 18.5, 9.5, '2'),
+  bold: T(10, 15.5, 15, 'B', ' text-anchor="middle" font-weight="bold"'),
+  italic: T(10, 15.5, 15, 'I', ' text-anchor="middle" font-style="italic"'),
+  bullets: DOT(5.5) + DOT(10) + DOT(14.5) + LINES,
+  numbers: N(8, 1) + N(12.6, 2) + N(17.2, 3) + LINES,
+  link: '<circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c-2.2 2-3.2 4.3-3.2 7s1 5 3.2 7M10 3c2.2 2 3.2 4.3 3.2 7s-1 5-3.2 7"/>',
+  contents: '<path d="M3 4.5h8M5.5 8.5h6M5.5 12h5M3 16h7.5"/><path d="M14.5 4.5h2.5M14.5 8.5h2.5M14.5 12h2.5M14.5 16h2.5" stroke-width="2"/>',
   reference: '<path d="M8.5 11.5l3-3M7 9.2 5.4 10.8a2.6 2.6 0 0 0 3.7 3.7l1.6-1.6M13 10.8l1.6-1.6a2.6 2.6 0 0 0-3.7-3.7L9.3 7.1"/>',
   footnote: '<path d="M3.5 5.5h9M3.5 9h9M3.5 12.5h6"/><path d="M14.5 13.5l1.5-1.5v5"/>'
 }
 
+/** What the formatting tools wrap the selection in: [in math, in text]. */
+const WRAPS: Record<string, [string, string]> = {
+  superscript: ['^{', '\\textsuperscript{'],
+  subscript: ['_{', '\\textsubscript{'],
+  bold: ['\\mathbf{', '\\textbf{'],
+  italic: ['\\mathit{', '\\emph{']
+}
+
 /**
  * Build the Insert toolbar in `bar`. Table, Equation, Symbol and Figure open a drop-down
- * (`pop`); Citation, Cross-reference and Footnote insert directly and open autocomplete.
+ * (`pop`); the formatting, list and link tools act on the selection; Cross-reference and
+ * Footnote insert directly (Cross-reference opens autocomplete). Citations have their own tab.
  */
 export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertHost): void {
   const store = document.createElement('div')
   buildSections(store, host)
   const sections = [...store.querySelectorAll<HTMLElement>('.ins-sec')]
   const byName: Record<string, HTMLElement> = { table: sections[0], equation: sections[1], figure: sections[2], symbol: sections[3] }
-  if (host.addByDoi) {
-    const cite = (byName.citation = document.createElement('section'))
-    cite.className = 'ins-sec'
-    cite.innerHTML = `<button class="cite-choice" data-cite="library"><b>Cite a reference in your library</b><small>Insert \\cite{…} and pick from your .bib files</small></button>
-      <button class="cite-choice" data-cite="doi"><b>Add by DOI…</b><small>Look up a paper by its DOI or arXiv ID, add it and cite it</small></button>`
-    cite.querySelector<HTMLButtonElement>('[data-cite=library]')!.onclick = () => {
+  const contents = (byName.contents = document.createElement('section'))
+  contents.className = 'ins-sec'
+  contents.innerHTML = [
+    ['toc', 'Table of contents', 'The section headings with page numbers'],
+    ['lof', 'List of figures', 'Every figure’s caption with its page'],
+    ['lot', 'List of tables', 'Every table’s caption with its page']
+  ]
+    .map(([k, b, s]) => `<button class="ins-choice" data-contents="${k}" title="Insert ${esc(CONTENTS[k][0])}"><b>${b}</b><small>${s} (filled in after the next compile)</small></button>`)
+    .join('')
+  contents.querySelectorAll<HTMLButtonElement>('[data-contents]').forEach((b) => {
+    b.onclick = () => {
       const v = host.view()
-      if (v) insertSnippet(v, '~\\cite{¦}')
-      if (v) setTimeout(() => startCompletion(v), 0)
+      if (v) insertContents(v, host, b.dataset.contents!)
     }
-    cite.querySelector<HTMLButtonElement>('[data-cite=doi]')!.onclick = () => host.addByDoi?.()
-  }
-  const tool = (id: string, label: string, title: string, dropdown: boolean): string =>
-    `<button class="rb-btn" data-tool="${id}" title="${title}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg><span>${label}</span>${dropdown ? '<i class="rb-caret">▾</i>' : ''}</button>`
+  })
+  const tool =(id: string, label: string, title: string, dropdown: boolean): string =>
+    `<button class="rb-btn" data-tool="${id}" title="${esc(title)}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg><span>${label}</span>${dropdown ? '<i class="rb-caret">▾</i>' : ''}</button>`
+  // Small tools show only their icon; the tooltip says what they insert.
+  const small = (id: string, label: string, title: string): string =>
+    `<button class="rb-btn rb-icon" data-tool="${id}" title="${esc(`${label}: ${title}`)}" aria-label="${esc(label)}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg></button>`
   bar.innerHTML = `<div class="rb-group">${tool('table', 'Table', 'Insert a table', true)}${tool('equation', 'Equation', 'Insert an equation or math template', true)}${tool('symbol', 'Symbol', 'Insert a symbol: Greek letters, operators, arrows…', true)}${tool('figure', 'Figure', 'Insert a figure from the project’s images', true)}</div>
     <div class="rb-sep"></div>
-    <div class="rb-group">${tool('citation', 'Citation', 'Insert \\cite{…} and pick a reference', Boolean(byName.citation))}${tool('reference', 'Cross-reference', 'Insert \\ref{…} to a figure, table, equation or section', false)}${tool('footnote', 'Footnote', 'Insert \\footnote{…}', false)}</div>`
+    <div class="rb-group">${small('superscript', 'Superscript (exponent)', '^{…} in math, \\textsuperscript{…} in text. Select text first to raise it.')}${small('subscript', 'Subscript', '_{…} in math, \\textsubscript{…} in text. Select text first to lower it.')}${small('bold', 'Bold', '\\textbf{…} in text, \\mathbf{…} in math. Select text first to make it bold; click again to remove it.')}${small('italic', 'Italic (emphasis)', '\\emph{…} in text, \\mathit{…} in math. Select text first to emphasize it; click again to remove it.')}</div>
+    <div class="rb-sep"></div>
+    <div class="rb-group">${small('bullets', 'Bulleted list', '\\begin{itemize} \\item … \\end{itemize}. Selected lines become the items.')}${small('numbers', 'Numbered list', '\\begin{enumerate} \\item … \\end{enumerate}. Selected lines become the items.')}${small('link', 'Web link', '\\url{address}; with text selected, \\href{address}{text} makes that text the link (uses the hyperref package).')}</div>
+    <div class="rb-sep"></div>
+    <div class="rb-group ins-tail">${tool('reference', 'Cross-reference', 'Insert \\ref{…} to a figure, table, equation or section', false)}${tool('footnote', 'Footnote', 'Insert \\footnote{…}', false)}${tool('contents', 'Contents', 'Insert a table of contents (\\tableofcontents), list of figures or list of tables', true)}</div>`
 
   let openTool: string | null = null
   const close = (): void => {
@@ -393,14 +508,23 @@ export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertH
   }
   bar.addEventListener('mousedown', (e) => e.preventDefault()) // keep the editor's cursor
   bar.querySelectorAll<HTMLButtonElement>('.rb-btn').forEach((b) => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const id = b.dataset.tool!
       if (byName[id]) return open(id, b)
       close()
       const v = host.view()
       if (!v) return host.notice('Open a .tex file and put the cursor where you want to insert.')
-      insertSnippet(v, id === 'citation' ? '~\\cite{¦}' : id === 'reference' ? '~\\ref{¦}' : '\\footnote{¦}')
-      if (id !== 'footnote') setTimeout(() => startCompletion(v), 0)
+      const math = inMath(v.state, v.state.selection.main.from)
+      if (WRAPS[id]) return wrap(v, WRAPS[id][math ? 0 : 1])
+      const list = id === 'bullets' || id === 'numbers'
+      if ((list || id === 'link') && math) return host.notice(`A ${list ? 'list' : 'link'} can’t go inside math. Put the cursor in ordinary text.`)
+      if (list) return insertList(v, id === 'bullets' ? 'itemize' : 'enumerate')
+      if (id === 'link') {
+        if (await host.ensurePackage('hyperref')) insertLink(v)
+        return
+      }
+      insertSnippet(v, id === 'reference' ? '~\\ref{¦}' : '\\footnote{¦}')
+      if (id === 'reference') setTimeout(() => startCompletion(v), 0)
     }
   })
   // Inserting from Table, Equation or Figure closes the drop-down; Symbol stays open for more.

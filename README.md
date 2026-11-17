@@ -17,25 +17,27 @@ A simple, reliable LaTeX editor for writing papers. OpenTex opens one project fo
 - Compile with latexmk (or pdfLaTeX/XeLaTeX/LuaLaTeX + BibTeX/Biber directly), compile-on-save, clickable error list
 - **Errors in plain English:** each LaTeX error or warning gets a short explanation (what went wrong and where) and, where the fix is clear, a one-click fix: add the missing package, change `_` to `\_`, use the closest citation key or label, fix a picture's path, combine clashing package options, and many more
 - **File management in the file list:** rename, move (drag onto a folder), duplicate, new folder, and delete (to the Trash). Comments, open tabs and the main file stay attached, and OpenTex offers to update `\input`, `\includegraphics` and `\bibliography` lines that point at the old name
-- **Find in Project** (`Ctrl/Cmd+Shift+H`): search and replace across all the paper's files, with match case, whole word and pattern options
+- **Find in All Files** (`Ctrl/Cmd+Shift+F`; `Ctrl/Cmd+F` finds in the open file): search and replace across all the paper's files, with match case, whole word and pattern options
 - **Outline panel:** the whole paper's sections, figures and tables in reading order across all its files, with word counts per section; click to jump there
 - **Paste a picture** (a screenshot, or an image copied from PowerPoint or a browser) or drop image files on the text to make a figure: OpenTex saves it in `figures/` and writes the figure, caption and label. **Paste cells from Excel**, Google Sheets or Word to get a LaTeX table (Undo gives you the plain text instead; `Ctrl/Cmd+Shift+V` always pastes plain text), or use Insert → Table → From a CSV file
 - **Add a reference by DOI** (Insert → Citation → Add by DOI, or File → Add Reference by DOI…): paste one or more DOIs or arXiv IDs, and OpenTex fetches the reference, adds it to your `.bib` and cites it. Pasting a DOI in the text offers the same
 - Built-in PDF viewer that keeps your place between compiles
 - **Saves automatically** 2 seconds after you stop typing (without compiling), and brings back unsaved changes if OpenTex closes unexpectedly. **File → History…** shows earlier versions of each file with what changed, and restores any of them (Undo works); **Changes Since…** lists what changed in the project since a time you pick, or since you last had it open, including changes a co-author made outside OpenTex. Versions are kept in OpenTex's own folder, not in your project.
 - 12 built-in themes with previews in Settings, plus your own
-- **A ribbon like Word's**, with five tabs:
+- **A ribbon like Word's**, with five tabs (File, Insert, Design, Citations, Review) plus **Settings**, and, at the right end of the tab row, a **Help** menu and a button that collapses the ribbon:
   - **File:** New Project, Open Folder, Open Recent, Import Word, Export Word, Import References, Save, Close Folder, New Window, Example Paper, Settings
   - **Insert:** **Table** (pick a size from a grid), **Equation** (numbered, aligned, inline, and templates for fractions, roots, sums, integrals, derivatives, matrices, cases), **Symbol** (150+ symbols: every Greek letter in both cases, operators, relations, arrows, sets, physics symbols and accents, with search), **Figure** (from your project's images), **Citation** and **Cross-reference** (with autocomplete), and **Footnote**. Symbols are wrapped in `$…$` automatically when you're not already in math, and OpenTex offers to add packages such as `amssymb` when something needs one.
   - **Design:** switch the whole paper's look with one click: Article, Nature-style, Science-style, Physical Review-style, IEEE conference (official IEEEtran class) and Review draft (double spaced, line numbers). Only the class, margins, font, line spacing and citation/reference style change, in the main file and in a preamble file it pulls in with `\input{preamble}`; your text isn't touched. Your own setup is saved as **Custom** the first time you switch, so you can always go back to it exactly. (The "-style" presets imitate each journal's look with standard packages; for a final submission, use the journal's own template.)
-  - **Plugins:** turn each plugin on or off, open the plugins folder
-  - **Settings:** opens Settings
-  Click the open tab to collapse the ribbon; `Ctrl/Cmd+Shift+I` hides or shows it.
+  - **Citations:** Cite, Add by DOI, Import References, Open .bib
+  - **Review:** Add Comment, Comments, Review PDF, Version History, Changes Since…
+  - **Help** (menu): Report a Bug, Suggest a Feature, See All Issues on GitHub, How to Make a Plugin, Open the Example Paper, Check for Updates. All but How to Make a Plugin are also in the app's own Help menu.
+  - **Settings** (after Review, also on the File tab): opens Settings, where **Plugins** turns each plugin on or off and opens the plugins folder
+  Click the open tab, or the arrow at the right end of the tab row, to collapse the ribbon to its tabs; `Ctrl/Cmd+Shift+I` hides or shows it. In a narrow window the tiles drop their labels (the tooltips still say what each does), and anything that still doesn't fit scrolls sideways with a faded edge.
 - Interface zoom with `Ctrl/Cmd +` and `Ctrl/Cmd −`
 - **Free layout and several file windows:** every panel (Project, Files, PDF, Comments, Outline, Search, Problems and plugin panels) can be dragged by its title bar onto another one: drop it on a panel's edge to split it there, in the middle to swap the two, or on the edge of the window for a full-height or full-width column. Right-click a panel and choose **Split Right… / Left… / Down… / Up…** to put any panel, or a new file window, beside it. Each **Files** window has its own tabs; drag a tab to another window, along the tab bar to reorder, or onto a panel's edge to open it in a new window there. Pictures and PDF figures open in a file window too. Panels can be resized, collapsed (click the arrow or double-click the title) or hidden; the layout toolbar button shows hidden panels and resets the layout.
 - **Plugins** that add panels on the right, such as the built-in **Forest Timer** (a Pomodoro timer with a pixel forest that grows while you work)
 - **Writing Garden** plugin: a pixel windowsill where each day's writing grows a plant, with past days resting on a shelf and rare plants for milestones
-- **Focus mode** (`Ctrl/Cmd+Shift+F`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
+- **Focus mode** (`Ctrl/Cmd+Shift+D`, `Esc` to leave): hides everything except the text, centers it, and dims all but the current paragraph
 - **Comments** like Word's, kept in a small file beside your `.tex` files so they travel with the folder (see below)
 - **One-click TinyTeX install** if you don't have TeX, and missing packages are installed when a paper needs them
 - **Report a bug or suggest a feature** (Help menu, or Settings → Help and feedback): opens a new GitHub issue in your browser with your OpenTex version, system and TeX already filled in (never names, file paths or text from your papers)
@@ -128,7 +130,7 @@ Projects that used the older format (`%@comment` lines in the `.tex` files) are 
 
 ## Plugins
 
-Plugins add panels you can place anywhere. Turn them on or off from the **Plugins** menu (or Settings → Plugins). Built in: **Forest Timer** (a Pomodoro timer with a growing pixel forest), **Lava Lamp** (a retro pixel lava lamp in several colors) and **Starship** (a pixel spaceship flying through space that speeds up the more you type) and **Writing Garden** 🌱 (see below). To write one, make a folder in the plugins folder (Settings → *Open plugins folder*) with:
+Plugins add panels you can place anywhere. Turn them on or off in **Settings → Plugins** (or the app's **Plugins** menu). Built in: **Forest Timer** (a Pomodoro timer with a growing pixel forest), **Lava Lamp** (a retro pixel lava lamp in several colors) and **Starship** (a pixel spaceship flying through space that speeds up the more you type) and **Writing Garden** 🌱 (see below). To write one, make a folder in the plugins folder (Settings → *Open plugins folder*) with:
 
 - `plugin.json`: `{ "id": "my-plugin", "name": "My Plugin", "description": "…", "icon": "🔖", "panel": "index.html" }`
 - `index.html`: an ordinary web page. Add `<script src="opentex-sdk.js"></script>` to get:
@@ -150,10 +152,12 @@ Plugin pages run in a sandboxed frame. They can't read your files or reach the r
 | Open folder | ⌘O | Ctrl+O |
 | Save | ⌘S | Ctrl+S |
 | Compile | ⌘↩ | Ctrl+Enter |
-| Focus mode | ⇧⌘F | Ctrl+Shift+F |
-| Toggle sidebar / PDF | ⌘B / ⇧⌘P | Ctrl+B / Ctrl+Shift+P |
+| New file | ⌘N | Ctrl+N |
+| Bold / italic | ⌘B / ⌘I | Ctrl+B / Ctrl+I |
+| Focus mode | ⇧⌘D | Ctrl+Shift+D |
+| Toggle file tree / comments / PDF | ⇧⌘T / ⇧⌘C / ⇧⌘P | Ctrl+Shift+T / Ctrl+Shift+C / Ctrl+Shift+P |
 | Add comment | ⇧⌘M | Ctrl+Shift+M |
-| Find in project | ⇧⌘H | Ctrl+Shift+H |
+| Find in file / all files | ⌘F / ⇧⌘F | Ctrl+F / Ctrl+Shift+F |
 | Paste as plain text | ⇧⌘V | Ctrl+Shift+V |
 | Show line in PDF | ⌘J | Ctrl+J |
 | Bigger / smaller / actual size | ⌘+ / ⌘− / ⌘0 (Ctrl works too) | Ctrl++ / Ctrl+− / Ctrl+0 |

@@ -73,7 +73,9 @@
   const sim = { t: 0, pool: 0, pd: 0, blobs: [], next: 0, rmax: 1, want: 3, wide: 1 }
 
   function newBlob(r, x, y, T) {
-    return { x, y, vx: 0, vy: 0, r, T, sx: 1, sy: 1, cool: 0.017 + 0.014 * rnd(), ph: rnd() * 6.283, w: 0.1 + 0.12 * rnd(), vmax: (H / 15) * (0.8 + 0.4 * rnd()), nm: 2 }
+    // r is the size the blob is heading for and rr the size drawn, which eases towards it, so blobs
+    // grow out of the pool, swell when they merge and shrink away instead of popping in and out.
+    return { x, y, vx: 0, vy: 0, r, rr: 0, into: null, T, sx: 1, sy: 1, cool: 0.017 + 0.014 * rnd(), ph: rnd() * 6.283, w: 0.1 + 0.12 * rnd(), vmax: (H / 15) * (0.8 + 0.4 * rnd()), nm: 2 }
   }
 
   // Blob size and count follow the panel: a wide strip gets more, wider blobs; a tall one a longer climb.
@@ -91,6 +93,7 @@
         b.x *= kx
         b.y *= ky
         b.r *= kr
+        b.rr *= kr
         b.vy *= ky
         b.vmax *= ky
       }
@@ -120,62 +123,76 @@
       }
     }
     const bl = s.blobs
+    const ease = Math.min(1, dt * 1.2)
     for (const b of bl) {
       b.nm -= dt
+      b.rr += (b.r - b.rr) * ease
+      if (b.into) {
+        // Merging: drift into the blob it joined while handing its size over.
+        const a = b.into
+        const k = Math.min(1, dt * 1.5)
+        b.x += (a.x - b.x) * k
+        b.y += (a.y - b.y) * k
+        b.vx = a.vx
+        b.vy = a.vy
+        continue
+      }
       b.T = Math.max(0, b.T - dt * (b.cool + (b.y < H * 0.2 ? 0.05 : 0)))
       const buoy = Math.max(-1, Math.min(1, (b.T - 0.42) * 4)) // +1 hot and rising .. -1 cold and sinking
       b.vy += (-buoy * b.vmax - b.vy) * Math.min(1, dt * 0.7)
       b.vx += (Math.sin(s.t * b.w + b.ph) * s.rmax * 0.12 * s.wide - b.vx) * Math.min(1, dt * 0.5)
       b.x += b.vx * dt
       b.y += b.vy * dt
-      const ymin = b.r * 0.7
+      const ymin = b.rr * 0.7
       if (b.y < ymin) {
         b.y = ymin
         if (b.vy < 0) b.vy *= 0.5
       }
-      b.x = Math.max(b.r * 0.4, Math.min(W - b.r * 0.4, b.x))
+      b.x = Math.max(b.rr * 0.4, Math.min(W - b.rr * 0.4, b.x))
       // Moving wax stretches along its path (area kept the same); in wide panels it spreads sideways.
       const st = 1 + Math.min(0.55, (Math.abs(b.vy) / b.vmax) * 0.45)
       b.sy += (st - b.sy) * Math.min(1, dt * 2)
       b.sx = s.wide / Math.sqrt(b.sy)
     }
-    // Sinking wax melts back into the pool.
+    // Sinking wax melts back into the pool; a blob that has shrunk away is dropped.
     for (let i = bl.length - 1; i >= 0; i--) {
       const b = bl[i]
-      if (b.vy > 0 && b.y > H - s.pd * 0.55) {
+      if (b.r > 0 && b.vy > 0 && b.y > H - s.pd * 0.55) {
         s.pool += b.r * b.r
-        bl.splice(i, 1)
+        b.r = 0
       }
+      if (b.r === 0 && b.rr < s.rmax * 0.04) bl.splice(i, 1)
     }
     // Blobs that run into each other merge; big ones split now and then.
     for (let i = 0; i < bl.length; i++) {
       for (let j = bl.length - 1; j > i; j--) {
         const a = bl[i]
         const b = bl[j]
-        if (a.nm > 0 || b.nm > 0) continue
-        if (Math.hypot((a.x - b.x) / s.wide, a.y - b.y) < 0.45 * (a.r + b.r)) {
+        if (a.nm > 0 || b.nm > 0 || a.r === 0 || b.r === 0) continue
+        if (Math.hypot((a.x - b.x) / s.wide, a.y - b.y) < 0.45 * (a.rr + b.rr)) {
+          // b flows into a over a second or so; a keeps its place and swells.
           const m = a.r * a.r + b.r * b.r
           const w = (b.r * b.r) / m
-          a.x += (b.x - a.x) * w
-          a.y += (b.y - a.y) * w
           a.vy += (b.vy - a.vy) * w
           a.T += (b.T - a.T) * w
           a.r = Math.min(s.rmax * 1.25, Math.sqrt(m))
           s.pool += m - a.r * a.r
-          bl.splice(j, 1)
+          b.r = 0
+          b.into = a
         }
       }
     }
     for (let i = bl.length - 1; i >= 0; i--) {
       const b = bl[i]
-      if (bl.length < s.want + 2 && b.r > s.rmax * 0.8 && b.nm <= 0 && b.y > H * 0.25 && b.y < H * 0.75 && rnd() < dt * 0.05) {
+      if (bl.length < s.want + 2 && b.r > s.rmax * 0.8 && b.rr > s.rmax * 0.75 && b.nm <= 0 && b.y > H * 0.25 && b.y < H * 0.75 && rnd() < dt * 0.05) {
         const r = b.r / Math.SQRT2
-        const c = newBlob(r, b.x + (rnd() - 0.5), b.y + r * 0.5, b.T - 0.1)
+        // A cooler bud pinches off below and grows while the parent shrinks; it sinks away first.
+        const c = newBlob(r, b.x + (rnd() - 0.5), b.y + r * 0.4, b.T - 0.1)
         c.vy = b.vy
+        c.vx = b.vx
         c.vmax = b.vmax
         c.nm = b.nm = 5
         b.r = r
-        b.y -= r * 0.5
         b.T = Math.min(1, b.T + 0.08)
         bl.push(c)
       }
@@ -222,7 +239,8 @@
       }
     }
     for (const b of s.blobs) {
-      const R = 2 * b.r
+      if (b.rr <= 0.01) continue
+      const R = 2 * b.rr
       const rx = R * b.sx
       const ry = R * b.sy
       const x0 = Math.max(0, Math.floor(b.x - rx))
@@ -353,34 +371,41 @@
     if (innerWidth > 2 && innerHeight > 2) resizeTimer = setTimeout(layout, 60) // not while collapsed
   })
 
-  // About 8 frames a second on a plain timer (requestAnimationFrame would wake the page on every
-  // screen refresh), and nothing at all while the panel is collapsed (seen by an IntersectionObserver:
-  // collapsing hides the frame without resizing it) or the window is hidden.
-  const SPEED = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.5 : 1
-  const FRAME = 167 // ~6 fps: the wax moves slowly, and each frame costs the browser a fixed amount
+  // Each frame is drawn on a screen refresh (requestAnimationFrame), so the wax moves at an even
+  // pace; between frames the page sleeps on a plain timer instead of waking on every refresh. On a
+  // grid this coarse, 20 frames a second already moves each edge one cell at a time, so more would
+  // only cost CPU. dt is the real time since the last frame, so a late frame never makes the wax
+  // jump. Nothing runs while the window is hidden or the panel is collapsed (seen by an
+  // IntersectionObserver: collapsing hides the frame without resizing it).
+  const FPS = 20 // a whole number of refreshes at 60 and 120 Hz, so frames come evenly spaced
+  const SPEED = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.4 : 0.8 // a slow, calm drift
+  const FRAME = 1000 / FPS
   let onScreen = true
   const shown = () => onScreen && !document.hidden && innerWidth > 2 && innerHeight > 2
   new IntersectionObserver((es) => {
     onScreen = es[es.length - 1].isIntersecting
     loop()
   }).observe(document.body)
-  let last = performance.now()
-  let timer = 0
-  function frame() {
-    timer = 0
+  let last = 0
+  let pending = 0 // a timer or animation frame is booked
+  function frame(now) {
+    pending = 0
     if (!shown()) return
-    const now = performance.now()
-    const dt = Math.min(0.25, (now - last) / 1000) * SPEED // a frame is ~0.17 s; cap long gaps only
+    const dt = Math.min(0.1, (now - last) / 1000) * SPEED // cap gaps after a stall, so blobs never leap
     last = now
     clock += dt
     step(dt)
     render()
-    timer = setTimeout(frame, Math.max(10, FRAME - (performance.now() - now)))
+    // Sleep until just before the next slot, then draw on the refresh after it. (Timed from now,
+    // not from the frame's timestamp: that is the refresh time and can be a whole refresh earlier.)
+    pending = setTimeout(() => {
+      pending = requestAnimationFrame(frame)
+    }, FRAME - 9)
   }
   function loop() {
-    if (timer || !shown()) return
+    if (pending || !shown()) return
     last = performance.now()
-    timer = setTimeout(frame, 0)
+    pending = requestAnimationFrame(frame)
   }
   document.addEventListener('visibilitychange', loop)
   addEventListener('resize', loop)

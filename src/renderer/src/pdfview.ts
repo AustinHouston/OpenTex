@@ -19,7 +19,8 @@ export class PdfView {
   /** Called with a page point (PDF points from the top-left) when the user double-clicks the PDF. */
   onInverse: ((page: number, x: number, y: number) => void) | null = null
 
-  constructor(private host: HTMLElement, private zoomLabel: HTMLElement, private pagesLabel: HTMLElement) {
+  /** `fitButton` (the Fit width button) shows as pressed while the zoom follows the panel's width. */
+  constructor(private host: HTMLElement, private zoomLabel: HTMLElement, private pagesLabel: HTMLElement, private fitButton?: HTMLElement) {
     host.addEventListener('dblclick', (e) => {
       const hit = this.pointAt(e.clientX, e.clientY)
       if (hit && this.onInverse) {
@@ -90,7 +91,9 @@ export class PdfView {
     this.fitScale = Math.max(0.2, (this.host.clientWidth - 28) / base.width)
     const scale = this.zoom === 'fit' ? this.fitScale : this.zoom
     this.scale = scale
-    this.zoomLabel.textContent = this.zoom === 'fit' ? 'Fit' : `${Math.round(scale * 100)}%`
+    // Always the real percentage; whether it follows the panel's width is the Fit width button's state.
+    this.zoomLabel.textContent = `${Math.round(scale * 100)}%`
+    this.fitButton?.setAttribute('aria-pressed', String(this.zoom === 'fit'))
     this.pagesLabel.textContent = `${doc.numPages} page${doc.numPages === 1 ? '' : 's'}`
 
     // Build placeholders sized like the pages so the scroll position can be restored before drawing.

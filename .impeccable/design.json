@@ -1,0 +1,591 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T16:36:06.818Z",
+  "title": "Design System: OpenTex",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Compile Blue",
+        "cssVar": "--accent",
+        "tonalRamp": [
+          "#000233",
+          "#001d63",
+          "#0c3c98",
+          "#215dd0",
+          "#4984f3",
+          "#79acff",
+          "#a5d1ff",
+          "#cbefff"
+        ]
+      },
+      "accentText": {
+        "role": "primary",
+        "displayName": "On-Accent White",
+        "cssVar": "--accentText",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#aeaeae",
+          "#d1d1d1",
+          "#eeeeee"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "cssVar": "--bg",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#aeaeae",
+          "#d1d1d1",
+          "#eeeeee"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Desk Grey",
+        "cssVar": "--panel",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262625",
+          "#454544",
+          "#666664",
+          "#898988",
+          "#aeaeac",
+          "#d1d1d0",
+          "#eeeeed"
+        ]
+      },
+      "panelAlt": {
+        "role": "neutral",
+        "displayName": "Pressed Grey",
+        "cssVar": "--panelAlt",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#272725",
+          "#454543",
+          "#666663",
+          "#898986",
+          "#aeaeab",
+          "#d1d1cf",
+          "#eeeeed"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "cssVar": "--border",
+        "tonalRamp": [
+          "#0b0b09",
+          "#272724",
+          "#454541",
+          "#666661",
+          "#898984",
+          "#aeaeaa",
+          "#d1d1ce",
+          "#efefec"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "cssVar": "--text",
+        "tonalRamp": [
+          "#090b0e",
+          "#24272b",
+          "#41454b",
+          "#61676d",
+          "#848a90",
+          "#aaaeb4",
+          "#cdd1d6",
+          "#ebeff3"
+        ]
+      },
+      "cursor": {
+        "role": "neutral",
+        "displayName": "Caret",
+        "cssVar": "--cursor",
+        "tonalRamp": [
+          "#090b0e",
+          "#24272b",
+          "#41454b",
+          "#61676d",
+          "#848a90",
+          "#aaaeb4",
+          "#cdd1d6",
+          "#ebeff3"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Pencil Grey",
+        "cssVar": "--muted",
+        "tonalRamp": [
+          "#080b0f",
+          "#22272c",
+          "#3f464d",
+          "#5f6770",
+          "#828a93",
+          "#a8afb7",
+          "#ccd2d8",
+          "#eaeff5"
+        ]
+      },
+      "selection": {
+        "role": "neutral",
+        "displayName": "Highlighter Blue",
+        "cssVar": "--selection",
+        "tonalRamp": [
+          "#060b15",
+          "#1f2635",
+          "#3a4559",
+          "#596680",
+          "#7c8aa3",
+          "#a2aec5",
+          "#c7d1e4",
+          "#e6effe"
+        ]
+      },
+      "activeLine": {
+        "role": "neutral",
+        "displayName": "Current Line",
+        "cssVar": "--activeLine",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#262627",
+          "#444546",
+          "#656668",
+          "#88898b",
+          "#adaeaf",
+          "#d0d1d2",
+          "#edeeef"
+        ]
+      },
+      "pdfBg": {
+        "role": "neutral",
+        "displayName": "Desk Under the Page",
+        "cssVar": "--pdfBg",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#272725",
+          "#454543",
+          "#666663",
+          "#898986",
+          "#aeaeab",
+          "#d1d1cf",
+          "#eeeeec"
+        ]
+      },
+      "error": {
+        "role": "status",
+        "displayName": "Error Red",
+        "cssVar": "--error",
+        "tonalRamp": [
+          "#280000",
+          "#550000",
+          "#860012",
+          "#ba1d28",
+          "#e15150",
+          "#fe857e",
+          "#ffb1a9",
+          "#ffd5ce"
+        ]
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Note Amber",
+        "cssVar": "--warning",
+        "tonalRamp": [
+          "#180600",
+          "#3b1f00",
+          "#613c00",
+          "#8a5b00",
+          "#ae7f38",
+          "#cfa66e",
+          "#edcb9d",
+          "#ffeac4"
+        ]
+      },
+      "syn-command": {
+        "role": "syntax",
+        "displayName": "Command Violet",
+        "cssVar": "--syn-command",
+        "tonalRamp": [
+          "#11002f",
+          "#2e0c5d",
+          "#4e288f",
+          "#7144c5",
+          "#936de8",
+          "#b599ff",
+          "#d6c1ff",
+          "#f3e2ff"
+        ]
+      },
+      "syn-math": {
+        "role": "syntax",
+        "displayName": "Math Green",
+        "cssVar": "--syn-math",
+        "tonalRamp": [
+          "#001104",
+          "#00311a",
+          "#005335",
+          "#167852",
+          "#4a9c75",
+          "#7dbf9d",
+          "#aadfc3",
+          "#cffbe3"
+        ]
+      },
+      "syn-env": {
+        "role": "syntax",
+        "displayName": "Environment Blue",
+        "cssVar": "--syn-env",
+        "tonalRamp": [
+          "#00062c",
+          "#002358",
+          "#0e4289",
+          "#2463bd",
+          "#4d88e1",
+          "#7daffb",
+          "#a9d3ff",
+          "#cef1ff"
+        ]
+      },
+      "syn-comment": {
+        "role": "syntax",
+        "displayName": "Comment Grey",
+        "cssVar": "--syn-comment",
+        "tonalRamp": [
+          "#080b0f",
+          "#22272c",
+          "#3f464d",
+          "#5f6770",
+          "#828a93",
+          "#a8afb6",
+          "#ccd2d8",
+          "#eaeff4"
+        ]
+      },
+      "syn-bracket": {
+        "role": "syntax",
+        "displayName": "Bracket Brown",
+        "cssVar": "--syn-bracket",
+        "tonalRamp": [
+          "#200000",
+          "#471200",
+          "#732c07",
+          "#a1481e",
+          "#c66e48",
+          "#e59979",
+          "#ffc0a5",
+          "#ffe1cb"
+        ]
+      },
+      "syn-number": {
+        "role": "syntax",
+        "displayName": "Number Blue",
+        "cssVar": "--syn-number",
+        "tonalRamp": [
+          "#00062c",
+          "#002358",
+          "#0e4289",
+          "#2463bd",
+          "#4d88e1",
+          "#7daffb",
+          "#a9d3ff",
+          "#cef1ff"
+        ]
+      }
+    },
+    "themeNote": "Values are the default Light theme. All 12 built-in themes (src/renderer/src/themes/*.json) and user themes set the same keys at runtime as CSS variables (--key, --syn-key) via applyTheme in themes.ts.",
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "App name on the welcome page only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Rare full-window headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Welcome actions and recent project names."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default chrome text."
+      },
+      "body-small": {
+        "displayName": "Body small",
+        "purpose": "Status bar, problems, comment cards, hints."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase panel titles and section heads; ribbon tile labels without uppercase."
+      },
+      "editor": {
+        "displayName": "Editor",
+        "purpose": "LaTeX source, logs, kbd keys. User-adjustable via --editor-font, --editor-font-size, --editor-line-height."
+      },
+      "math-glyph": {
+        "displayName": "Math glyph",
+        "purpose": "Symbol and equation previews in Insert popovers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "page",
+        "value": "0 1px 4px rgba(0, 0, 0, 0.25)",
+        "purpose": "PDF pages on the desk."
+      },
+      {
+        "name": "bubble",
+        "value": "0 3px 12px rgba(0,0,0,0.25)",
+        "purpose": "Floating + Comment bubble."
+      },
+      {
+        "name": "drag-ghost",
+        "value": "0 4px 14px rgba(0, 0, 0, 0.2)",
+        "purpose": "Label following a dragged panel or tab."
+      },
+      {
+        "name": "menu",
+        "value": "0 6px 24px rgba(0, 0, 0, 0.25)",
+        "purpose": "Context menus and hover cards."
+      },
+      {
+        "name": "popover",
+        "value": "0 10px 32px rgba(0, 0, 0, 0.22)",
+        "purpose": "Insert drop-downs."
+      },
+      {
+        "name": "dialog",
+        "value": "0 10px 40px rgba(0, 0, 0, 0.3)",
+        "purpose": "Modal dialogs, with a rgba(0, 0, 0, 0.3) backdrop."
+      }
+    ],
+    "motion": [
+      {
+        "name": "drop-preview",
+        "value": "left/top/width/height 0.08s",
+        "purpose": "Drop target preview tracking the pointer while dragging a panel."
+      },
+      {
+        "name": "collapse",
+        "value": "transform 0.15s",
+        "purpose": "Panel collapse arrow rotation."
+      },
+      {
+        "name": "fade",
+        "value": "opacity 0.3s",
+        "purpose": "Focus-mode exit button appearing."
+      },
+      {
+        "name": "pdf-flash",
+        "value": "1.6s ease-out",
+        "purpose": "Amber SyncTeX highlight on the PDF that holds, then fades."
+      },
+      {
+        "name": "card-flash",
+        "value": "1.2s ease-out",
+        "purpose": "Accent ring pulse on a comment card when jumped to."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "ribbon-note",
+        "value": "1280px",
+        "purpose": "The Design tab hides its one-line note."
+      },
+      {
+        "name": "ribbon-design",
+        "value": "1100px",
+        "purpose": "Design presets drop their names."
+      },
+      {
+        "name": "ribbon-compact",
+        "value": "1000px",
+        "purpose": "Insert tail tiles drop labels."
+      },
+      {
+        "name": "ribbon-insert",
+        "value": "880px",
+        "purpose": "All Insert tiles drop labels."
+      },
+      {
+        "name": "narrow",
+        "value": "760px",
+        "purpose": "Every tab drops its labels; welcome columns stack."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single main action in a view, such as Compile.",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" aria-hidden=\"true\"><path d=\"M7 5l12 7-12 7z\" fill=\"currentColor\"/></svg>Compile</button>",
+      "css": ".ds-btn-primary { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; background: var(--accent, #2f6feb); color: var(--accentText, #ffffff); font-weight: 600; border: 1px solid transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; } .ds-btn-primary:hover { filter: brightness(1.08); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: 2px; } .ds-btn-primary:active { filter: brightness(0.96); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The default for toolbar and panel actions: no fill until hovered.",
+      "html": "<button class=\"ds-btn-ghost\">Show resolved</button>",
+      "css": ".ds-btn-ghost { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; background: none; color: var(--text, #24292f); border: 1px solid transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; } .ds-btn-ghost:hover { background: var(--panelAlt, #e8e8e4); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: 1px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Non-primary dialog and welcome-page actions.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; background: var(--panel, #f4f4f2); color: var(--text, #24292f); border: 1px solid var(--border, #dcdcd6); border-radius: 6px; padding: 4px 10px; cursor: pointer; } .ds-btn-secondary:hover { background: var(--panelAlt, #e8e8e4); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: 1px; }"
+    },
+    {
+      "name": "Ribbon Tile",
+      "kind": "custom",
+      "refersTo": "ribbon-button",
+      "description": "Labelled ribbon tool: a quiet icon (--ui-icon) over an 11px label, outlined on the paper. On is a 14% accent tint with an accent border; hover never uses the accent.",
+      "html": "<div style=\"display:flex;gap:4px\"><button class=\"ds-rb-btn\"><svg viewBox=\"0 0 24 24\" width=\"19\" height=\"19\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18M3 15h18M9 4v16M15 4v16\"/></svg><span>Table</span></button><button class=\"ds-rb-btn ds-rb-on\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" width=\"19\" height=\"19\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18M3 15h18M9 4v16M15 4v16\"/></svg><span>Comments</span></button></div>",
+      "css": ".ds-rb-btn { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; display: inline-grid; grid-template-rows: 18px auto; row-gap: 2px; align-content: center; justify-items: center; min-width: 44px; height: 44px; padding: 0 8px; border: 1px solid var(--border, #dcdcd6); border-radius: 6px; background: var(--bg, #ffffff); color: var(--text, #24292f); font-size: 11px; line-height: 1.15; text-align: center; cursor: pointer; } .ds-rb-btn svg { width: 18px; height: 18px; align-self: center; color: color-mix(in srgb, var(--text, #24292f) 25%, var(--muted, #6e7781)); } .ds-rb-btn span { white-space: nowrap; } .ds-rb-btn:hover { background: var(--panel, #f4f4f2); border-color: color-mix(in srgb, var(--text, #24292f) 22%, var(--border, #dcdcd6)); } .ds-rb-btn:hover svg, .ds-rb-on svg { color: var(--text, #24292f); } .ds-rb-btn:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: 1px; } .ds-rb-btn:active { background: var(--panelAlt, #e8e8e4); } .ds-rb-on, .ds-rb-on:hover { background: color-mix(in srgb, var(--accent, #2f6feb) 14%, var(--bg, #ffffff)); border-color: var(--accent, #2f6feb); }"
+    },
+    {
+      "name": "Ribbon Tab Row",
+      "kind": "nav",
+      "refersTo": "ribbon-tab-active",
+      "description": "Content tabs as a tablist, then Settings styled as a tab (opens the Settings window), with Help and the collapse chevron at the right end. The open tab is a 2px inset accent bar with a text-colored semibold label.",
+      "html": "<div class=\"ds-rbh\"><div class=\"ds-rbt\" role=\"tablist\"><button class=\"ds-rbtab\" role=\"tab\" aria-selected=\"false\">File</button><button class=\"ds-rbtab ds-rbtab-on\" role=\"tab\" aria-selected=\"true\">Insert</button><button class=\"ds-rbtab\" role=\"tab\" aria-selected=\"false\">Design</button><button class=\"ds-rbtab\" role=\"tab\" aria-selected=\"false\">Citations</button><button class=\"ds-rbtab\" role=\"tab\" aria-selected=\"false\">Review</button></div><button class=\"ds-rbtab\">Settings</button><span class=\"ds-rbtools\"><button class=\"ds-rbtool\">Help ▾</button></span></div>",
+      "css": ".ds-rbh { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; align-items: flex-end; gap: 2px; padding: 0 10px; background: var(--panel, #f4f4f2); border-bottom: 1px solid var(--border, #dcdcd6); width: 640px; } .ds-rbt { display: flex; gap: 2px; } .ds-rbtab { font: inherit; font-size: 13px; line-height: 18px; padding: 5px 12px 6px; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; margin-bottom: -1px; background: none; color: color-mix(in srgb, var(--text, #24292f) 60%, var(--muted, #6e7781)); cursor: pointer; } .ds-rbtab:hover { color: var(--text, #24292f); } .ds-rbtab:focus-visible, .ds-rbtool:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: -2px; } .ds-rbtab-on { background: var(--bg, #ffffff); border-color: var(--border, #dcdcd6); box-shadow: inset 0 2px 0 var(--accent, #2f6feb); color: var(--text, #24292f); font-weight: 600; } .ds-rbtools { margin-left: auto; align-self: center; } .ds-rbtool { font: inherit; font-size: 13px; height: 24px; padding: 0 8px; border: none; border-radius: 6px; background: none; color: color-mix(in srgb, var(--text, #24292f) 60%, var(--muted, #6e7781)); cursor: pointer; } .ds-rbtool:hover { background: var(--panelAlt, #e8e8e4); color: var(--text, #24292f); }"
+    },
+    {
+      "name": "Toolbar Toggle",
+      "kind": "button",
+      "refersTo": "toolbar-toggle-on",
+      "description": "Toolbar icon button (aria-label, aria-pressed): quiet icon at rest, panelAlt on hover, accent tint plus 1px accent ring when on.",
+      "html": "<div style=\"display:flex;gap:4px;background:var(--panel, #f4f4f2);padding:6px\"><button class=\"ds-tbt\" aria-label=\"Focus mode\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5\"/></svg></button><button class=\"ds-tbt ds-tbt-on\" aria-label=\"Project files\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5\"/></svg></button></div>",
+      "css": ".ds-tbt { display: inline-flex; align-items: center; height: 28px; padding: 4px 6px; border: 1px solid transparent; border-radius: 6px; background: none; color: color-mix(in srgb, var(--text, #24292f) 25%, var(--muted, #6e7781)); cursor: pointer; } .ds-tbt:hover { color: var(--text, #24292f); background: var(--panelAlt, #e8e8e4); } .ds-tbt:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: 1px; } .ds-tbt-on { color: var(--text, #24292f); background: color-mix(in srgb, var(--accent, #2f6feb) 14%, var(--panel, #f4f4f2)); box-shadow: inset 0 0 0 1px var(--accent, #2f6feb); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "Single-line field on the paper background.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search symbols\">",
+      "css": ".ds-input { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; background: var(--bg, #ffffff); color: var(--text, #24292f); border: 1px solid var(--border, #dcdcd6); border-radius: 6px; padding: 5px 8px; width: 220px; } .ds-input:focus-visible { outline: 2px solid var(--accent, #2f6feb); outline-offset: 0; }"
+    },
+    {
+      "name": "Editor Tabs",
+      "kind": "nav",
+      "refersTo": "editor-tab",
+      "description": "File window tab bar; the active tab joins the paper.",
+      "html": "<div class=\"ds-tabs\"><div class=\"ds-tab ds-tab-on\">main.tex</div><div class=\"ds-tab\">method.tex</div><div class=\"ds-tab\">refs.bib</div></div>",
+      "css": ".ds-tabs { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; display: flex; align-items: flex-end; gap: 2px; min-height: 32px; padding: 4px 6px 0; background: var(--panel, #f4f4f2); box-shadow: inset 0 -1px 0 var(--border, #dcdcd6); } .ds-tab { display: flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; color: color-mix(in srgb, var(--text, #24292f) 60%, var(--muted, #6e7781)); cursor: pointer; } .ds-tab:hover { background: var(--panelAlt, #e8e8e4); color: var(--text, #24292f); } .ds-tab-on, .ds-tab-on:hover { background: var(--bg, #ffffff); color: var(--text, #24292f); border-color: var(--border, #dcdcd6); }"
+    },
+    {
+      "name": "File Tree Row",
+      "kind": "nav",
+      "refersTo": "tree-row",
+      "description": "Project file row with a type icon and outlined badge.",
+      "html": "<div class=\"ds-tree\"><div class=\"ds-row ds-row-on\"><span class=\"ds-ficon\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5\"/></svg></span><span class=\"ds-fname\">main.tex</span><span class=\"ds-badge ds-badge-main\">main</span></div><div class=\"ds-row\"><span class=\"ds-ficon\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z\"/><path d=\"M14 3v5h5\"/></svg></span><span class=\"ds-fname\">method.tex</span><span class=\"ds-badge\">tex</span></div></div>",
+      "css": ".ds-tree { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; width: 240px; background: var(--panel, #f4f4f2); padding: 4px; } .ds-row { display: flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 5px; color: var(--text, #24292f); cursor: pointer; } .ds-row:hover { background: var(--panelAlt, #e8e8e4); } .ds-row-on, .ds-row-on:hover { background: var(--selection, #cfe0ff); } .ds-ficon { display: inline-flex; color: var(--syn-command, #8250df); } .ds-fname { flex: 1; } .ds-badge { font-size: 10px; line-height: 14px; border-radius: 4px; padding: 0 5px; border: 1px solid currentColor; color: var(--syn-command, #8250df); } .ds-badge-main { color: var(--accent, #2f6feb); background: color-mix(in srgb, var(--accent, #2f6feb) 12%, transparent); font-weight: 600; }"
+    },
+    {
+      "name": "Panel Head",
+      "kind": "nav",
+      "refersTo": "panel-head",
+      "description": "32px draggable panel title in uppercase muted label type.",
+      "html": "<div class=\"ds-phead\"><span class=\"ds-caret\">▾</span>Comments<span class=\"ds-spacer\"></span><span class=\"ds-count\">1</span></div>",
+      "css": ".ds-phead { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted, #6e7781); background: var(--panel, #f4f4f2); border-bottom: 1px solid var(--border, #dcdcd6); cursor: grab; width: 280px; } .ds-caret { font-size: 10px; } .ds-spacer { flex: 1; } .ds-count { color: var(--accent, #2f6feb); }"
+    },
+    {
+      "name": "Comment Card",
+      "kind": "card",
+      "refersTo": "comment-card",
+      "description": "Word-style comment with an accent left bar.",
+      "html": "<div class=\"ds-ccard\"><div class=\"ds-cmeta\"><b>Co-author</b> 2026-11-11</div><div class=\"ds-ctext\">This paragraph needs a figure.</div><div class=\"ds-cact\"><button>Reply</button><button>Resolve</button></div></div>",
+      "css": ".ds-ccard { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; width: 260px; background: var(--bg, #ffffff); border: 1px solid var(--border, #dcdcd6); border-left: 3px solid var(--accent, #2f6feb); border-radius: 6px; padding: 8px 10px; font-size: 12px; color: var(--text, #24292f); cursor: pointer; } .ds-cmeta { color: var(--muted, #6e7781); font-size: 11px; } .ds-cmeta b { color: var(--text, #24292f); font-weight: 600; } .ds-ctext { margin: 3px 0 4px; } .ds-cact { display: flex; gap: 2px; margin-top: 6px; } .ds-cact button { font: inherit; font-size: 11px; padding: 1px 6px; color: var(--accent, #2f6feb); background: none; border: 0; border-radius: 6px; cursor: pointer; } .ds-cact button:hover { background: var(--panelAlt, #e8e8e4); } .ds-cact button:focus-visible { outline: 2px solid var(--accent, #2f6feb); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Writing Desk",
+    "overview": "OpenTex is a calm, tidy desk. The paper is the brightest thing in the room: the editor sits on the pure background, the PDF page is a white sheet on a grey desk, and everything else (panels, ribbon, status bar) recedes into a slightly darker, warm-grey surface. Tools sit within reach and say what they are, but they don't compete with the writing. The playful parts, such as the pixel forest of Forest Timer or the plants of Writing Garden, are small things on the windowsill: they live inside their own panels and never leak into the chrome.\n\nThe chrome is native and restrained. It uses the operating system's own font at small sizes (13px body, 11px uppercase panel titles), flat surfaces separated by 1px lines, quiet hover tints, and a single accent color that marks the main action and the current selection. Density is that of a good desktop app, not a web page: 32px panel heads, 26px status bar, 3px-padded rows.\n\nEvery color is a theme variable. The same 14 interface keys and 6 syntax keys drive all 12 built-in themes (Light is the default) and any theme the user writes, so a design decision is only finished once it reads correctly in a dark theme and in High Contrast too.\n\nIt must not look like a web SaaS dashboard: no floating cards with soft shadows, no gradients, no big rounded pill buttons, no marketing hero layouts inside the app.",
+    "keyCharacteristics": [
+      "The paper (editor background and PDF page) is the lightest, calmest surface; chrome sits one step darker.",
+      "System font, small sizes, uppercase letter-spaced labels for panel titles.",
+      "Flat surfaces divided by 1px lines; shadows only on things that float above the window.",
+      "One accent color per theme, used for the main action, selection and focus.",
+      "Everything is a theme variable; nothing is hard-coded to the Light theme.",
+      "Play is confined to plugin panels."
+    ],
+    "rules": [
+      {
+        "name": "The Paper Is Brightest Rule",
+        "body": "The writing surface (bg) and the PDF page are the lightest, calmest surfaces. Chrome uses panel, never bg, unless it is part of the paper (the active tab, the ribbon body, an input).",
+        "section": "colors"
+      },
+      {
+        "name": "The One Accent Rule",
+        "body": "Each theme has one accent. Use it for the main action, selection, focus and \"this is on\"; never as decoration. Ribbon and toolbar icons are never accent (they use `--ui-icon`); the open ribbon tab is a 2px inset accent bar with a `--text` label. Tints of it come from `color-mix(in srgb, var(--accent) N%, transparent)` with N between 10% and 55%.",
+        "section": "colors"
+      },
+      {
+        "name": "The Theme Variable Rule",
+        "body": "UI code uses `var(--key)` and `var(--syn-key)` only. The only literal colors allowed are the white PDF page, black-alpha shadows and backdrops, and the fixed plugin-highlight hues in `styles.css`.",
+        "section": "colors"
+      },
+      {
+        "name": "The Small and Native Rule",
+        "body": "Chrome text stays between 11px and 14px in the system font. Anything larger belongs to the welcome page or to the paper.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase Is for Panels Rule",
+        "body": "Uppercase, letter-spaced 11px text means \"this is the name of a panel or a section\". Don't use it for buttons or content.",
+        "section": "typography"
+      },
+      {
+        "name": "The Only Floaters Cast Shadows Rule",
+        "body": "If it is docked in the layout, it is flat. Shadows are for pages, menus, popovers, dialogs, bubbles and drag ghosts, in that vocabulary and nowhere else.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Inset for State Rule",
+        "body": "\"Selected\" and \"flash\" states use inset or outline rings in the accent (`inset 0 0 0 1px var(--accent)`, a 3px accent left bar), not drop shadows. \"On\" (a toggle, a chosen preset, an open popover's tile, Fit width in the PDF head) is the 14% accent tint plus a 1px accent ring; the ring carries the 3:1. Hover never uses the accent: it is panel or panelAlt and text-colored ink. Every control's keyboard focus is a 2px accent outline (`:focus-visible`).",
+        "section": "elevation"
+      },
+      {
+        "name": "The Fit the Content Rule",
+        "body": "A ribbon button is no bigger than its icon and label need and no smaller than a comfortable target: no fixed widths, no empty two-line slots, no lone glyph in a big box.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do reference every color through `var(--key)` or `var(--syn-key)` and check new UI in Light, a dark theme and High Contrast.",
+      "Do keep the paper (bg) and the PDF page as the brightest, calmest surfaces; chrome uses panel.",
+      "Do separate docked areas with 1px border lines and tone, not shadows.",
+      "Do keep chrome text in the system font at 11–14px, with 11px uppercase letter-spaced (0.04em) labels for panel names.",
+      "Do reserve the filled accent button for the single main action in a view.",
+      "Do use the existing radii: 6px for controls and ribbon tiles, 8px for cards, 10px only for floating dialogs and popovers.",
+      "Do draw icons as 1.5px-stroke line SVGs in currentColor.",
+      "Do keep playful, illustrated or pixel-art content inside plugin panels."
+    ],
+    "donts": [
+      "Don't make it look like a web SaaS dashboard: no floating cards with soft shadows, no gradients, no big rounded pill buttons, no hero layouts inside the app.",
+      "Don't add drop shadows to docked panels, tabs or ribbon tiles.",
+      "Don't hard-code Light theme hex values in UI code.",
+      "Don't use the accent as decoration or for more than one competing action per view.",
+      "Don't introduce web fonts for the chrome; the system font is the interface's voice."
+    ]
+  }
+}

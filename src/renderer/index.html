@@ -10,52 +10,64 @@
   </head>
   <body class="no-project">
     <header class="toolbar">
-      <button class="icon" id="btn-sidebar" title="Show or hide the project files (Ctrl/Cmd+B)">
-        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="7.5" y1="3.5" x2="7.5" y2="16.5" /></svg>
-      </button>
-      <span id="project-name" class="project-name">OpenTex</span>
+      <div class="tb-group tb-project">
+        <button class="icon" id="btn-sidebar" title="Show or hide the project files (Ctrl/Cmd+Shift+T)" aria-label="Project files" aria-pressed="true">
+          <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="7.5" y1="3.5" x2="7.5" y2="16.5" /></svg>
+        </button>
+        <span id="project-name" class="project-name">OpenTex</span>
+      </div>
       <span class="spacer"></span>
-      <select id="engine" title="TeX engine for this project">
-        <option value="pdflatex">pdfLaTeX</option>
-        <option value="xelatex">XeLaTeX</option>
-        <option value="lualatex">LuaLaTeX</option>
-      </select>
-      <button class="primary" id="btn-compile" title="Compile (Ctrl/Cmd+Enter)">
-        <svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg><span>Compile</span>
-      </button>
-      <button class="icon" id="btn-pdf" title="Show or hide the PDF (Ctrl/Cmd+Shift+P)">
-        <span class="pdf-label">PDF</span>
-      </button>
-      <button class="icon" id="btn-focus" title="Focus mode (Ctrl/Cmd+Shift+F)">
-        <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /><text x="10" y="14.6" text-anchor="middle" font-size="13" font-style="italic" font-weight="600" font-family="Georgia, 'Times New Roman', serif" fill="currentColor" stroke="none">f</text></svg>
-      </button>
-      <button class="icon" id="btn-panels" title="Show or hide panels, reset layout">
-        <svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2" /><line x1="2.5" y1="12.5" x2="17.5" y2="12.5" /><line x1="7.5" y1="3.5" x2="7.5" y2="12.5" /></svg>
-      </button>
+      <div class="tb-group tb-build">
+        <select id="engine" title="TeX engine for this project">
+          <option value="pdflatex">pdfLaTeX</option>
+          <option value="xelatex">XeLaTeX</option>
+          <option value="lualatex">LuaLaTeX</option>
+        </select>
+        <button class="primary" id="btn-compile" title="Compile (Ctrl/Cmd+Enter)">
+          <svg viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg><span>Compile</span>
+        </button>
+      </div>
+      <div class="tb-group tb-view">
+        <button class="icon" id="btn-pdf" title="Show or hide the PDF (Ctrl/Cmd+Shift+P)" aria-label="PDF" aria-pressed="true">
+          <span class="pdf-label" aria-hidden="true">PDF</span>
+        </button>
+        <button class="icon" id="btn-focus" title="Focus mode (Ctrl/Cmd+Shift+D)" aria-label="Focus mode" aria-pressed="false">
+          <svg viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /><path d="M7 8.5h6M7 11.5h4" /></svg>
+        </button>
+        <button class="icon" id="btn-panels" title="Show or hide panels, reset layout" aria-label="Panels and layout" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1.25" /><rect x="11" y="3" width="6" height="6" rx="1.25" /><rect x="3" y="11" width="6" height="6" rx="1.25" /><rect x="11" y="11" width="6" height="6" rx="1.25" /></svg><i class="rb-caret" aria-hidden="true"><svg viewBox="0 0 8 8"><path d="M1.75 3l2.25 2.25L6.25 3"/></svg></i>
+        </button>
+      </div>
     </header>
 
     <nav class="ribbon" id="ribbon" aria-label="Ribbon">
-      <div class="rb-tabs" role="tablist">
-        <button class="rb-tab" data-tab="file" role="tab">File</button>
-        <button class="rb-tab" data-tab="insert" role="tab">Insert</button>
-        <button class="rb-tab" data-tab="design" role="tab">Design</button>
-        <button class="rb-tab" data-tab="citations" role="tab">Citations</button>
-        <button class="rb-tab" data-tab="review" role="tab">Review</button>
-        <button class="rb-tab" data-tab="plugins" role="tab">Plugins</button>
-        <button class="rb-tab" data-tab="report" role="tab">Report Bug</button>
-        <button class="rb-tab" data-tab="settings" role="tab" title="Open Settings (Ctrl/Cmd+,)">Settings</button>
+      <div class="rb-head">
+        <div class="rb-tabrow">
+          <div class="rb-tabs" role="tablist" aria-label="Ribbon tabs">
+            <button class="rb-tab" data-tab="file" role="tab" id="rb-tab-file" aria-controls="rb-file" aria-selected="false" tabindex="-1">File</button>
+            <button class="rb-tab" data-tab="insert" role="tab" id="rb-tab-insert" aria-controls="rb-insert" aria-selected="false" tabindex="-1">Insert</button>
+            <button class="rb-tab" data-tab="design" role="tab" id="rb-tab-design" aria-controls="rb-design" aria-selected="false" tabindex="-1">Design</button>
+            <button class="rb-tab" data-tab="citations" role="tab" id="rb-tab-citations" aria-controls="rb-citations" aria-selected="false" tabindex="-1">Citations</button>
+            <button class="rb-tab" data-tab="review" role="tab" id="rb-tab-review" aria-controls="rb-review" aria-selected="false" tabindex="-1">Review</button>
+          </div>
+          <!-- Looks like a tab, but opens the Settings window: a plain button outside the tablist, never selected. -->
+          <button class="rb-tab" id="rb-settings" title="Open Settings (Ctrl/Cmd+,)">Settings</button>
+        </div>
+        <!-- Not tabs: Help opens a menu, the chevron collapses the ribbon. -->
+        <div class="rb-tools">
+          <button class="rb-tool" id="rb-help" title="Report a bug, suggest a feature, the example paper and updates" aria-haspopup="menu" aria-expanded="false">Help<i class="rb-caret" aria-hidden="true"><svg viewBox="0 0 8 8"><path d="M1.75 3l2.25 2.25L6.25 3"/></svg></i></button>
+          <button class="rb-tool icon" id="rb-collapse" title="Collapse the ribbon to its tabs" aria-label="Collapse the ribbon" aria-expanded="true"></button>
+        </div>
       </div>
       <div class="rb-body">
-        <div class="rb-pane" data-pane="file"></div>
-        <div class="rb-pane" data-pane="insert" id="rb-insert"></div>
-        <div class="rb-pane" data-pane="design"></div>
-        <div class="rb-pane" data-pane="citations"></div>
-        <div class="rb-pane" data-pane="review"></div>
-        <div class="rb-pane" data-pane="plugins"></div>
-        <div class="rb-pane" data-pane="report"></div>
+        <div class="rb-pane" data-pane="file" id="rb-file" role="tabpanel" aria-labelledby="rb-tab-file"></div>
+        <div class="rb-pane" data-pane="insert" id="rb-insert" role="tabpanel" aria-labelledby="rb-tab-insert"></div>
+        <div class="rb-pane" data-pane="design" id="rb-design" role="tabpanel" aria-labelledby="rb-tab-design"></div>
+        <div class="rb-pane" data-pane="citations" id="rb-citations" role="tabpanel" aria-labelledby="rb-tab-citations"></div>
+        <div class="rb-pane" data-pane="review" id="rb-review" role="tabpanel" aria-labelledby="rb-tab-review"></div>
       </div>
     </nav>
-    <div id="ins-pop" class="ins-pop hidden"></div>
+    <div id="ins-pop" class="ins-pop hidden" role="dialog"></div>
     <div class="workspace" id="workspace">
       <div id="welcome" class="welcome">
         <div class="wl-inner">
@@ -110,10 +122,14 @@
       </div>
       <div id="tree" class="tree"></div>
       <div id="pdf-extras" class="pdf-extras">
-        <button class="icon small" id="pdf-zoom-out" title="Zoom out">−</button>
-        <span id="pdf-zoom">Fit</span>
-        <button class="icon small" id="pdf-zoom-in" title="Zoom in">+</button>
-        <button class="link" id="pdf-fit" title="Fit width">Fit</button>
+        <button class="icon small" id="pdf-zoom-out" title="Zoom out" aria-label="Zoom out">
+          <svg viewBox="0 0 20 20"><path d="M5 10h10" /></svg>
+        </button>
+        <span id="pdf-zoom" aria-live="polite" title="Zoom">100%</span>
+        <button class="icon small" id="pdf-zoom-in" title="Zoom in" aria-label="Zoom in">
+          <svg viewBox="0 0 20 20"><path d="M10 5v10M5 10h10" /></svg>
+        </button>
+        <button class="link" id="pdf-fit" title="Fit the page to the panel's width" aria-pressed="true">Fit width</button>
         <span id="pdf-pages" class="muted"></span>
       </div>
       <div id="pdf" class="pdf"><div class="pdf-empty">Compile to see the PDF here.</div></div>

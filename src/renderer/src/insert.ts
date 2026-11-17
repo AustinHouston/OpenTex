@@ -224,6 +224,7 @@ const SYMBOL_GROUPS: [string, Sym[]][] = [
 // ---------- Equation templates ----------
 interface Tmpl {
   label: string
+  short?: string // the cell's label when the full one would wrap (the tooltip keeps the full one)
   show: string // short preview
   math: string // snippet, math mode
   pkg?: string
@@ -237,7 +238,7 @@ const TEMPLATES: Tmpl[] = [
   { label: 'Integral', show: '∫ dx', math: '\\int_{a}^{b} ¦ \\, dx' },
   { label: 'Limit', show: 'lim', math: '\\lim_{x \\to ¦}' },
   { label: 'Derivative', show: 'd/dx', math: '\\frac{d¦}{dx}' },
-  { label: 'Partial derivative', show: '∂/∂x', math: '\\frac{\\partial ¦}{\\partial x}' },
+  { label: 'Partial derivative', short: 'Partial', show: '∂/∂x', math: '\\frac{\\partial ¦}{\\partial x}' },
   { label: 'Matrix', show: '( ⋱ )', math: '\\begin{pmatrix} ¦a & b \\\\ c & d \\end{pmatrix}', pkg: 'amsmath' },
   { label: 'Cases', show: '{ ⋮', math: 'f(x) = \\begin{cases} ¦ & \\text{if } x > 0 \\\\ 0 & \\text{otherwise} \\end{cases}', pkg: 'amsmath' },
   { label: 'Units', show: '5 m', math: '\\,\\mathrm{¦}' },
@@ -274,7 +275,7 @@ function buildSections(el: HTMLElement, host: InsertHost): void {
         <button class="ins-btn wide" data-eq="align" title="Several equations lined up at &amp;">Aligned</button>
         <button class="ins-btn wide" data-eq="display" title="An unnumbered equation on its own line: \\[ … \\]">Unnumbered</button>
       </div>
-      <div class="ins-tmpl">${TEMPLATES.map((t, i) => `<button class="ins-btn" data-tmpl="${i}" title="${esc(t.label)}: ${esc(t.math.replace('¦', '…'))}"><span class="g">${esc(t.show)}</span><span class="l">${esc(t.label)}</span></button>`).join('')}</div>
+      <div class="ins-tmpl">${TEMPLATES.map((t, i) => `<button class="ins-btn" data-tmpl="${i}" title="${esc(t.label)}: ${esc(t.math.replace('¦', '…'))}" aria-label="${esc(t.label)}"><span class="g">${esc(t.show)}</span><span class="l">${esc(t.short ?? t.label)}</span></button>`).join('')}</div>
     </section>
     <section class="ins-sec"><h4>Figure</h4>
       <div class="ins-row"><select data-figure></select><button class="ins-btn wide" data-insert-figure>Insert figure</button></div>
@@ -470,33 +471,43 @@ export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertH
       if (v) insertContents(v, host, b.dataset.contents!)
     }
   })
-  const tool =(id: string, label: string, title: string, dropdown: boolean): string =>
-    `<button class="rb-btn" data-tool="${id}" title="${esc(title)}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg><span>${label}</span>${dropdown ? '<i class="rb-caret">▾</i>' : ''}</button>`
-  // Small tools show only their icon; the tooltip says what they insert.
+  const tool = (id: string, label: string, title: string, dropdown: boolean): string =>
+    `<button class="rb-tile rb-btn" data-tool="${id}" title="${esc(title)}"${dropdown ? ' aria-haspopup="dialog" aria-expanded="false" aria-controls="ins-pop"' : ''}><svg viewBox="0 0 20 20">${ICONS[id]}</svg><span>${label}</span>${dropdown ? '<i class="rb-caret" aria-hidden="true"><svg viewBox="0 0 8 8"><path d="M1.75 3l2.25 2.25L6.25 3"/></svg></i>' : ''}</button>`
+  // Small tools show only their icon, stacked two to a column; the tooltip says what they insert.
   const small = (id: string, label: string, title: string): string =>
-    `<button class="rb-btn rb-icon" data-tool="${id}" title="${esc(`${label}: ${title}`)}" aria-label="${esc(label)}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg></button>`
+    `<button class="rb-tile rb-btn rb-mini" data-tool="${id}" title="${esc(`${label}: ${title}`)}" aria-label="${esc(label)}"><svg viewBox="0 0 20 20">${ICONS[id]}</svg></button>`
   bar.innerHTML = `<div class="rb-group">${tool('table', 'Table', 'Insert a table', true)}${tool('equation', 'Equation', 'Insert an equation or math template', true)}${tool('symbol', 'Symbol', 'Insert a symbol: Greek letters, operators, arrows…', true)}${tool('figure', 'Figure', 'Insert a figure from the project’s images', true)}</div>
     <div class="rb-sep"></div>
-    <div class="rb-group">${small('superscript', 'Superscript (exponent)', '^{…} in math, \\textsuperscript{…} in text. Select text first to raise it.')}${small('subscript', 'Subscript', '_{…} in math, \\textsubscript{…} in text. Select text first to lower it.')}${small('bold', 'Bold', '\\textbf{…} in text, \\mathbf{…} in math. Select text first to make it bold; click again to remove it.')}${small('italic', 'Italic (emphasis)', '\\emph{…} in text, \\mathit{…} in math. Select text first to emphasize it; click again to remove it.')}</div>
+    <div class="rb-group"><div class="rb-stack">${small('superscript', 'Superscript (exponent)', '^{…} in math, \\textsuperscript{…} in text. Select text first to raise it.')}${small('subscript', 'Subscript', '_{…} in math, \\textsubscript{…} in text. Select text first to lower it.')}</div><div class="rb-stack">${small('bold', 'Bold', '\\textbf{…} in text, \\mathbf{…} in math. Select text first to make it bold; click again to remove it.')}${small('italic', 'Italic (emphasis)', '\\emph{…} in text, \\mathit{…} in math. Select text first to emphasize it; click again to remove it.')}</div></div>
     <div class="rb-sep"></div>
-    <div class="rb-group">${small('bullets', 'Bulleted list', '\\begin{itemize} \\item … \\end{itemize}. Selected lines become the items.')}${small('numbers', 'Numbered list', '\\begin{enumerate} \\item … \\end{enumerate}. Selected lines become the items.')}${small('link', 'Web link', '\\url{address}; with text selected, \\href{address}{text} makes that text the link (uses the hyperref package).')}</div>
+    <div class="rb-group"><div class="rb-stack">${small('bullets', 'Bulleted list', '\\begin{itemize} \\item … \\end{itemize}. Selected lines become the items.')}${small('numbers', 'Numbered list', '\\begin{enumerate} \\item … \\end{enumerate}. Selected lines become the items.')}</div>${tool('link', 'Link', 'Web link: \\url{address}; with text selected, \\href{address}{text} makes that text the link (uses the hyperref package).', false)}</div>
     <div class="rb-sep"></div>
     <div class="rb-group ins-tail">${tool('reference', 'Cross-reference', 'Insert \\ref{…} to a figure, table, equation or section', false)}${tool('footnote', 'Footnote', 'Insert \\footnote{…}', false)}${tool('contents', 'Contents', 'Insert a table of contents (\\tableofcontents), list of figures or list of tables', true)}</div>`
 
   let openTool: string | null = null
-  const close = (): void => {
+  let opener: HTMLElement | null = null
+  /** `refocus`: Escape from the keyboard hands the focus back to the tile that opened the drop-down. */
+  const close = (refocus = false): void => {
+    const back = refocus && opener && (pop.contains(document.activeElement) || document.activeElement === opener)
     pop.classList.add('hidden')
     bar.querySelectorAll('.rb-btn.on').forEach((b) => b.classList.remove('on'))
+    bar.querySelectorAll('[aria-expanded=true]').forEach((b) => b.setAttribute('aria-expanded', 'false'))
+    if (back) opener!.focus()
     openTool = null
+    opener = null
   }
   const open = (id: string, btn: HTMLElement): void => {
     if (openTool === id) return close()
     close()
     if (!host.view()) return host.notice('Open a .tex file and put the cursor where you want to insert.')
     openTool = id
+    opener = btn
+    const fromKeyboard = btn.matches(':focus-visible')
     btn.classList.add('on')
+    btn.setAttribute('aria-expanded', 'true')
     pop.replaceChildren(byName[id])
     pop.dataset.tool = id
+    pop.setAttribute('aria-label', btn.querySelector('span')?.textContent ?? id)
     pop.classList.remove('hidden')
     const r = btn.getBoundingClientRect()
     const w = pop.offsetWidth
@@ -505,6 +516,8 @@ export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertH
     pop.style.maxHeight = `${window.innerHeight - r.bottom - 24}px`
     if (id === 'symbol') setTimeout(() => byName.symbol.querySelector<HTMLInputElement>('[data-search]')?.focus(), 0)
     if (id === 'figure') byName.figure.querySelector('select')?.dispatchEvent(new Event('focus'))
+    // Opened from the keyboard: move into the drop-down (Escape comes back to the tile).
+    if (fromKeyboard && id !== 'symbol') pop.querySelector<HTMLElement>('button, select, input')?.focus()
   }
   bar.addEventListener('mousedown', (e) => e.preventDefault()) // keep the editor's cursor
   bar.querySelectorAll<HTMLButtonElement>('.rb-btn').forEach((b) => {
@@ -536,6 +549,6 @@ export function buildInsertBar(bar: HTMLElement, pop: HTMLElement, host: InsertH
     if (openTool && !pop.contains(e.target as Node) && !bar.contains(e.target as Node)) close()
   })
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && openTool) close()
+    if (e.key === 'Escape' && openTool) close(true)
   })
 }

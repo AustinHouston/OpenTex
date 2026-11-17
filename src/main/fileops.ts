@@ -170,7 +170,7 @@ export function registerFileOpsIpc(need: Need): void {
 }
 
 /** The Edit menu: the usual commands plus Find in Project. */
-export function editMenu(isMac: boolean, findInProject: () => void): MenuItemConstructorOptions {
+export function editMenu(isMac: boolean, findInProject: () => void, find: () => void): MenuItemConstructorOptions {
   return {
     label: 'Edit',
     submenu: [
@@ -184,7 +184,8 @@ export function editMenu(isMac: boolean, findInProject: () => void): MenuItemCon
       { role: 'delete' },
       { role: 'selectAll' },
       { type: 'separator' },
-      { label: 'Find in Project…', accelerator: 'CmdOrCtrl+Shift+H', click: findInProject }
+      { label: 'Find…', accelerator: 'CmdOrCtrl+F', click: find },
+      { label: 'Find in All Files…', accelerator: 'CmdOrCtrl+Shift+F', click: findInProject }
     ]
   }
 }

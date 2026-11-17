@@ -1115,40 +1115,54 @@
     g.putImageData(img, 0, 0)
   }
 
-  // A plain timer, not requestAnimationFrame (which wakes the page on every screen refresh): 10 frames
-  // a second while cruising, 15 once typing speeds the ship up. Nothing runs while the panel is
-  // collapsed (seen by an IntersectionObserver: collapsing hides the frame without resizing it) or
-  // the window is hidden.
-  let running = false, timer = 0, lastT = 0, onScreen = true
+  // Each frame is drawn on a screen refresh (requestAnimationFrame), so stars and ship move at an
+  // even pace; between frames the page sleeps on a plain timer instead of waking on every refresh.
+  // 20 frames a second while cruising, 30 once typing speeds the ship up: both are a whole number
+  // of refreshes at 60 and 120 Hz, so frames come evenly spaced. dt is the real time between frames.
+  // Nothing runs while the panel is collapsed (seen by an IntersectionObserver: collapsing hides the
+  // frame without resizing it) or the window is hidden.
+  let running = false, timer = 0, raf = 0, lastT = 0, onScreen = true
   const shown = () => onScreen && !document.hidden && innerWidth > 2 && innerHeight > 2
   new IntersectionObserver((es) => {
     onScreen = es[es.length - 1].isIntersecting
     if (onScreen) startLoop()
   }).observe(cv)
-  function frame() {
-    timer = 0
+  let interval = 1000 / 20
+  function frame(now) {
+    raf = 0
+    const start = performance.now()
     if (!shown()) {
       save()
       return stopLoop()
     }
-    const now = performance.now()
-    const dt = Math.min(0.15, Math.max(0.001, (now - lastT) / 1000))
+    // Woken a refresh early (fast displays): wait for the refresh that reaches the slot.
+    if (now - lastT < interval - 4) {
+      raf = requestAnimationFrame(frame)
+      return
+    }
+    const dt = Math.min(0.1, Math.max(0.001, (now - lastT) / 1000)) // cap gaps after a stall
     lastT = now
     update(dt)
     render()
-    const interval = throttle > 0.03 || flash > 0 || boostSpark > 0 ? 66 : 150 // ~6.7 fps cruising, 15 fps under throttle
-    timer = setTimeout(frame, Math.max(10, interval - (performance.now() - now)))
+    interval = throttle > 0.03 || flash > 0 || boostSpark > 0 ? 1000 / 30 : 1000 / 20
+    // Sleep until just before the next slot, counted from when this frame started drawing, then
+    // draw on the refresh after it.
+    timer = setTimeout(() => {
+      timer = 0
+      raf = requestAnimationFrame(frame)
+    }, Math.max(0, start + interval - 9 - performance.now()))
   }
   function startLoop() {
     if (running || !shown()) return
     running = true
     lastT = performance.now()
-    timer = setTimeout(frame, 0)
+    raf = requestAnimationFrame(frame)
   }
   function stopLoop() {
     running = false
     clearTimeout(timer)
-    timer = 0
+    cancelAnimationFrame(raf)
+    timer = raf = 0
   }
   addEventListener('resize', startLoop)
 

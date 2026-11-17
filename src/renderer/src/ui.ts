@@ -39,23 +39,42 @@ export function promptText(message: string, initial = ''): Promise<string | null
   })
 }
 
-export type MenuItem = [string, () => void] | null // null draws a separator
+/** A menu row: label, action and an optional tooltip; null draws a separator. */
+export type MenuItem = [string, () => void, string?] | null
+
+/** Who opened a menu: it gets aria-expanded while the menu shows, and the keyboard focus back on Escape. */
+export interface MenuOpener {
+  opener?: HTMLElement
+}
 
 let closeMenu: (() => void) | null = null
 
-export function contextMenu(x: number, y: number, items: MenuItem[]): void {
+/** Close the open menu, if any (a menu button clicked again closes its menu). */
+export function closeContextMenu(): void {
+  closeMenu?.()
+}
+
+export function contextMenu(x: number, y: number, items: MenuItem[], opts: MenuOpener = {}): void {
   const m = document.getElementById('ctx-menu')!
   // A menu opened from another menu's item replaces it: the first one's closing click must not close this one.
-  if (closeMenu) document.removeEventListener('click', closeMenu)
+  closeMenu?.()
+  const opener = opts.opener
+  m.setAttribute('role', 'menu')
   m.replaceChildren(
     ...items.map((item) => {
       // A separator line: null, or the label '-'.
-      if (!item || item[0] === '-') return Object.assign(document.createElement('div'), { className: 'ctx-sep' })
-      const [label, fn] = item
+      if (!item || item[0] === '-') return Object.assign(document.createElement('div'), { className: 'ctx-sep', role: 'separator' })
+      const [label, fn, tip] = item
       const b = document.createElement('button')
       b.textContent = label
+      b.setAttribute('role', 'menuitem')
+      b.tabIndex = -1
+      if (tip) b.title = tip
       b.onclick = () => {
-        m.classList.add('hidden')
+        // Back to the opener first, so a dialog the item opens can still take the focus from there.
+        const hadFocus = m.contains(document.activeElement)
+        close()
+        if (hadFocus) opener?.focus()
         fn()
       }
       return b
@@ -68,10 +87,38 @@ export function contextMenu(x: number, y: number, items: MenuItem[]): void {
   const r = m.getBoundingClientRect()
   if (r.right > window.innerWidth - 4) m.style.left = `${Math.max(4, window.innerWidth - r.width - 4)}px`
   if (r.bottom > window.innerHeight - 4) m.style.top = `${Math.max(4, window.innerHeight - r.height - 4)}px`
+  const rows = (): HTMLButtonElement[] => [...m.querySelectorAll<HTMLButtonElement>('button')]
+  // Arrow keys walk the rows, Escape closes and hands the focus back to the opener, Tab just closes.
+  const onKey = (e: KeyboardEvent): void => {
+    const list = rows()
+    const i = list.indexOf(document.activeElement as HTMLButtonElement)
+    const go = (n: number): void => {
+      e.preventDefault()
+      list[(n + list.length) % list.length]?.focus()
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      const back = m.contains(document.activeElement) || document.activeElement === opener
+      close()
+      if (back) opener?.focus()
+    } else if (e.key === 'ArrowDown') go(i + 1)
+    else if (e.key === 'ArrowUp') go(i < 0 ? -1 : i - 1)
+    else if (e.key === 'Home') go(0)
+    else if (e.key === 'End') go(-1)
+    else if (e.key === 'Tab') close()
+  }
   const close = (): void => {
     m.classList.add('hidden')
+    document.removeEventListener('click', close)
+    document.removeEventListener('keydown', onKey, true)
+    opener?.setAttribute('aria-expanded', 'false')
     if (closeMenu === close) closeMenu = null
   }
   closeMenu = close
+  opener?.setAttribute('aria-expanded', 'true')
+  document.addEventListener('keydown', onKey, true)
+  // Opened from the keyboard: the first row takes the focus, like a native menu.
+  if (opener?.matches(':focus-visible')) rows()[0]?.focus()
   setTimeout(() => closeMenu === close && document.addEventListener('click', close, { once: true }))
 }

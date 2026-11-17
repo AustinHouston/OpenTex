@@ -1,6 +1,7 @@
 import './styles.css'
 import { EditorState, Transaction } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
+import { openSearchPanel } from '@codemirror/search'
 import type { CompileResult, Engine, Problem, ProjectInfo, Settings, TexInfo, Theme, TreeNode } from '../../shared/types'
 import type { OpenTexApi } from '../../preload/index'
 import { dimCompartment, dimExtension, goToLine, makeExtensions, PluginMark, setPluginMarks } from './editor'
@@ -8,7 +9,7 @@ import { allFiles, isTextFile, renderTree } from './filetree'
 import { PdfView } from './pdfview'
 import { openSettings } from './settings-ui'
 import { applyTheme, BUILT_IN } from './themes'
-import { ask, contextMenu, MenuItem, promptText } from './ui'
+import { ask, closeContextMenu, contextMenu, MenuItem, promptText } from './ui'
 import { findQuote, parseComments } from './comments'
 import { anchorAt, commentClicks, commentField, COMMENTS_FILE, locate, newId, Placed, placedIn, setComments, StoreFile, Thread, today } from './review'
 import { CompletionData, countWords, scanBib, scanTex, spellCompartment, spellExtension } from './assist'
@@ -116,7 +117,7 @@ const extensions = [...makeExtensions(
 extensions.push(hoverPreviews({ project: () => project, active: () => active, fileOf: (v) => windows.find((w) => w.view === v)?.active ?? null, textOf, lastPdf: () => lastPdf })) // hover previews (hover.ts)
 const emptyState = (): EditorState => EditorState.create({ doc: '', extensions })
 createWindow('files')
-const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'))
+const pdf = new PdfView($('pdf'), $('pdf-zoom'), $('pdf-pages'), $('pdf-fit'))
 // Saving automatically, crash recovery and version history (history.ts).
 const versions = setupHistory({ api, viewOf, files, active: () => active, project: () => project, settings: () => settings, openFile, autoSave: (p) => save(p, false, true), renderTabs, reloadTree, status: setCompileStatus })
 // Live preview: background builds of the unsaved text while typing (live-preview.ts).
@@ -941,7 +942,7 @@ let exitTimer = 0
 function setFocus(on: boolean): void {
   focusOn = on
   document.body.classList.toggle('focus', on)
-  $('btn-focus').classList.toggle('on', on)
+  setPressed($('btn-focus'), on)
   view.dispatch({ effects: dimCompartment.reconfigure(dimExtension(on && settings.focusDim)) })
   if (settings.focusFullscreen) api.setFullscreen(on)
   if (on) flashExit()
@@ -1874,8 +1875,16 @@ async function ensurePackage(pkg: string): Promise<boolean> {
 function updatePanelButtons(): void {
   // Comment highlights show only while the Comments panel is open (adding a comment reopens it).
   document.body.classList.toggle('comments-off', !layout.isVisible('comments'))
-  $('btn-sidebar').classList.toggle('on', layout.isVisible('project'))
-  $('btn-pdf').classList.toggle('on', layout.isVisible('pdf'))
+  setPressed($('btn-sidebar'), layout.isVisible('project'))
+  setPressed($('btn-pdf'), layout.isVisible('pdf'))
+  const comments = document.querySelector<HTMLElement>(".rb-btn[data-run='toggle-comments']")
+  if (comments) comments.setAttribute('aria-pressed', String(layout.isVisible('comments')))
+}
+
+/** A toggle button's on state: the .on class draws it, aria-pressed announces it. */
+function setPressed(b: HTMLElement, on: boolean): void {
+  b.classList.toggle('on', on)
+  b.setAttribute('aria-pressed', String(on))
 }
 
 /** Back to the standard layout: secondary file windows close (their files move to the first one). */
@@ -1891,7 +1900,7 @@ function panelsMenu(): void {
     .filter((id) => !/^files:/.test(id))
     .map((id) => [`${layout.isShown(id) ? '✓' : '\u2003'}  ${layout.title(id)}`, () => (layout.isShown(id) ? layout.hide(id) : layout.show(id))])
   items.push(null, ['Reset layout', () => resetLayout()])
-  contextMenu(r.left - 120, r.bottom + 4, items)
+  contextMenu(r.left - 120, r.bottom + 4, items, { opener: $('btn-panels') })
 }
 
 // ---------- Importing: references ----------
@@ -2263,6 +2272,14 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'show-comments': () => layout.show('comments'),
   'toggle-comments': () => layout.toggle('comments'),
   'find-in-project': () => projectSearch.open(),
+  // Edit → Find (Cmd/Ctrl+F): the search bar of the file you're editing.
+  find: () => {
+    if (!project) return
+    view.focus()
+    openSearchPanel(view)
+  },
+  // Insert → Bold / Italic (Cmd/Ctrl+B, Cmd/Ctrl+I): the same as the ribbon's B and I.
+  format: (kind: unknown) => document.querySelector<HTMLButtonElement>(`#rb-insert [data-tool='${kind}']`)?.click(),
   'sync-forward': () => syncForward(),
   'show-insert': () => updateSettings({ showInsertBar: !settings.showInsertBar }),
   'insert-table': () => openInsertTool('table'),
@@ -2284,11 +2301,11 @@ const actions: Record<string, (...args: any[]) => unknown> = {
 }
 
 /** Ribbon → Citations → Open .bib: open the project's .bib file, choose one if there are several, or offer to make refs.bib. */
-async function openBibMenu(x: number, y: number): Promise<void> {
+async function openBibMenu(x: number, y: number, opener?: HTMLElement): Promise<void> {
   if (!project) return
   const bibs = allFiles(project.tree, (p) => p.endsWith('.bib'))
   if (bibs.length === 1) return openFile(bibs[0])
-  if (bibs.length) return contextMenu(x, y, bibs.map((b) => [b, () => void openFile(b)]))
+  if (bibs.length) return contextMenu(x, y, bibs.map((b) => [b, () => void openFile(b)]), { opener })
   const r = await ask('This project has no .bib file yet. A .bib file holds your references, and \\cite{…} picks from it. Make one called refs.bib?', ['Create refs.bib', 'Cancel'])
   if (r !== 0) return
   try {
@@ -2308,10 +2325,7 @@ function wire(): void {
     settings = s
     applySettings()
     api.setZoom(s.uiZoom || 1)
-    if (pluginsChanged) {
-      plugins.setPlugins(allPlugins, s.disabledPlugins ?? [])
-      ribbon?.renderPlugins()
-    }
+    if (pluginsChanged) plugins.setPlugins(allPlugins, s.disabledPlugins ?? [])
     // A plugin just switched on from the Plugins menu: show its panel.
     if (info?.enabledPlugin && project) layout.show(`plugin:${info.enabledPlugin}`)
   })
@@ -2337,7 +2351,7 @@ function wire(): void {
   $('btn-new-file').onclick = () => newFile()
   ribbon = new Ribbon($('ribbon'), {
     run: (a) => (a === 'new-window' ? api.newWindow() : actions[a]?.()),
-    recentMenu: async (x, y) => {
+    recentMenu: async (x, y, opener) => {
       const recent = await api.recentProjects()
       contextMenu(x, y, [
         ['Open Folder…', () => actions['open-folder']()],
@@ -2346,14 +2360,11 @@ function wire(): void {
         ['-', () => {}],
         ['Example Paper', () => actions['open-example']()],
         ['Close Folder', () => actions['close-folder']()]
-      ])
+      ], { opener })
     },
-    bibMenu: (x, y) => openBibMenu(x, y),
+    bibMenu: (x, y, opener) => openBibMenu(x, y, opener),
     view: () => (active?.endsWith('.tex') ? view : null),
     notice: (m) => setCompileStatus(m, 'warn'),
-    plugins: () => ({ list: allPlugins, disabled: settings.disabledPlugins ?? [] }),
-    setPlugin: (id, on) => api.setPluginEnabled(id, on),
-    openPluginsFolder: () => api.openPluginsFolder(),
     design: () => ({ current: project?.mainFile ? currentDesign(mainText(), livePreambles()) : null, hasCustom: Boolean(project?.config.design?.custom) }),
     applyDesign: (id) => applyDesignPreset(id),
     editPreamble: async () => {
@@ -2375,6 +2386,7 @@ function wire(): void {
   })
   $('btn-panels').onclick = (e) => {
     e.stopPropagation()
+    if ($('btn-panels').getAttribute('aria-expanded') === 'true') return closeContextMenu()
     panelsMenu()
   }
   $('show-resolved').onchange = () => renderComments()
@@ -2404,7 +2416,6 @@ async function init(): Promise<void> {
   allPlugins = await api.listPlugins()
   setupPanels(settings.layout)
   plugins.setPlugins(allPlugins, settings.disabledPlugins ?? [])
-  ribbon?.renderPlugins() // the list wasn't loaded yet when the ribbon was first drawn
   await refreshTex()
   if (!tex.found) {
     const r = await ask('OpenTex needs a TeX installation to turn your .tex files into PDFs, and none was found on this computer.', [

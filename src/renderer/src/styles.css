@@ -6,6 +6,21 @@
   --editor-line-height: 1.6;
   --focus-width: 80ch;
   color-scheme: light;
+  /* Chrome ink and state, derived from each theme's own keys (themes.ts sets those inline on :root,
+     so these resolve per theme). Labels on chrome sit between muted and text so they pass 4.5:1 on
+     panel; icons sit just above muted so they stay quiet but pass 3:1 on panel and bg. "On" is an
+     accent tint of the surface it sits on, always paired with a 1px accent ring for 3:1. */
+  --ui-label: color-mix(in srgb, var(--text) 60%, var(--muted));
+  --ui-icon: color-mix(in srgb, var(--text) 25%, var(--muted));
+  --on-fill: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  --on-fill-chrome: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  /* Chrome type ramp (DESIGN.md Typography): body for words you read or click, small for secondary
+     lines and dense controls, label for ribbon tiles and panel names. Nothing in the chrome sits
+     between these steps or below the label floor. */
+  --type-body: 13px;
+  --type-small: 12px;
+  --type-label: 11px;
+  --lh-label: 1.15;
 }
 :root[data-dark='true'] { color-scheme: dark; }
 
@@ -40,8 +55,21 @@ select { background: var(--bg); border: 1px solid var(--border); border-radius: 
 input[type='text'], input[type='number'] { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; width: 100%; }
 
 /* Toolbar */
-.toolbar { height: 42px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid var(--border); flex: none; }
-.project-name { font-weight: 600; margin-left: 4px; }
+/* Three groups on one 28px line: where you are (sidebar + project), build (engine + Compile), view
+   (PDF, focus, panels). Tight 4px inside a group, 12px between groups. */
+.toolbar { height: 42px; display: flex; align-items: center; gap: 12px; padding: 0 10px; border-bottom: 1px solid var(--border); flex: none; }
+.tb-group { display: flex; align-items: center; gap: 4px; flex: none; }
+.tb-project { gap: 6px; flex: 0 1 auto; min-width: 0; }
+.toolbar button, .toolbar select { height: 28px; }
+.toolbar select { padding: 0 6px; }
+/* Icon buttons: quiet ink at rest, text ink and a neutral fill on hover; a toggle that is on gets the
+   accent tint and ring, so on always reads louder than hover. */
+.toolbar button.icon { color: var(--ui-icon); }
+.toolbar button.icon:hover { color: var(--text); background: var(--panelAlt); }
+.toolbar button.icon.on { color: var(--text); background: var(--on-fill-chrome); box-shadow: inset 0 0 0 1px var(--accent); }
+.toolbar button.icon.on:hover { background: color-mix(in srgb, var(--accent) 22%, var(--panel)); }
+.toolbar button:focus-visible, .toolbar select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.project-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* Main layout */
 .main { flex: 1; display: flex; min-height: 0; }
@@ -83,9 +111,15 @@ body.no-pdf .pdf-col, body.no-pdf .splitter[data-target='pdf-col'] { display: no
 .tree .row.dim .fname { color: var(--muted); }
 
 /* Tabs */
-.tabs { display: flex; overflow-x: auto; background: var(--panel); border-bottom: 1px solid var(--border); flex: none; min-height: 34px; }
-.tab { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px; border-right: 1px solid var(--border); cursor: pointer; color: var(--muted); white-space: nowrap; }
-.tab.active { background: var(--bg); color: var(--text); }
+/* File tabs belong to their file window: folder tabs with rounded top corners that stand on the
+   editor's top edge, the open one joined to the text below. They sit 4px under the panel head so the
+   two never read as one bar to grab. */
+.tabs { display: flex; align-items: flex-end; gap: 2px; overflow-x: auto; overflow-y: hidden; background: var(--panel); box-shadow: inset 0 -1px 0 var(--border); flex: none; min-height: 32px; padding: 4px 6px 0; }
+.tab { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 10px; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; color: var(--ui-label); white-space: nowrap; }
+.tab:hover { background: var(--panelAlt); color: var(--text); }
+.tab.active { background: var(--bg); color: var(--text); border-color: var(--border); }
+.tabs::-webkit-scrollbar { height: 3px; }
+.tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .tab .close { width: 18px; height: 18px; padding: 0; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; }
 .tab .close svg { width: 12px; height: 12px; }
 .tab.dirty .close svg { display: none; }
@@ -130,7 +164,7 @@ body.no-pdf .pdf-col, body.no-pdf .splitter[data-target='pdf-col'] { display: no
 #pdf-zoom { min-width: 40px; text-align: center; text-transform: none; }
 
 /* Status bar */
-.statusbar { height: 26px; display: flex; align-items: center; gap: 14px; padding: 0 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); flex: none; }
+.statusbar { height: 26px; display: flex; align-items: center; gap: 14px; padding: 0 12px; border-top: 1px solid var(--border); font-size: var(--type-small); font-variant-numeric: tabular-nums; color: var(--muted); flex: none; }
 .statusbar select { padding: 0 4px; font-size: 12px; }
 .statusbar .ok { color: var(--text); }
 .statusbar .err { color: var(--error); cursor: pointer; }
@@ -165,6 +199,8 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 .ctx-menu { position: fixed; z-index: 20; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); min-width: 180px; }
 .ctx-menu button { display: block; width: 100%; text-align: left; }
 .ctx-menu .ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+/* Menus walk with the arrow keys: the focused row looks hovered, with the accent ring for the keyboard. */
+.ctx-menu button:focus-visible { background: var(--panelAlt); outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* Sidebar tabs */
 .side-tabs { gap: 2px; padding-left: 6px; }
@@ -216,8 +252,6 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 .dock-panel iframe { flex: 1; border: 0; width: 100%; background: transparent; }
 #comments { overflow: auto; padding: 0 8px 12px; display: block; }
 #comments.hidden { display: none; }
-#btn-comment { position: relative; }
-#btn-comment .count { position: absolute; top: 0; right: 0; font-size: 9px; min-width: 14px; height: 14px; border-radius: 7px; background: var(--accent); color: var(--accentText); display: flex; align-items: center; justify-content: center; padding: 0 3px; }
 .cm-ot-quote { background: color-mix(in srgb, var(--warning) 28%, transparent); border-bottom: 2px solid var(--warning); border-radius: 2px; }
 .c-card .c-quote { font-style: italic; color: var(--muted); border-left: 2px solid var(--warning); padding-left: 6px; margin: 3px 0; }
 .comment-bubble { position: fixed; z-index: 15; background: var(--accent); color: var(--accentText); font-weight: 600; font-size: 12px; padding: 4px 10px; border-radius: 14px; box-shadow: 0 3px 12px rgba(0,0,0,0.25); transform: translate(-50%, -100%); }
@@ -245,9 +279,15 @@ dialog.wide[open] { display: flex; flex-direction: column; }
 .panel-body > * { flex: 1; min-height: 0; }
 .panel-body > .tree, .panel-body > .comments { overflow: auto; }
 .panel-body iframe { border: 0; width: 100%; height: 100%; background: transparent; }
-.pdf-extras { gap: 2px; }
-.pdf-extras #pdf-zoom { min-width: 34px; text-align: center; font-size: 11px; }
-.pdf-extras #pdf-pages { font-size: 11px; margin-left: 4px; }
+/* The head's extras are content, not the panel's name: no uppercase or tracking, and "3 pages" never breaks. */
+.pdf-extras { gap: 2px; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.pdf-extras #pdf-zoom { min-width: 38px; text-align: center; font-size: var(--type-label); font-variant-numeric: tabular-nums; }
+.pdf-extras #pdf-pages { font-size: var(--type-label); margin-left: 4px; font-variant-numeric: tabular-nums; }
+/* Zoom out / in are drawn like every other icon; Fit width shows it is on (the zoom follows the panel) with the state inset. */
+.pdf-extras button.icon.small { padding: 3px; }
+.pdf-extras #pdf-fit { margin-left: 2px; }
+.pdf-extras #pdf-fit[aria-pressed='true'] { color: var(--text); background: var(--on-fill-chrome); box-shadow: inset 0 0 0 1px var(--accent); }
+.pane-head button:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* Splitters sit over the 1px gaps. */
 .lsplit { position: absolute; z-index: 5; }
@@ -343,56 +383,103 @@ body.focus .cm-ot-cpoint { display: none; }
 .c-broken svg { width: 14px; height: 14px; }
 .c-broken:hover { background: color-mix(in srgb, var(--error) 10%, transparent); }
 
-/* Insert toolbar (like Word's Insert tab) and its drop-downs */
+/* The ribbon: a row of content tabs with Help, Settings and collapse at its right end, then one
+   64px body of 56px tiles. */
 .ribbon { flex: none; background: var(--panel); border-bottom: 1px solid var(--border); }
 body.no-project .ribbon, body.focus .ribbon, body.no-ribbon .ribbon { display: none; }
-.rb-tabs { display: flex; gap: 2px; padding: 0 10px; }
-.rb-tab { font-size: 12.5px; padding: 5px 12px 6px; border-radius: 6px 6px 0 0; color: var(--muted); border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; position: relative; }
+.rb-head { display: flex; align-items: flex-end; gap: 12px; padding: 0 10px; }
+.rb-tabrow, .rb-tabs { display: flex; gap: 2px; min-width: 0; }
+.rb-tab { font-size: var(--type-body); line-height: 18px; padding: 5px 12px 6px; border-radius: 6px 6px 0 0; color: var(--ui-label); border: 1px solid transparent; border-bottom: none; margin-bottom: -1px; position: relative; white-space: nowrap; }
 .rb-tab:hover { color: var(--text); background: none; }
-.rb-tab.on { color: var(--accent); background: var(--bg); border-color: var(--border); font-weight: 600; }
+/* The open tab is 600; an invisible 600 copy of each label (ribbon.ts sets data-label) holds every
+   tab at its bold width, so selecting a tab never shifts its neighbours. */
+.rb-tab[data-label]::after { content: attr(data-label) / ''; display: block; height: 0; overflow: hidden; visibility: hidden; font-weight: 600; }
+.rb-tab.on { color: var(--text); background: var(--bg); border-color: var(--border); box-shadow: inset 0 2px 0 var(--accent); font-weight: 600; }
+.rb-tab:focus-visible, .rb-tool:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Right end of the tab row: quiet controls that act, not tabs. Centered on the tab labels. */
+.rb-tools { margin-left: auto; align-self: center; display: flex; align-items: center; gap: 2px; flex: none; }
+.rb-tool { height: 24px; display: inline-flex; align-items: center; gap: 3px; padding: 0 8px; font-size: var(--type-body); color: var(--ui-label); }
+.rb-tool.icon { width: 26px; padding: 0; justify-content: center; color: var(--ui-icon); }
+.rb-tool svg { width: 16px; height: 16px; }
+.rb-tool:hover { color: var(--text); background: var(--panelAlt); }
 .rb-body { background: var(--bg); border-top: 1px solid var(--border); }
 body.ribbon-collapsed .rb-body { display: none; }
-.rb-pane { height: 64px; display: flex; align-items: center; gap: 2px; padding: 0 8px; overflow-x: auto; overflow-y: hidden; }
+.rb-pane { height: 52px; display: flex; align-items: center; gap: 2px; padding: 0 8px; overflow-x: auto; overflow-y: hidden; }
 .rb-pane.hidden { display: none; }
-/* A narrow window scrolls the ribbon sideways; keep the scrollbar thin so it doesn't cover the buttons. */
+/* A pane wider than the window scrolls sideways; the clipped edge fades so it never ends silently
+   (ribbon.ts sets clip-left / clip-right). Keep the scrollbar thin so it doesn't cover the tiles. */
+.rb-pane.clip-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.rb-pane.clip-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.rb-pane.clip-left.clip-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 .rb-pane::-webkit-scrollbar { height: 4px; }
 .rb-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-/* Design gallery */
-.ds-gallery { gap: 4px; }
-.ds-card { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; white-space: nowrap; color: var(--text); background: var(--panel); }
-.ds-card svg { width: 26px; height: 32px; color: var(--text); flex: none; }
-.ds-card:hover { border-color: var(--accent); background: var(--panel); }
-.ds-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent); font-weight: 600; }
-.ds-card:disabled { opacity: 0.45; cursor: default; }
-.ds-note { font-size: 11px; color: var(--muted); margin-left: 6px; max-width: 360px; line-height: 1.3; white-space: normal; }
-/* Plugins tab */
-.pl-tiles { gap: 4px; }
-.pl-tile { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; background: var(--panel); color: var(--text); white-space: nowrap; }
-.pl-tile .pl-icon { font-size: 16px; }
-.pl-tile .pl-state { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: var(--panelAlt); color: var(--muted); }
-.pl-tile.on { border-color: var(--accent); }
-.pl-tile.on .pl-state { background: var(--accent); color: var(--accentText); }
-/* Same height as the ribbon buttons, so every tab lines up. */
-.ds-card, .pl-tile { height: 56px; }
-.rb-group { display: flex; gap: 4px; }
-.rb-sep { width: 1px; height: 40px; background: var(--border); margin: 0 6px; flex: none; }
-/* Ribbon buttons: near-square tiles, icon above a short label (up to two lines), outlined at rest
-   so each one is easy to tell apart. */
-.rb-btn { position: relative; flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 56px; max-width: 96px; height: 56px; padding: 3px 7px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); font-size: 11px; line-height: 1.15; text-align: center; color: var(--text); }
-.rb-btn span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.rb-btn svg { width: 19px; height: 19px; flex: none; color: var(--accent); }
-.rb-btn:hover { background: var(--panel); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
-.rb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.rb-btn.on, .rb-btn:active { background: var(--panelAlt); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
-/* Review → Comments is on while the Comments panel shows (main.ts sets body.comments-off otherwise). */
-body:not(.comments-off) .rb-btn[data-run='toggle-comments'] { background: var(--panelAlt); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
-.rb-caret { position: absolute; top: 3px; right: 5px; font-style: normal; font-size: 9px; line-height: 1; color: var(--muted); }
-/* Icon-only tiles (Insert: superscript, subscript, bold, italic, lists, link) are narrower squares. */
-.rb-btn.rb-icon { min-width: 44px; padding: 3px 5px; }
-.rb-btn.rb-icon svg { width: 20px; height: 20px; }
-/* Narrow windows: the Insert tab drops labels (the tooltips still say what each tool does). */
-@media (max-width: 1000px) { #rb-insert .ins-tail .rb-btn > span { display: none; } #rb-insert .ins-tail .rb-btn { min-width: 44px; } }
-@media (max-width: 760px) { #rb-insert .rb-btn > span { display: none; } #rb-insert .rb-btn { min-width: 44px; } }
+.rb-group { display: flex; align-items: center; gap: 3px; flex: none; }
+.rb-sep { width: 1px; height: 32px; background: var(--border); margin: 0 5px; flex: none; }
+
+/* One tile family for every tab: 44px tall, 6px radius, outlined on the paper surface, one hover.
+   Each tile is as wide as its content needs (icon over a one-line label, or a thumbnail beside one),
+   with little padding; single-mark tools (x², x₂, B, I, lists) are small squares stacked in pairs. */
+.rb-tile { position: relative; flex: none; height: 44px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: var(--type-label); line-height: var(--lh-label); }
+.rb-tile:hover { background: var(--panel); border-color: color-mix(in srgb, var(--text) 22%, var(--border)); }
+.rb-tile:active { background: var(--panelAlt); }
+.rb-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rb-tile:disabled { opacity: 0.45; cursor: default; }
+.rb-tile:disabled:hover { background: var(--bg); border-color: var(--border); }
+/* Caret: one glyph for every control that opens a menu. On a tile it sits in the top-right corner,
+   in the tile's own right padding; on a toolbar or tab-row button it follows the icon or word. */
+.rb-caret { display: inline-flex; color: var(--ui-icon); }
+i.rb-caret > svg { width: 8px; height: 8px; stroke-width: 1.35; }
+.toolbar .rb-caret, .rb-tool .rb-caret { color: inherit; }
+.rb-tile > .rb-caret { position: absolute; top: 3px; right: 3px; }
+.toolbar .rb-caret { margin-left: 2px; }
+/* Vertical tiles: icon over a one-line label, sized to the label. */
+.rb-btn { min-width: 44px; padding: 0 8px; display: grid; grid-template-rows: 18px auto; row-gap: 2px; align-content: center; justify-items: center; text-align: center; }
+.rb-btn:has(> .rb-caret) { padding-right: 11px; padding-left: 11px; }
+.rb-btn > svg { width: 18px; height: 18px; align-self: center; color: var(--ui-icon); }
+.rb-btn:hover > svg { color: var(--text); }
+.rb-btn > span { white-space: nowrap; }
+/* On (a popover is open, a preset is chosen, Review → Comments while the Comments panel shows; main.ts
+   sets body.comments-off otherwise): the accent tint of the paper with an accent outline. */
+.rb-tile.on, body:not(.comments-off) .rb-btn[data-run='toggle-comments'] { background: var(--on-fill); border-color: var(--accent); }
+.rb-btn.on > svg, body:not(.comments-off) .rb-btn[data-run='toggle-comments'] > svg { color: var(--text); }
+/* Mini tools (Insert: superscript/subscript, bold/italic, the two lists): 26×21 squares, two to a
+   column, so a column is exactly one tile tall. */
+.rb-stack { display: grid; grid-template-rows: 21px 21px; row-gap: 2px; flex: none; }
+.rb-btn.rb-mini { width: 26px; min-width: 0; height: 21px; padding: 0; border-radius: 5px; grid-template-rows: 1fr; }
+.rb-btn.rb-mini > svg { width: 16px; height: 16px; }
+/* Horizontal tiles (Design presets): thumbnail beside a one-line label. */
+.ds-card { display: flex; align-items: center; gap: 6px; padding: 0 10px 0 5px; text-align: left; }
+.ds-card > span { white-space: nowrap; }
+.ds-gallery { gap: 3px; }
+.ds-card svg { width: 22px; height: 28px; color: var(--text); flex: none; }
+.ds-card.on { box-shadow: inset 0 0 0 1px var(--accent); font-weight: 600; }
+/* One line; the full explanation is its tooltip (and Edit Setup's). Hidden below 1280px rather than cut. */
+.ds-note { flex: 0 1 auto; min-width: 0; margin-left: 8px; font-size: var(--type-label); color: var(--ui-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Narrow windows: every tab gives up words before it scrolls; tooltips still name each tile.
+   Design drops card names below 1100px; Insert's tail tiles go below 1000px;
+   all of Insert's labels below 880px; every tab's labels below 760px. Whatever still doesn't fit scrolls with a faded edge.
+   A tile without its label is a 36×44 icon tile. */
+@media (max-width: 1280px) { .ds-note { display: none; } }
+@media (max-width: 1100px) {
+  .ds-card { padding: 0 7px; justify-content: center; }
+  .ds-card > span { display: none; }
+}
+@media (max-width: 1000px) {
+  #rb-insert .ins-tail .rb-btn { min-width: 36px; padding: 0 9px; grid-template-rows: 1fr; }
+  #rb-insert .ins-tail .rb-btn > span { display: none; }
+}
+@media (max-width: 880px) {
+  #rb-insert .rb-btn:not(.rb-mini) { min-width: 36px; padding: 0 9px; grid-template-rows: 1fr; }
+  #rb-insert .rb-btn > span { display: none; }
+}
+@media (max-width: 760px) {
+  .rb-btn:not(.rb-mini) { min-width: 36px; padding: 0 9px; grid-template-rows: 1fr; }
+  .rb-btn > span { display: none; }
+  .rb-pane { padding: 0 6px; }
+  .rb-group, .ds-gallery { gap: 2px; }
+  .rb-sep { margin: 0 3px; }
+}
 .ins-pop { position: fixed; z-index: 25; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22); padding: 8px 12px 12px; overflow: auto; }
 .ins-pop[data-tool='table'] { width: 230px; }
 .ins-pop[data-tool='equation'] { width: 360px; }
@@ -400,7 +487,7 @@ body:not(.comments-off) .rb-btn[data-run='toggle-comments'] { background: var(--
 .ins-pop[data-tool='figure'] { width: 340px; }
 .ins-pop[data-tool='contents'] { width: 290px; padding: 6px; }
 .ins-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; padding: 6px 8px; border-radius: 6px; }
-.ins-choice b { font-weight: 600; font-size: 12.5px; }
+.ins-choice b { font-weight: 600; font-size: var(--type-body); }
 .ins-choice small { color: var(--muted); font-size: 11px; }
 .ins-pop .ins-sec { margin: 0; }
 
@@ -416,10 +503,11 @@ body:not(.comments-off) .rb-btn[data-run='toggle-comments'] { background: var(--
 .ins-btn { border: 1px solid var(--border); background: var(--bg); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
 .ins-btn:hover { border-color: var(--accent); background: var(--bg); }
 .ins-btn.wide { flex: 1 1 auto; }
+.ins-pop button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .ins-tmpl { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 4px; margin-top: 6px; }
 .ins-tmpl .ins-btn { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 4px; }
 .ins-tmpl .g { font-family: 'Times New Roman', 'STIX Two Math', serif; font-size: 16px; line-height: 1.2; }
-.ins-tmpl .l { font-size: 10px; color: var(--muted); }
+.ins-tmpl .l { font-size: var(--type-label); line-height: var(--lh-label); color: var(--muted); }
 .ins-search { width: 100%; font-size: 12px; padding: 5px 8px; margin-bottom: 2px; }
 .ins-syms { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 3px; }
 .ins-sym { height: 30px; padding: 0; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; font-family: 'Times New Roman', 'STIX Two Math', 'Cambria Math', serif; font-size: 17px; }
@@ -440,7 +528,9 @@ body.comments-off .cm-ot-cmt { background: none; border-bottom: none; }
 body.comments-off .cm-ot-cpoint { display: none; }
 
 /* Top-right buttons */
-#btn-pdf .pdf-label { font: 700 10px/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: 0.04em; border: 1.5px solid currentColor; border-radius: 4px; padding: 3px 3px 2px; }
+/* The PDF toggle's mark is the word itself, drawn as a badge at the label floor: at 18px no drawn
+   page reads as "PDF". 600 rather than 700 so its strokes sit near the 1.5px line icons beside it. */
+#btn-pdf .pdf-label { font: 600 var(--type-label)/1 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: 0.03em; border: 1.5px solid currentColor; border-radius: 4px; padding: 2px 3px 1px; }
 
 /* One steady cursor: an I-beam anywhere you can place the caret or select text (also over
    comments, the gaps between PDF words and the space below the last line), an arrow on the

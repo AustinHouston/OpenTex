@@ -109,7 +109,7 @@ export class ProjectSearch {
     layout.add({ id: 'search', title: 'Search', body: this.body, defaultZone: 'left', startHidden: true, onVisible: () => this.stale && this.schedule(0) })
   }
 
-  /** Edit → Find in Project (Cmd/Ctrl+Shift+H). */
+  /** Edit → Find in Project (Cmd/Ctrl+Shift+F). */
   open(): void {
     if (!this.host.project()) return
     const sel = this.host.view.state.selection.main

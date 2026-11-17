@@ -202,12 +202,13 @@ async function buildMenu(): Promise<void> {
         ...(isMac ? [] : [{ type: 'separator' as const }, { role: 'quit' as const }])
       ]
     },
-    editMenu(isMac, () => send('find-in-project')),
+    editMenu(isMac, () => send('find-in-project'), () => send('find')),
     {
       label: 'View',
       submenu: [
-        { label: 'Toggle Focus Mode', accelerator: 'CmdOrCtrl+Shift+F', click: () => send('focus') },
-        { label: 'Toggle Files', accelerator: 'CmdOrCtrl+B', click: () => send('toggle-sidebar') },
+        { label: 'Toggle Focus Mode', accelerator: 'CmdOrCtrl+Shift+D', click: () => send('focus') },
+        { label: 'Toggle File Tree', accelerator: 'CmdOrCtrl+Shift+T', click: () => send('toggle-sidebar') },
+        { label: 'Toggle Comments', accelerator: 'CmdOrCtrl+Shift+C', click: () => send('toggle-comments') },
         { label: 'Toggle PDF', accelerator: 'CmdOrCtrl+Shift+P', click: () => send('toggle-pdf') },
         { type: 'separator' },
         // Zoom keys are handled in the page so both Ctrl and Cmd work on macOS.
@@ -241,6 +242,9 @@ async function buildMenu(): Promise<void> {
     {
       label: 'Insert',
       submenu: [
+        { label: 'Bold', accelerator: 'CmdOrCtrl+B', click: () => send('format', 'bold') },
+        { label: 'Italic', accelerator: 'CmdOrCtrl+I', click: () => send('format', 'italic') },
+        { type: 'separator' },
         { label: 'Table…', click: () => send('insert-table') },
         { label: 'Equation', click: () => send('insert', 'equation') },
         { label: 'Inline Math', click: () => send('insert', 'inline-math') },
@@ -281,7 +285,8 @@ async function buildMenu(): Promise<void> {
         ...(isMac ? [] : [{ label: 'About OpenTex', click: () => app.showAboutPanel() }]),
         { type: 'separator' },
         { label: 'Report a Bug…', click: () => send('report-bug') },
-        { label: 'Suggest a Feature…', click: () => send('suggest-feature') }
+        { label: 'Suggest a Feature…', click: () => send('suggest-feature') },
+        { label: 'See All Issues on GitHub', click: () => shell.openExternal('https://github.com/AustinHouston/OpenTex/issues') }
       ]
     }
   ]

@@ -43,6 +43,7 @@ export function contextMenu(x: number, y: number, items: [string, () => void][])
   const m = document.getElementById('ctx-menu')!
   m.replaceChildren(
     ...items.map(([label, fn]) => {
+      if (label === '-') return Object.assign(document.createElement('div'), { className: 'ctx-sep' }) // a separator line
       const b = document.createElement('button')
       b.textContent = label
       b.onclick = () => {

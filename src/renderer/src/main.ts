@@ -1826,6 +1826,7 @@ const actions: Record<string, (...args: any[]) => unknown> = {
   'check-updates': () => updates.checkNow(),
   'add-doi': () => doi.open(),
   'show-comments': () => layout.show('comments'),
+  'toggle-comments': () => layout.toggle('comments'),
   'find-in-project': () => projectSearch.open(),
   'sync-forward': () => syncForward(),
   'show-insert': () => updateSettings({ showInsertBar: !settings.showInsertBar }),
@@ -1845,6 +1846,24 @@ const actions: Record<string, (...args: any[]) => unknown> = {
     $('log-text').textContent = lastLog || 'No compile yet.'
     ;($('log-dialog') as HTMLDialogElement).showModal()
   }
+}
+
+/** Ribbon → Citations → Open .bib: open the project's .bib file, choose one if there are several, or offer to make refs.bib. */
+async function openBibMenu(x: number, y: number): Promise<void> {
+  if (!project) return
+  const bibs = allFiles(project.tree, (p) => p.endsWith('.bib'))
+  if (bibs.length === 1) return openFile(bibs[0])
+  if (bibs.length) return contextMenu(x, y, bibs.map((b) => [b, () => void openFile(b)]))
+  const r = await ask('This project has no .bib file yet. A .bib file holds your references, and \\cite{…} picks from it. Make one called refs.bib?', ['Create refs.bib', 'Cancel'])
+  if (r !== 0) return
+  try {
+    await api.createFile('refs.bib')
+  } catch (e) {
+    await ask(`Could not create refs.bib: ${(e as Error).message.replace(/^.*Error: /, '')}`, ['OK'])
+    return
+  }
+  await reloadTree()
+  await openFile('refs.bib')
 }
 
 function wire(): void {
@@ -1885,8 +1904,18 @@ function wire(): void {
     run: (a) => (a === 'new-window' ? api.newWindow() : actions[a]?.()),
     recentMenu: async (x, y) => {
       const recent = await api.recentProjects()
-      contextMenu(x, y, recent.length ? recent.map((r) => [`${r.name}   ·   ${r.parent}`, async () => switchProject(() => api.openProject(r.path))] as [string, () => void]) : [['No recent folders', () => {}]])
+      contextMenu(x, y, [
+        ['Open Folder…', () => actions['open-folder']()],
+        ['-', () => {}],
+        ...(recent.length ? recent.map((r) => [`${r.name}   ·   ${r.parent}`, async () => switchProject(() => api.openProject(r.path))] as [string, () => void]) : [['No recent folders', () => {}] as [string, () => void]]),
+        ['-', () => {}],
+        ['Example Paper', () => actions['open-example']()],
+        ['Close Folder', () => actions['close-folder']()]
+      ])
     },
+    bibMenu: (x, y) => openBibMenu(x, y),
+    view: () => (active?.endsWith('.tex') ? view : null),
+    notice: (m) => setCompileStatus(m, 'warn'),
     plugins: () => ({ list: allPlugins, disabled: settings.disabledPlugins ?? [] }),
     setPlugin: (id, on) => api.setPluginEnabled(id, on),
     openPluginsFolder: () => api.openPluginsFolder(),

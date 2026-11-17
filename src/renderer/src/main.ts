@@ -1904,6 +1904,7 @@ function wire(): void {
     view: () => (active?.endsWith('.tex') ? view : null),
     images: () => (project ? allFiles(project.tree, (p) => /\.(png|jpe?g|eps|pdf)$/i.test(p) && p !== lastPdf && p !== project!.mainFile?.replace(/\.tex$/i, '.pdf')) : []),
     hasPackage,
+    mainText,
     ensurePackage,
     notice: (m) => setCompileStatus(m, 'warn'),
     addByDoi: () => doi.open()

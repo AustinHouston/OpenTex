@@ -1,0 +1,90 @@
+/* Figure viewer (viewer.ts). Colours come from the theme variables, so it follows every theme. */
+.ot-viewer {
+  display: flex; flex-direction: column; height: 100%; width: 100%; min-height: 0; min-width: 0;
+  background: var(--bg); color: var(--text); outline: none; position: relative;
+  container-type: inline-size;
+}
+.ot-viewer:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
+
+/* Toolbar */
+.ot-vw-bar {
+  height: 36px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 6px;
+  border-bottom: 1px solid var(--border); background: var(--panel); min-width: 0;
+}
+.ot-vw-bar button { color: var(--muted); display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 28px; padding: 0 7px; white-space: nowrap; }
+.ot-vw-bar button:hover:not(:disabled) { color: var(--text); }
+.ot-vw-bar button:disabled { opacity: 0.35; cursor: default; }
+.ot-vw-bar button:disabled:hover { background: none; }
+.ot-vw-bar button svg { width: 16px; height: 16px; }
+.ot-vw-bar .ot-vw-nav { width: 34px; padding: 0; }
+.ot-vw-bar .ot-vw-nav svg { width: 18px; height: 18px; stroke-width: 1.8; }
+.ot-vw-bar button.on { color: var(--accent); }
+.ot-vw-title { min-width: 0; flex: 0 1 auto; display: flex; align-items: baseline; gap: 6px; padding: 0 4px; overflow: hidden; white-space: nowrap; }
+.ot-vw-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 2em; }
+.ot-vw-where { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.ot-vw-where::before { content: '·'; margin-right: 6px; }
+.ot-vw-spacer { flex: 1; min-width: 4px; }
+.ot-vw-group, .ot-vw-pages { display: flex; align-items: center; gap: 1px; flex: none; }
+.ot-vw-pages { margin-right: 6px; padding-right: 6px; border-right: 1px solid var(--border); }
+.ot-vw-pagelabel { color: var(--muted); font-size: 12px; padding: 0 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ot-vw-bar .ot-vw-pct { min-width: 50px; font-variant-numeric: tabular-nums; font-size: 12px; }
+.ot-vw-bar .ot-vw-reveal { margin-left: 6px; }
+@container (max-width: 620px) {
+  .ot-vw-bar .ot-vw-reveal .ot-vw-label { display: none; }
+  .ot-vw-bar .ot-vw-fit { display: none; }
+}
+@container (max-width: 440px) {
+  .ot-vw-where, .ot-vw-bar .ot-vw-pct { display: none; }
+  .ot-vw-pagelabel { font-size: 0; }
+  .ot-vw-pagelabel::after { content: attr(data-short); font-size: 12px; }
+}
+
+/* Busy: a thin bar when a file takes a moment */
+.ot-viewer.busy::after {
+  content: ''; position: absolute; left: 0; top: 35px; height: 2px; width: 30%;
+  background: var(--accent); animation: ot-vw-busy 1s ease-in-out infinite; pointer-events: none;
+}
+@keyframes ot-vw-busy { 0% { left: -30%; } 100% { left: 100%; } }
+
+/* Figure area */
+.ot-vw-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; background: var(--pdfBg); user-select: none; touch-action: none; }
+.ot-vw-stage.pannable { cursor: grab; }
+.ot-vw-stage.dragging { cursor: grabbing; }
+.ot-vw-content { position: absolute; left: 0; top: 0; transform-origin: 0 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.ot-vw-content > img, .ot-vw-content > canvas { display: block; width: 100%; height: 100%; }
+.ot-vw-content.ot-vw-pixels > img { image-rendering: pixelated; }
+/* Light in every theme: figures are made for white paper, and black lines must stay visible. */
+.ot-vw-content.ot-vw-checker { background: repeating-conic-gradient(#e4e4e4 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+:root[data-dark='true'] .ot-vw-content.ot-vw-checker { background: repeating-conic-gradient(#c4c4c4 0 25%, #d8d8d8 0 50%) 0 0 / 16px 16px; }
+
+/* Big ‹ › on the edges, shown while the mouse is over the figure */
+.ot-vw-stage .ot-vw-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 64px; height: min(60%, 240px); padding: 0;
+  display: flex; align-items: center; justify-content: center; border: none; border-radius: 0;
+  background: none; opacity: 0; transition: opacity 0.15s; color: var(--text); z-index: 2;
+}
+.ot-vw-stage .ot-vw-arrow:hover { background: none; }
+.ot-vw-stage .ot-vw-arrow::before {
+  content: ''; position: absolute; width: 40px; height: 40px; border-radius: 50%;
+  background: color-mix(in srgb, var(--panel) 82%, transparent); box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  transition: background 0.15s;
+}
+.ot-vw-stage .ot-vw-arrow:hover::before { background: var(--panel); }
+.ot-vw-stage .ot-vw-arrow svg { position: relative; width: 22px; height: 22px; stroke-width: 2; }
+.ot-vw-left { left: 0; }
+.ot-vw-right { right: 0; }
+.ot-vw-stage:hover .ot-vw-arrow, .ot-vw-arrow:focus-visible { opacity: 1; }
+.ot-vw-stage.dragging .ot-vw-arrow { opacity: 0; pointer-events: none; }
+
+/* Message (missing or broken file) */
+.ot-vw-msg {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 24px; text-align: center; user-select: text; z-index: 1;
+}
+.ot-vw-msg-title { font-weight: 600; font-size: 15px; }
+.ot-vw-msg-text { color: var(--muted); max-width: 420px; }
+.ot-vw-msg button {
+  margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; color: var(--text);
+  border: 1px solid var(--border); background: var(--panel);
+}
+.ot-vw-msg button svg { width: 16px; height: 16px; }

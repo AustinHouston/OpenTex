@@ -28,6 +28,8 @@ export interface Settings {
   lastUpdateCheck: number // ms since 1970
   skippedVersion: string // "Skip this version" on the update notice
   layout?: unknown // panel arrangement, see renderer/src/layout.ts
+  /** Each project's own window setup, keyed by its folder (renderer/src/main.ts: Workspace). Kept here, not in the project, so co-authors aren't affected. */
+  workspaces?: Record<string, unknown>
 }
 
 export const DEFAULT_SETTINGS: Settings = {

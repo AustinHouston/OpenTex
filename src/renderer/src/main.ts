@@ -5,7 +5,7 @@ import { openSearchPanel } from '@codemirror/search'
 import type { CompileResult, Engine, Problem, ProjectInfo, Settings, TexInfo, Theme, TreeNode } from '../../shared/types'
 import type { OpenTexApi } from '../../preload/index'
 import { dimCompartment, dimExtension, goToLine, makeExtensions, PluginMark, setPluginMarks } from './editor'
-import { allFiles, isTextFile, renderTree } from './filetree'
+import { allFiles, expandedFolders, isTextFile, renderTree, setExpandedFolders } from './filetree'
 import { PdfView } from './pdfview'
 import { openSettings } from './settings-ui'
 import { applyTheme, BUILT_IN } from './themes'
@@ -183,6 +183,8 @@ async function switchProject(open: () => Promise<ProjectInfo | null>): Promise<v
 async function setProject(info: ProjectInfo | null, confirmed = false): Promise<void> {
   if (!info) return
   if (!confirmed && !(await confirmDiscardAll())) return
+  saveWorkspaceNow()
+  restoringWorkspace = true
   clearWindows()
   siblingCache.clear()
   project = info
@@ -191,6 +193,8 @@ async function setProject(info: ProjectInfo | null, confirmed = false): Promise<
   pdf.clear()
   live.projectPdfShown()
   showProblems([], false)
+  // The Project tree's folders start closed, or as this project's workspace left them.
+  setExpandedFolders(((settings.workspaces?.[info.root] as Workspace | undefined)?.folders ?? []))
   $('project-name').textContent = info.name
   document.body.classList.remove('no-project')
   $('welcome').classList.add('hidden')
@@ -200,8 +204,10 @@ async function setProject(info: ProjectInfo | null, confirmed = false): Promise<
   scheduleComments()
   refreshIndex()
   refreshGit()
+  const restored = await restoreWorkspace(info)
+  restoringWorkspace = false
   if (info.mainFile) {
-    await openFile(info.mainFile)
+    if (!restored) await openFile(info.mainFile)
     const pdfPath = info.mainFile.replace(/\.tex$/i, '.pdf')
     if (allFiles(info.tree, (p) => p === pdfPath).length) void showPdf(pdfPath) // don't hold up opening the project
   }
@@ -217,7 +223,8 @@ function refreshProjectUi(): void {
   renderTree($('tree'), project.tree, focused.active ?? active, project.mainFile, {
     open: (p) => openFile(p),
     contextMenu: (n, x, y) => treeMenu(n, x, y),
-    decorate: (row, n) => fileOps.decorate(row, n)
+    decorate: (row, n) => fileOps.decorate(row, n),
+    toggled: () => scheduleWorkspaceSave()
   })
   const sel = $('st-main') as HTMLSelectElement
   const texFiles = allFiles(project.tree, (p) => p.endsWith('.tex'))
@@ -521,6 +528,7 @@ function moveTab(path: string, to: FileWindow, index?: number): void {
 }
 
 function renderTabs(): void {
+  scheduleWorkspaceSave()
   for (const w of windows) {
     w.tabsEl.replaceChildren(
       ...w.tabs.map((p) => {
@@ -655,6 +663,88 @@ function renamePaths(map: (p: string) => string | null): void {
     }
   }
   active = focused.active && files.has(focused.active) ? focused.active : null
+}
+
+// ---------- Each project's workspace: panels, file windows, tabs and cursors come back as you left them ----------
+interface Workspace {
+  at: number // when it was saved (the oldest are dropped past MAX_WORKSPACES)
+  layout: unknown
+  windows: { id: string; tabs: string[]; active: string | null }[]
+  focused: string
+  cursors: Record<string, [number, number]> // anchor, head
+  folders?: string[] // folders open in the Project tree
+}
+const MAX_WORKSPACES = 40
+let restoringWorkspace = false
+let workspaceTimer = 0
+
+// Quitting or closing the window with a project open keeps its last cursor positions too.
+window.addEventListener('beforeunload', () => saveWorkspaceNow())
+
+function scheduleWorkspaceSave(): void {
+  clearTimeout(workspaceTimer)
+  workspaceTimer = window.setTimeout(saveWorkspaceNow, 800)
+}
+
+function saveWorkspaceNow(): void {
+  clearTimeout(workspaceTimer)
+  if (!project || restoringWorkspace || !windows.length) return
+  syncStates()
+  const cursors: Workspace['cursors'] = {}
+  for (const [path, f] of files) {
+    const sel = (viewOf(path)?.state ?? f.state).selection.main
+    cursors[path] = [sel.anchor, sel.head]
+  }
+  const ws: Workspace = {
+    at: Date.now(),
+    layout: JSON.parse(JSON.stringify(layout.state)),
+    windows: windows.map((w) => ({ id: w.id, tabs: [...w.tabs], active: w.active })),
+    focused: focused.id,
+    cursors,
+    folders: expandedFolders()
+  }
+  const all = { ...(settings.workspaces ?? {}), [project.root]: ws } as Record<string, Workspace>
+  const keep = Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, MAX_WORKSPACES)
+  settings.workspaces = Object.fromEntries(keep)
+  void api.setSettings({ workspaces: settings.workspaces })
+}
+
+/** Put `info`'s saved workspace back. False when there is none (or none of its files exist any more). */
+async function restoreWorkspace(info: ProjectInfo): Promise<boolean> {
+  const ws = settings.workspaces?.[info.root] as Workspace | undefined
+  if (!ws || !Array.isArray(ws.windows)) return false
+  // The panels first, with the file windows the layout names.
+  layout.state = normalizeLayout(ws.layout, layout.workspaceSize())
+  const wanted = new Set(layout.treeIds().filter((x) => /^files:\d+$/.test(x)))
+  for (const w of [...windows]) if (w.id !== 'files' && !wanted.has(w.id)) removeWindow(w)
+  for (const id of wanted) if (!windows.some((w) => w.id === id)) addWindowPanel(createWindow(id))
+  layout.render()
+  // Then each window's tabs, skipping files that are gone.
+  const exists = new Set(allFiles(info.tree, () => true))
+  let opened = 0
+  for (const saved of ws.windows) {
+    const w = windows.find((x) => x.id === saved.id) ?? primaryWindow()
+    for (const path of saved.tabs) {
+      if (!exists.has(path) || windowOf(path)) continue
+      await openFile(path, w)
+      if (windowOf(path)) opened++
+    }
+    if (saved.active && w.tabs.includes(saved.active)) showTab(w, saved.active)
+  }
+  // The cursor in each file, scrolled into view where it shows.
+  for (const [path, [anchor, head]] of Object.entries(ws.cursors ?? {})) {
+    const f = files.get(path)
+    if (!f) continue
+    const len = f.state.doc.length
+    const sel = { anchor: Math.min(anchor, len), head: Math.min(head, len) }
+    const v = viewOf(path)
+    if (v) v.dispatch({ selection: sel, effects: EditorView.scrollIntoView(sel.head, { y: 'center' }) })
+    else f.state = f.state.update({ selection: sel }).state
+  }
+  const fw = windows.find((x) => x.id === ws.focused)
+  if (fw) focusWindow(fw, true)
+  renderTabs()
+  return opened > 0
 }
 
 /** Forget every open tab (another project is opening, or the folder closed). */
@@ -1644,6 +1734,7 @@ let layoutSaveTimer = 0
 const layout = new Layout($('workspace'), {} as LayoutState, (state) => {
   clearTimeout(layoutSaveTimer)
   layoutSaveTimer = window.setTimeout(() => api.setSettings({ layout: state }), 300)
+  scheduleWorkspaceSave()
   updatePanelButtons()
   plugins.syncVisibility()
 })
@@ -2126,6 +2217,7 @@ document.addEventListener(
 
 // ---------- Welcome page, new projects, closing folders ----------
 async function showWelcome(): Promise<void> {
+  saveWorkspaceNow()
   project = null
   store = []
   storeText = ''

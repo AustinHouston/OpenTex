@@ -4,9 +4,16 @@ export interface TreeHooks {
   open: (path: string) => void
   contextMenu: (node: TreeNode, x: number, y: number) => void
   decorate?: (row: HTMLElement, node: TreeNode) => void // e.g. drag and drop (fileops.ts)
+  toggled?: () => void // a folder was opened or closed
 }
 
-const collapsed = new Set<string>()
+/** Folders start closed; these are the ones opened (main.ts keeps them per project). */
+const expanded = new Set<string>()
+export const expandedFolders = (): string[] => [...expanded]
+export function setExpandedFolders(paths: string[]): void {
+  expanded.clear()
+  for (const p of paths) expanded.add(p)
+}
 const TEXT_LIKE = /\.(tex|bib|sty|cls|bst|txt|md|cfg|def|ltx|dtx|bbx|cbx|lbx|csv|json|latexmkrc)$|^\.latexmkrc$/i
 
 type Kind = 'main' | 'tex' | 'pdf' | 'refs' | 'img' | 'style' | 'other'
@@ -39,7 +46,7 @@ export function renderTree(host: HTMLElement, nodes: TreeNode[], active: string 
       row.className = 'row'
       row.title = n.path
       row.style.paddingLeft = `${8 + depth * 14}px`
-      const isOpen = n.dir && !collapsed.has(n.path)
+      const isOpen = n.dir && expanded.has(n.path)
       const kind: Kind = n.dir ? 'other' : n.path === main ? 'main' : kindOf(n.name)
       const icon = n.dir ? (isOpen ? ICON.folderOpen : ICON.folder) : kind === 'img' ? ICON.img : kind === 'refs' ? ICON.refs : kind === 'pdf' ? ICON.pdf : ICON.file
       row.innerHTML = `<span class="caret">${n.dir ? (isOpen ? '▾' : '▸') : ''}</span><span class="ficon ${n.dir ? 'dir' : 'k-' + kind}">${svg(icon)}</span><span class="fname"></span>${
@@ -50,8 +57,9 @@ export function renderTree(host: HTMLElement, nodes: TreeNode[], active: string 
       if (n.path === active) row.classList.add('active')
       row.addEventListener('click', () => {
         if (n.dir) {
-          collapsed.has(n.path) ? collapsed.delete(n.path) : collapsed.add(n.path)
+          expanded.has(n.path) ? expanded.delete(n.path) : expanded.add(n.path)
           renderTree(host, nodes, active, main, hooks)
+          hooks.toggled?.()
         } else hooks.open(n.path)
       })
       row.addEventListener('contextmenu', (e) => {

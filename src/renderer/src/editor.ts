@@ -7,7 +7,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search'
 import { bracketMatching, HighlightStyle, indentOnInput, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
-import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
+import { acceptCompletion, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { stex } from '@codemirror/legacy-modes/mode/stex'
 import { CompletionData, latexCompletions, spellCompartment, spellExtension } from './assist'
 import { tags as t } from '@lezer/highlight'
@@ -151,7 +151,8 @@ export function makeExtensions(hooks: EditorHooks, dimOn: boolean, completion: (
     dimCompartment.of(dimExtension(dimOn)),
     spellCompartment.of(spellExtension(false)),
     latexCompletions(completion),
-    keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
+    // Tab accepts an open autocomplete suggestion; with none open it indents as usual.
+    keymap.of([{ key: 'Tab', run: acceptCompletion }, ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) {
         hooks.onChange(u.view)
